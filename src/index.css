@@ -36,6 +36,7 @@
   --muted: #a6adc8;
   --accent: #cba6f7;
   --accent-hover: #b4befe;
+  --border: #313244;
 
   background-color: var(--bg);
   color: var(--ink);
@@ -44,12 +45,21 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/* Eliminate 300ms mobile touch delay for maximum responsiveness */
+button, a, input, select, textarea {
+  touch-action: manipulation;
+}
+
 body {
   margin: 0;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background-color: var(--bg);
+  background-color: #11111b;
+  /* Ultra-lightweight static radial accents - zero GPU recalculation cost on low-end devices */
+  background-image: 
+    radial-gradient(circle at 10% 10%, rgba(203, 166, 247, 0.05), transparent 45%),
+    radial-gradient(circle at 90% 90%, rgba(116, 199, 236, 0.04), transparent 45%);
   overflow-x: hidden;
   color: #cdd6f4;
 }
@@ -83,19 +93,15 @@ body {
 
 /* Custom spring cubic-bezier for physics transitions */
 .ease-spring {
-  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Ambient glow orb helper */
-.glow-orb {
-  position: absolute;
-  border-radius: 9999px;
-  pointer-events: none;
-  filter: blur(120px);
-  will-change: transform;
-}
-
-/* Subtle noise overlay */
-.bg-noise {
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.035'/%3E%3C/svg%3E");
+/* Reduced motion preference support for low-end and battery conservation */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
