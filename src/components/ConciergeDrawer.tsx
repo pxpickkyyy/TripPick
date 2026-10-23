@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { fetchAiChatResponse, FIXED_AI_MODEL_NAME } from '../lib/ai';
+import { fetchAiChatResponse } from '../lib/ai';
 import type { RoomContextInfo } from '../lib/ai';
 
 interface ConciergeDrawerProps {
@@ -38,7 +38,7 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
     {
       id: 'init_1',
       sender: 'concierge',
-      text: "สวัสดีครับ ผมคือ TripPick AI Concierge ขับเคลื่อนด้วย DeepSeek V4.1 Flash 1017 พร้อมช่วยคำนวณงบประมาณ วิเคราะห์สเปกสถานที่ และสนับสนุนการตัดสินใจของทีม มีเรื่องใดให้ช่วยแนะนำได้เลยครับ",
+      text: "สวัสดีครับ ผมคือ TripPick AI Concierge พร้อมช่วยคำนวณงบประมาณ วิเคราะห์สเปกสถานที่ และสนับสนุนการตัดสินใจของทีม มีเรื่องใดให้ช่วยแนะนำได้เลยครับ",
       time: 'เมื่อสักครู่'
     }
   ]);
@@ -118,9 +118,9 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
                   <h3 className="text-sm font-semibold text-[#f8fafc]">
                     TripPick AI Concierge
                   </h3>
-                  <span className="text-xs text-[#10b981] flex items-center gap-1.5 tabular-nums">
+                  <span className="text-xs text-[#10b981] flex items-center gap-1.5">
                     <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
-                    {FIXED_AI_MODEL_NAME}
+                    พร้อมให้บริการ
                   </span>
                 </div>
               </div>

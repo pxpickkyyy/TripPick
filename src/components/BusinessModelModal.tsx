@@ -78,7 +78,7 @@ export function BusinessModelModal({ isOpen, onClose }: BusinessModelModalProps)
               </li>
               <li className="flex items-start gap-2">
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#10b981] mt-1.5 shrink-0" />
-                <span><strong className="text-[#f8fafc]">AI Concierge ขับเคลื่อนด้วย DeepSeek V4.1 Flash 1017</strong> วิเคราะห์สเปกสถานที่และงบประมาณแบบสด</span>
+                <span><strong className="text-[#f8fafc]">AI Concierge ผู้ช่วยอัจฉริยะ</strong> วิเคราะห์สเปกสถานที่และงบประมาณแบบสด</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#10b981] mt-1.5 shrink-0" />

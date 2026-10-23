@@ -211,7 +211,7 @@ export function WaitingLobbyView({
               className="w-full py-4 bg-[#10b981] hover:bg-[#059669] text-white font-semibold rounded-xl text-sm transition-colors duration-150 cursor-pointer"
             >
               {loading ? (
-                <span>DeepSeek กำลังคัดเลือกสถานที่จัดทริป...</span>
+                <span>ระบบกำลังคัดเลือกสถานที่จัดทริป...</span>
               ) : (
                 <span>เริ่มปัดเลือกสถานที่ด้วยระบบฉันทามติ ({users.length} คน)</span>
               )}
