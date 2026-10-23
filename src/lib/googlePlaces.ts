@@ -243,3 +243,37 @@ export async function enrichDestinationWithGooglePlaces(
 
   return verified;
 }
+
+export function formatAirportTravelTime(timeStr: string | undefined, lang: 'th' | 'en'): string {
+  if (!timeStr) return lang === 'th' ? '30 นาที' : '30 mins';
+  if (lang === 'en') {
+    return timeStr
+      .replace(/นาที/g, 'mins')
+      .replace(/ชั่วโมง/g, 'hrs')
+      .replace(/กม\./g, 'km')
+      .replace(/ผ่าน/g, 'via')
+      .replace(/รถตู้ VIP \+ เรือสปีดโบ๊ตส่วนตัว/g, 'VIP Van + Private Speedboat')
+      .replace(/ทางด่วนศรีรัช/g, 'Si Rat Expressway')
+      .replace(/ทางพิเศษศรีรัช/g, 'Si Rat Expressway');
+  }
+  return timeStr;
+}
+
+export function formatAirportName(airportStr: string | undefined, lang: 'th' | 'en'): string {
+  if (!airportStr) return lang === 'th' ? 'สนามบิน' : 'Airport';
+  if (lang === 'en') {
+    return airportStr
+      .replace(/สนามบินนานาชาติภูเก็ต/g, 'Phuket Int’l Airport')
+      .replace(/สนามบินนานาชาติเชียงใหม่/g, 'Chiang Mai Int’l Airport')
+      .replace(/สนามบินนานาชาติสมุย/g, 'Samui Int’l Airport')
+      .replace(/สนามบินนานาชาติกระบี่/g, 'Krabi Int’l Airport')
+      .replace(/สนามบินสุวรรณภูมิ/g, 'Suvarnabhumi Airport')
+      .replace(/สนามบินดอนเมือง/g, 'Don Mueang Airport')
+      .replace(/สนามบินนานาชาติเดนปาซาร์/g, 'Ngurah Rai Bali Int’l Airport')
+      .replace(/สนามบินนานาชาติดานัง/g, 'Da Nang Int’l Airport')
+      .replace(/สนามบินชางงี สิงคโปร์/g, 'Singapore Changi Airport')
+      .replace(/สนามบินนานาชาติแม่ฟ้าหลวง เชียงราย/g, 'Mae Fah Luang Chiang Rai Int’l Airport')
+      .replace(/สนามบินประจำภูมิภาค/g, 'Regional Airport');
+  }
+  return airportStr;
+}

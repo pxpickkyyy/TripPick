@@ -579,12 +579,12 @@ export const DESTINATION_LOCALIZATIONS: Record<number, DestinationLocalization> 
 
 // Retreat vibes translation map
 export const RETREAT_VIBES_EN = [
-  'Executive Strategic Summit (วางแผนกลยุทธ์ผู้บริหาร)',
-  'Beachfront Workation & Focus (ทำงานริมทะเล)',
-  'Eco & Wellness Team Recharge (ฟื้นฟูสุขภาพ & ชาร์จพลัง)',
-  'Team Adventure & Bonding (ผจญภัยกระชับมิตร)',
-  'Tech & Design Sprint Hackathon (สปรินต์ระดมสมอง)',
-  'Luxury MICE Conference & Gala (จัดประชุม MICE หรู)',
+  'Executive Strategic Summit (Strategic Planning)',
+  'Beachfront Workation & Focus (Oceanfront Offsite)',
+  'Eco & Wellness Team Recharge (Wellness & Recharge)',
+  'Team Adventure & Bonding (Outdoor Bonding)',
+  'Tech & Design Sprint Hackathon (Deep Work Sprints)',
+  'Luxury MICE Conference & Gala (Executive Gala)',
 ];
 
 export const RETREAT_VIBES_TH = [
@@ -596,11 +596,30 @@ export const RETREAT_VIBES_TH = [
   'จัดประชุม MICE หรู & งานกาล่า (MICE Gala)',
 ];
 
+export const AMENITY_TRANSLATIONS_EN: Record<string, string> = {
+  'อินเทอร์เน็ต Starlink / Fiber 500+ Mbps': 'Starlink / Fiber 500+ Mbps WiFi',
+  'ห้องประชุมผู้บริหาร & ระบบ AV ครบครัน': 'Executive Boardroom & Full AV System',
+  'สระว่ายน้ำส่วนตัวริมผา/ติดหาด': 'Private Cliffside / Beachfront Pool',
+  'เชฟส่วนตัว & จัดเลี้ยงอาหารสำหรับทีม': 'Private Chef & Group Catering',
+  'รถตู้ VIP รับ-ส่งสนามบินส่วนตัว': 'Private VIP Airport Vans',
+  'โซนทำงาน Coworking พร้อมวิวธรรมชาติ': 'Coworking Zone with Nature Views',
+  'สปา นวดแผนไทย & คลาสโยคะผ่อนคลาย': 'Spa, Thai Massage & Yoga Classes',
+  'ล่องเรือยอชต์ส่วนตัว & กิจกรรมกระชับมิตร': 'Private Yacht Cruise & Team Bonding',
+};
+
+export function localizeAmenity(name: string, language: AppLanguage): string {
+  if (language === 'en') {
+    return AMENITY_TRANSLATIONS_EN[name] || name;
+  }
+  return name;
+}
+
 interface LanguageContextType {
   language: AppLanguage;
   setLanguage: (lang: AppLanguage) => void;
   toggleLanguage: () => void;
   t: Translations;
+  localizeAmenity: (name: string) => string;
   localizeDestination: (dest: {
     id: number;
     title: string;
@@ -696,6 +715,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         setLanguage,
         toggleLanguage,
         t,
+        localizeAmenity: (name: string) => localizeAmenity(name, language),
         localizeDestination,
       },
     },

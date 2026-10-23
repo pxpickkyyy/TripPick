@@ -28,7 +28,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
   depositReceipt = null,
   onConfirmDeposit,
 }) => {
-  const { language, t } = useLanguage();
+  const { language, t, localizeDestination } = useLanguage();
   const {
     headcount,
     setHeadcount,
@@ -84,9 +84,10 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
 
   if (!isOpen) return null;
 
-  const destinationTitle = matchedDestination?.title || 'TripPick Corporate Retreat';
-  const destinationCity = matchedDestination?.city || 'Thailand';
-  const destinationCountry = matchedDestination?.country || '';
+  const localizedDest = matchedDestination ? localizeDestination(matchedDestination) : null;
+  const destinationTitle = localizedDest?.title || 'TripPick Corporate Retreat';
+  const destinationCity = localizedDest?.city || 'Thailand';
+  const destinationCountry = localizedDest?.country || '';
 
   const issueDateFormatted = new Date().toLocaleDateString(language === 'en' ? 'en-US' : 'th-TH', {
     year: 'numeric',

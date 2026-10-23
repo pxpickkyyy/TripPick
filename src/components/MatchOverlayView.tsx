@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { TravelDestination } from '../lib/travelDestinations';
 import type { RoomUser, Swipe, DepositReceipt } from '../hooks/useTripPick';
 import { generateExecutiveAgenda } from '../lib/ai';
-import { enrichDestinationWithGooglePlaces, type GooglePlaceData } from '../lib/googlePlaces';
+import { enrichDestinationWithGooglePlaces, formatAirportTravelTime, formatAirportName, type GooglePlaceData } from '../lib/googlePlaces';
 import { generatePromptPayPayload, generateQrSvgPath } from '../lib/promptpay';
 import { useAudioBriefing, VOICE_ENGINES, type VoiceEngine, ELEVENLABS_2MIN_PITCH_SCRIPT } from '../lib/audioConcierge';
 import { useLanguage } from '../lib/i18n';
@@ -31,7 +31,7 @@ export function MatchOverlayView({
   onConfirmDeposit,
   onOpenProcurement,
 }: MatchOverlayViewProps) {
-  const { language, t, localizeDestination } = useLanguage();
+  const { language, t, localizeDestination, localizeAmenity } = useLanguage();
   const matchedDestination = useMemo(() => {
     if (!rawMatchedDestination) return null;
     return { ...rawMatchedDestination, ...localizeDestination(rawMatchedDestination) };
@@ -702,7 +702,7 @@ ${item.description}
                 <div className="flex items-center gap-1.5">
                   {/* Google Maps Pin Icon */}
                   <svg className="w-3.5 h-3.5 text-[#f38ba8]" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5 2.5-1.12 2.5 2.5z" />
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
                   </svg>
                   <span className="text-[10px] font-mono text-[#a6adc8] uppercase font-bold tracking-wider">
                     GOOGLE PLACES &amp; ROUTES
@@ -726,7 +726,9 @@ ${item.description}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span>🚗</span>
-                  <span className="text-[#a6e3a1]"><strong>{googleData?.airportTravelTime || (language === 'th' ? '30 นาที' : '30 mins')}</strong> ({googleData?.nearestAirport?.split(' ')[0] || (language === 'th' ? 'สนามบิน' : 'Airport')})</span>
+                  <span className="text-[#a6e3a1]">
+                    <strong>{formatAirportTravelTime(googleData?.airportTravelTime, language)}</strong> ({formatAirportName(googleData?.nearestAirport, language)})
+                  </span>
                 </div>
               </div>
             </div>
@@ -835,7 +837,8 @@ ${item.description}
                         onClick={audioBriefing.toggle}
                         disabled={audioBriefing.isLoading}
                         className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#cba6f7] to-[#b4befe] hover:opacity-95 text-[#11111b] flex items-center justify-center cursor-pointer shadow-md active:scale-95 transition-transform shrink-0 disabled:opacity-50"
-                        title={audioBriefing.isPlaying ? 'หยุดชั่วคราว' : 'เล่นเสียงสรุป'}
+                        title={audioBriefing.isPlaying ? (language === 'th' ? 'หยุดชั่วคราว' : 'Pause Audio') : (language === 'th' ? 'เล่นเสียงสรุป' : 'Play Audio Summary')}
+                        aria-label={audioBriefing.isPlaying ? (language === 'th' ? 'หยุดชั่วคราว' : 'Pause Audio') : (language === 'th' ? 'เล่นเสียงสรุป' : 'Play Audio Summary')}
                       >
                         {audioBriefing.isLoading ? (
                           <span className="w-4 h-4 border-2 border-[#11111b] border-t-transparent rounded-full animate-spin" />
@@ -927,7 +930,7 @@ ${item.description}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5">
                   {matchedDestination.business_amenities.slice(0, 4).map((a, i) => (
                     <div key={i} className="text-xs p-2.5 rounded-lg bg-[#181825] border border-[#313244] text-[#cdd6f4] flex items-center justify-between">
-                      <span>{a}</span>
+                      <span>{localizeAmenity(a)}</span>
                       <span className="text-[#a6e3a1] font-semibold text-[10px] font-mono uppercase">VERIFIED</span>
                     </div>
                   ))}
@@ -1634,7 +1637,7 @@ ${item.description}
                       {language === 'th' ? `ที่ตั้ง: ${googleData?.formattedAddress || `${matchedDestination.city}, ${matchedDestination.country}`}` : `Location: ${googleData?.formattedAddress || `${matchedDestination.city}, ${matchedDestination.country}`}`}
                     </p>
                     <p className="text-slate-600">
-                      {language === 'th' ? 'ระยะทางสนามบิน:' : 'Airport Distance:'} <strong className="text-slate-900">{language === 'en' && googleData?.airportTravelTime ? googleData.airportTravelTime.replace(/นาที/g, 'mins').replace(/ชั่วโมง/g, 'hours') : (googleData?.airportTravelTime || (language === 'th' ? '30 นาที' : '30 mins'))}</strong>
+                      {language === 'th' ? 'ระยะทางสนามบิน:' : 'Airport Distance:'} <strong className="text-slate-900">{formatAirportTravelTime(googleData?.airportTravelTime, language)} ({formatAirportName(googleData?.nearestAirport, language)})</strong>
                     </p>
                     <p className="text-slate-600">
                       {language === 'th' ? 'จำนวนผู้เข้าร่วม: ' : 'Headcount: '}<strong className="text-slate-900">{teamSize} {language === 'th' ? 'ท่าน' : 'Guests'}</strong> | {language === 'th' ? 'ระยะเวลา: ' : 'Duration: '}<strong className="text-slate-900">{nights} {language === 'th' ? 'คืน' : 'Nights'}</strong>

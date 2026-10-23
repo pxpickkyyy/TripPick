@@ -33,7 +33,7 @@ export function SwiperView({
   users = [],
   swipes = [],
 }: SwiperViewProps) {
-  const { language, t, localizeDestination } = useLanguage();
+  const { language, t, localizeDestination, localizeAmenity } = useLanguage();
 
   const [activePhotoIdx, setActivePhotoIdx] = useState<{ [key: number]: number }>({});
   const [showTour, setShowTour] = useState<TravelDestination | null>(null);
@@ -350,7 +350,7 @@ export function SwiperView({
                           key={i}
                           className="text-[10px] px-2 py-0.5 rounded bg-[#181825] border border-[#313244] text-[#a6adc8]"
                         >
-                          {a}
+                          {localizeAmenity(a)}
                         </span>
                       ))}
                     </div>
@@ -476,7 +476,7 @@ export function SwiperView({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mb-4">
                 {showTour.business_amenities.map((a, i) => (
                   <div key={i} className="text-xs p-2.5 rounded-lg bg-[#181825] border border-[#313244] text-[#cdd6f4]">
-                    {a}
+                    {localizeAmenity(a)}
                   </div>
                 ))}
               </div>
