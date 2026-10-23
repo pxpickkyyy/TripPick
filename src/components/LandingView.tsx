@@ -7,7 +7,7 @@ interface LandingViewProps {
   onReenterSession: () => Promise<boolean>;
   loading: boolean;
   error: string | null;
-  onOpenBusinessModel: () => void;
+  onOpenBusinessModel?: () => void;
 }
 
 export function LandingView({
@@ -16,7 +16,6 @@ export function LandingView({
   onReenterSession,
   loading,
   error,
-  onOpenBusinessModel,
 }: LandingViewProps) {
   const [code, setCode] = useState('');
   const [joinError, setJoinError] = useState<string | null>(null);
@@ -41,16 +40,6 @@ export function LandingView({
       className="flex flex-col items-center justify-center min-h-dvh px-6 py-12 text-center"
     >
       <div className="w-full max-w-xl flex flex-col items-center">
-        {/* Editorial Topic Badge */}
-        <button
-          onClick={onOpenBusinessModel}
-          className="mb-8 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#161d28] text-slate-300 text-xs hover:bg-[#1e2736] hover:text-white transition-colors duration-150 cursor-pointer"
-        >
-          <span className="w-2 h-2 rounded-full bg-[#10b981]" />
-          <span>ซอฟต์แวร์เพื่อธุรกิจและการท่องเที่ยว : Make Me Money</span>
-          <span className="text-emerald-400 font-semibold ml-1">ดูแผนธุรกิจ</span>
-        </button>
-
         {/* Wordmark as Monument */}
         <h1 className="text-5xl sm:text-7xl font-bold tracking-tight text-white mb-4">
           TripPick
