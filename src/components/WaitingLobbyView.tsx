@@ -104,7 +104,7 @@ export function WaitingLobbyView({
           <h3 className="text-xs font-semibold text-slate-300 block mb-3">
             ผู้ร่วมตัดสินใจที่เชื่อมต่อแล้ว ({users.length} ท่าน)
           </h3>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto pr-1">
             {users.map((u) => (
               <div
                 key={u.id}

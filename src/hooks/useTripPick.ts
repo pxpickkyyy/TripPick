@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { fetchAiRecommendations, fetchAiCommentary } from '../lib/ai';
 import type { RoomContextInfo } from '../lib/ai';
 import type { TravelDestination } from '../lib/travelDestinations';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface Room {
   id: string;
@@ -53,8 +55,24 @@ export function useTripPick() {
   const [error, setError] = useState<string | null>(null);
   const [receivedEmojis, setReceivedEmojis] = useState<{ id: string; emoji: string }[]>([]);
 
-  // Cross-tab broadcast channel for local multi-user testing
+  // Dual Realtime Channel Refs: Browser BroadcastChannel + Supabase WebSockets
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
+  const supabaseChannelRef = useRef<RealtimeChannel | null>(null);
+
+  // Sync references to prevent stale closures in event listeners
+  const roomRef = useRef<Room | null>(room);
+  const usersRef = useRef<RoomUser[]>(users);
+  const swipesRef = useRef<Swipe[]>(swipes);
+  const matchedDestinationRef = useRef<TravelDestination | null>(matchedDestination);
+  const isHostRef = useRef<boolean>(isHost);
+  const currentUserRef = useRef<RoomUser | null>(currentUser);
+
+  useEffect(() => { roomRef.current = room; }, [room]);
+  useEffect(() => { usersRef.current = users; }, [users]);
+  useEffect(() => { swipesRef.current = swipes; }, [swipes]);
+  useEffect(() => { matchedDestinationRef.current = matchedDestination; }, [matchedDestination]);
+  useEffect(() => { isHostRef.current = isHost; }, [isHost]);
+  useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
   const roomContextRef = useRef<RoomContextInfo>({
     roomCode: '',
@@ -95,74 +113,249 @@ export function useTripPick() {
     };
   }, [roomId, room, users, currentUser, unswipedDestinations, matchedDestination, isWaitingForOthers]);
 
-  // Setup BroadcastChannel for zero-config multi-tab synchronization
-  useEffect(() => {
-    if (!roomId) return;
+  // Universal Broadcast helper: Dispatches to local tabs AND remote devices via Supabase
+  const broadcastEvent = useCallback((type: string, payload?: unknown) => {
+    // 1. Local BroadcastChannel
+    try {
+      broadcastChannelRef.current?.postMessage({ type, payload });
+    } catch {
+      // Local channel unavailable
+    }
 
-    const channelName = `trippick_room_${roomId}`;
-    const channel = new BroadcastChannel(channelName);
-    broadcastChannelRef.current = channel;
+    // 2. Supabase Realtime WebSocket broadcast
+    try {
+      if (supabaseChannelRef.current) {
+        supabaseChannelRef.current.send({
+          type: 'broadcast',
+          event: type,
+          payload
+        });
+      }
+    } catch (err) {
+      console.warn('Supabase Realtime broadcast error:', err);
+    }
+  }, []);
 
-    channel.onmessage = (event) => {
-      const { type, payload } = event.data;
-      if (type === 'USER_JOINED') {
+  // Universal Event Handler
+  const handleIncomingEvent = useCallback((type: string, payload: any) => {
+    if (!type || !payload) return;
+
+    if (type === 'USER_JOINED') {
+      if (payload.id) {
         setUsers(prev => {
           if (prev.some(u => u.id === payload.id)) return prev;
           return [...prev, payload];
         });
-      } else if (type === 'SESSION_STARTED') {
+
+        // If we are Host, respond with full room state so the newcomer is fully synchronized
+        if (isHostRef.current && roomRef.current) {
+          broadcastEvent('SYNC_ROOM_STATE', {
+            room: roomRef.current,
+            users: usersRef.current,
+            swipes: swipesRef.current,
+            matchedDestination: matchedDestinationRef.current
+          });
+        }
+      }
+    } else if (type === 'SESSION_STARTED') {
+      if (payload.room) {
         setRoom(payload.room);
         setStep('swiping');
         setCompilingDeck(false);
-      } else if (type === 'SWIPE_SUBMITTED') {
+      }
+    } else if (type === 'SWIPE_SUBMITTED') {
+      if (payload.id) {
         setSwipes(prev => {
           if (prev.some(s => s.id === payload.id)) return prev;
           return [...prev, payload];
         });
-      } else if (type === 'MATCH_FOUND') {
+      }
+    } else if (type === 'MATCH_FOUND') {
+      if (payload.destination) {
         setMatchedDestination(payload.destination);
         setStep('matched');
-      } else if (type === 'CHAT_MESSAGE') {
+      }
+    } else if (type === 'CHAT_MESSAGE') {
+      if (payload.id) {
         setMessages(prev => [...prev, payload]);
-      } else if (type === 'BROADCAST_EMOJI') {
+      }
+    } else if (type === 'BROADCAST_EMOJI') {
+      if (payload.id) {
         setReceivedEmojis(prev => [...prev, payload]);
         setTimeout(() => {
           setReceivedEmojis(prev => prev.filter(e => e.id !== payload.id));
         }, 3000);
-      } else if (type === 'REQUEST_ROOM_STATE' && isHost) {
-        // Host broadcasts current state to newly joined tabs
-        channel.postMessage({
-          type: 'SYNC_ROOM_STATE',
-          payload: { room, users, swipes, matchedDestination }
+      }
+    } else if (type === 'REQUEST_ROOM_STATE') {
+      // Send current state to requesting peer
+      if (isHostRef.current || roomRef.current) {
+        broadcastEvent('SYNC_ROOM_STATE', {
+          room: roomRef.current,
+          users: usersRef.current,
+          swipes: swipesRef.current,
+          matchedDestination: matchedDestinationRef.current
         });
-      } else if (type === 'SYNC_ROOM_STATE') {
-        if (payload.room) setRoom(payload.room);
-        if (payload.users) setUsers(payload.users);
-        if (payload.swipes) setSwipes(payload.swipes);
-        if (payload.matchedDestination) {
-          setMatchedDestination(payload.matchedDestination);
-          setStep('matched');
+      }
+    } else if (type === 'SYNC_ROOM_STATE') {
+      if (payload.room) {
+        setRoom(payload.room);
+        if (payload.room.status === 'swiping' && step === 'lobby') {
+          setStep('swiping');
         }
       }
+      if (payload.users && Array.isArray(payload.users)) {
+        setUsers(prev => {
+          const map = new Map<string, RoomUser>();
+          prev.forEach(u => map.set(u.id, u));
+          payload.users.forEach((u: RoomUser) => {
+            if (u && u.id) map.set(u.id, u);
+          });
+          return Array.from(map.values());
+        });
+      }
+      if (payload.swipes && Array.isArray(payload.swipes)) {
+        setSwipes(prev => {
+          const map = new Map<string, Swipe>();
+          prev.forEach(s => map.set(s.id, s));
+          payload.swipes.forEach((s: Swipe) => {
+            if (s && s.id) map.set(s.id, s);
+          });
+          return Array.from(map.values());
+        });
+      }
+      if (payload.matchedDestination) {
+        setMatchedDestination(payload.matchedDestination);
+        setStep('matched');
+      }
+    }
+  }, [broadcastEvent, step]);
+
+  // Connect Realtime Synchronization (BroadcastChannel + Supabase WebSockets)
+  useEffect(() => {
+    if (!roomId) return;
+
+    // 1. Local BroadcastChannel
+    const channelName = `trippick_room_${roomId}`;
+    const localChannel = new BroadcastChannel(channelName);
+    broadcastChannelRef.current = localChannel;
+
+    localChannel.onmessage = (event) => {
+      const { type, payload } = event.data || {};
+      handleIncomingEvent(type, payload);
     };
+
+    // 2. Supabase Realtime WebSockets Channel
+    let sbChannel: RealtimeChannel | null = null;
+    if (isSupabaseConfigured) {
+      const activeChannel = supabase.channel(`trippick_${roomId}`, {
+        config: {
+          broadcast: { self: false },
+          presence: { key: currentUserRef.current?.id || `user_${Math.random().toString(36).substring(2, 8)}` }
+        }
+      });
+      sbChannel = activeChannel;
+
+      activeChannel
+        .on('broadcast', { event: 'USER_JOINED' }, ({ payload }: any) => handleIncomingEvent('USER_JOINED', payload))
+        .on('broadcast', { event: 'SESSION_STARTED' }, ({ payload }: any) => handleIncomingEvent('SESSION_STARTED', payload))
+        .on('broadcast', { event: 'SWIPE_SUBMITTED' }, ({ payload }: any) => handleIncomingEvent('SWIPE_SUBMITTED', payload))
+        .on('broadcast', { event: 'MATCH_FOUND' }, ({ payload }: any) => handleIncomingEvent('MATCH_FOUND', payload))
+        .on('broadcast', { event: 'CHAT_MESSAGE' }, ({ payload }: any) => handleIncomingEvent('CHAT_MESSAGE', payload))
+        .on('broadcast', { event: 'BROADCAST_EMOJI' }, ({ payload }: any) => handleIncomingEvent('BROADCAST_EMOJI', payload))
+        .on('broadcast', { event: 'REQUEST_ROOM_STATE' }, ({ payload }: any) => handleIncomingEvent('REQUEST_ROOM_STATE', payload))
+        .on('broadcast', { event: 'SYNC_ROOM_STATE' }, ({ payload }: any) => handleIncomingEvent('SYNC_ROOM_STATE', payload))
+        .on('presence', { event: 'sync' }, () => {
+          const state = activeChannel.presenceState();
+          const presenceUsers: RoomUser[] = [];
+          Object.values(state).forEach((items: any) => {
+            items.forEach((item: any) => {
+              if (item.user && item.user.id) {
+                presenceUsers.push(item.user);
+              }
+            });
+          });
+          if (presenceUsers.length > 0) {
+            setUsers(prev => {
+              const map = new Map<string, RoomUser>();
+              prev.forEach(u => map.set(u.id, u));
+              presenceUsers.forEach(u => map.set(u.id, u));
+              return Array.from(map.values());
+            });
+          }
+        })
+        .on('presence', { event: 'join' }, ({ newPresences }: any) => {
+          const newUsers: RoomUser[] = [];
+          newPresences.forEach((p: any) => {
+            if (p.user && p.user.id) newUsers.push(p.user);
+          });
+          if (newUsers.length > 0) {
+            setUsers(prev => {
+              const map = new Map<string, RoomUser>();
+              prev.forEach(u => map.set(u.id, u));
+              newUsers.forEach(u => map.set(u.id, u));
+              return Array.from(map.values());
+            });
+          }
+        })
+        .subscribe((status: string) => {
+          if (status === 'SUBSCRIBED') {
+            if (currentUserRef.current) {
+              activeChannel.track({ user: currentUserRef.current });
+              activeChannel.send({
+                type: 'broadcast',
+                event: 'USER_JOINED',
+                payload: currentUserRef.current
+              });
+            }
+            activeChannel.send({
+              type: 'broadcast',
+              event: 'REQUEST_ROOM_STATE',
+              payload: { fromUserId: currentUserRef.current?.id }
+            });
+          }
+        });
+
+      supabaseChannelRef.current = activeChannel;
+    }
 
     // Request state from existing host tab
-    channel.postMessage({ type: 'REQUEST_ROOM_STATE' });
+    localChannel.postMessage({ type: 'REQUEST_ROOM_STATE' });
 
     return () => {
-      channel.close();
+      localChannel.close();
       broadcastChannelRef.current = null;
+      if (sbChannel) {
+        supabase.removeChannel(sbChannel);
+        supabaseChannelRef.current = null;
+      }
     };
-  }, [roomId, isHost, room, users, swipes, matchedDestination]);
+  }, [roomId, handleIncomingEvent]);
 
-  // Check for Consensus Match whenever swipes or users update
+  // Periodic resync check while in lobby to ensure all 10+ members stay in sync
+  useEffect(() => {
+    if (!roomId || step !== 'lobby') return;
+
+    const interval = setInterval(() => {
+      broadcastEvent('REQUEST_ROOM_STATE', { fromUserId: currentUserRef.current?.id });
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [roomId, step, broadcastEvent]);
+
+  // Consensus Calculation supporting 2 to 10+ people
   useEffect(() => {
     if (step !== 'swiping' || !room?.destinations_deck || matchedDestination) return;
 
     const deck = room.destinations_deck;
-    const activeUsers = users;
-    // Consensus requirement: at least 2 users like the same destination (or 1 if solo testing)
-    const requiredLikes = Math.max(1, Math.min(2, activeUsers.length));
+    const activeCount = users.length;
+
+    // Consensus rule:
+    // 1 person -> 1 like (solo demo)
+    // 2 people -> 2 likes (both must like)
+    // 3 to 10+ people -> at least 60% of active teammates must like it
+    const requiredLikes = activeCount <= 2
+      ? Math.max(1, activeCount)
+      : Math.max(2, Math.ceil(activeCount * 0.6));
 
     for (const destination of deck) {
       const likesForDest = swipes.filter(s => s.destination_id === destination.id && s.is_like);
@@ -172,15 +365,12 @@ export function useTripPick() {
         setMatchedDestination(destination);
         setStep('matched');
 
-        // Broadcast match to all tabs
-        broadcastChannelRef.current?.postMessage({
-          type: 'MATCH_FOUND',
-          payload: { destination }
-        });
+        // Broadcast match to all tabs and connected devices
+        broadcastEvent('MATCH_FOUND', { destination });
         break;
       }
     }
-  }, [swipes, users, room, step, matchedDestination]);
+  }, [swipes, users, room, step, matchedDestination, broadcastEvent]);
 
   // Clear Session
   const leaveRoom = useCallback(() => {
@@ -214,7 +404,7 @@ export function useTripPick() {
     setLoading(true);
     setError(null);
     try {
-      const code = Math.random().toString(36).substring(2, 6).toUpperCase(); // e.g. "TRIP"
+      const code = Math.random().toString(36).substring(2, 6).toUpperCase(); // e.g. "30J8"
       const newRoom: Room = {
         id: code,
         created_at: new Date().toISOString(),
@@ -232,8 +422,9 @@ export function useTripPick() {
       localStorage.setItem('trippick_room_id', code);
       localStorage.setItem('trippick_is_host', 'true');
       return true;
-    } catch (err: any) {
-      setError(err.message || 'Failed to create room');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to create room';
+      setError(message);
       return false;
     } finally {
       setLoading(false);
@@ -258,8 +449,9 @@ export function useTripPick() {
       localStorage.setItem('trippick_room_id', normalized);
       localStorage.setItem('trippick_is_host', 'false');
       return true;
-    } catch (err: any) {
-      setError(err.message || 'ไม่สามารถเข้าร่วมห้องได้ กรุณาตรวจสอบรหัสห้อง');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'ไม่สามารถเข้าร่วมห้องได้ กรุณาตรวจสอบรหัสห้อง';
+      setError(message);
       return false;
     } finally {
       setLoading(false);
@@ -280,18 +472,27 @@ export function useTripPick() {
       };
 
       setCurrentUser(user);
+      currentUserRef.current = user;
+
       setUsers(prev => {
-        if (prev.some(u => u.id === user.id)) return prev;
-        return [...prev, user];
+        const map = new Map<string, RoomUser>();
+        prev.forEach(u => map.set(u.id, u));
+        map.set(user.id, user);
+        return Array.from(map.values());
       });
 
       localStorage.setItem('trippick_user_id', user.id);
 
-      // Broadcast join to other tabs
-      broadcastChannelRef.current?.postMessage({
-        type: 'USER_JOINED',
-        payload: user
-      });
+      // 1. Broadcast join to other peers
+      broadcastEvent('USER_JOINED', user);
+
+      // 2. Track in Supabase Realtime Presence
+      if (supabaseChannelRef.current) {
+        supabaseChannelRef.current.track({ user });
+      }
+
+      // 3. Request current room state so guest receives the room info
+      broadcastEvent('REQUEST_ROOM_STATE', { fromUserId: user.id });
 
       // Add welcoming chat
       const welcome = await fetchAiCommentary('join', user.user_name);
@@ -303,23 +504,24 @@ export function useTripPick() {
         created_at: new Date().toISOString()
       };
       setMessages(prev => [...prev, welcomeMsg]);
+      broadcastEvent('CHAT_MESSAGE', welcomeMsg);
 
       setStep('lobby');
       return true;
-    } catch (err: any) {
-      setError(err.message || 'ไม่สามารถลงทะเบียนข้อมูลได้');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'ไม่สามารถลงทะเบียนข้อมูลได้';
+      setError(message);
       return false;
     } finally {
       setLoading(false);
     }
-  }, [roomId]);
+  }, [roomId, broadcastEvent]);
 
   // Start Session (Host compiles retreat deck)
   const startSession = useCallback(async (
     vibe: string,
     minBudget?: number,
-    maxBudget?: number,
-    _categoryFilter?: string
+    maxBudget?: number
   ): Promise<boolean> => {
     if (!roomId) return false;
     setCompilingDeck(true);
@@ -328,7 +530,7 @@ export function useTripPick() {
     try {
       // Gather team amenity preferences
       const allSelectedAmenities = Array.from(
-        new Set(users.flatMap(u => u.preferred_amenities))
+        new Set(usersRef.current.flatMap(u => u.preferred_amenities))
       );
 
       const deck = await fetchAiRecommendations(
@@ -340,7 +542,7 @@ export function useTripPick() {
 
       const updatedRoom: Room = {
         id: roomId,
-        created_at: room?.created_at || new Date().toISOString(),
+        created_at: roomRef.current?.created_at || new Date().toISOString(),
         status: 'swiping',
         destinations_deck: deck,
         vibe,
@@ -349,21 +551,19 @@ export function useTripPick() {
       setRoom(updatedRoom);
       setStep('swiping');
 
-      // Broadcast session start to all tabs
-      broadcastChannelRef.current?.postMessage({
-        type: 'SESSION_STARTED',
-        payload: { room: updatedRoom }
-      });
+      // Broadcast session start to all connected teammates
+      broadcastEvent('SESSION_STARTED', { room: updatedRoom });
 
       return true;
-    } catch (err: any) {
-      setError(err.message || 'ไม่สามารถสร้างชุดสถานที่จัดทริปได้');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'ไม่สามารถสร้างชุดสถานที่จัดทริปได้';
+      setError(message);
       return false;
     } finally {
       setCompilingDeck(false);
       setLoading(false);
     }
-  }, [roomId, room, users]);
+  }, [roomId, broadcastEvent]);
 
   // Submit Swipe
   const submitSwipe = useCallback(async (destinationId: number, isLike: boolean, isVeto: boolean = false): Promise<boolean> => {
@@ -380,14 +580,11 @@ export function useTripPick() {
 
     setSwipes(prev => [...prev, swipe]);
 
-    // Broadcast swipe to other tabs
-    broadcastChannelRef.current?.postMessage({
-      type: 'SWIPE_SUBMITTED',
-      payload: swipe
-    });
+    // Broadcast swipe to all connected teammates
+    broadcastEvent('SWIPE_SUBMITTED', swipe);
 
     return true;
-  }, [roomId, currentUser]);
+  }, [roomId, currentUser, broadcastEvent]);
 
   // Send Broadcast Emoji Reaction
   const sendBroadcastEmoji = useCallback((emoji: string) => {
@@ -396,14 +593,11 @@ export function useTripPick() {
       emoji
     };
     setReceivedEmojis(prev => [...prev, payload]);
-    broadcastChannelRef.current?.postMessage({
-      type: 'BROADCAST_EMOJI',
-      payload
-    });
+    broadcastEvent('BROADCAST_EMOJI', payload);
     setTimeout(() => {
       setReceivedEmojis(prev => prev.filter(e => e.id !== payload.id));
     }, 3000);
-  }, []);
+  }, [broadcastEvent]);
 
   // Send Chat Message
   const sendChatMessage = useCallback(async (text: string) => {
@@ -418,11 +612,8 @@ export function useTripPick() {
     };
 
     setMessages(prev => [...prev, newMsg]);
-    broadcastChannelRef.current?.postMessage({
-      type: 'CHAT_MESSAGE',
-      payload: newMsg
-    });
-  }, [roomId, currentUser]);
+    broadcastEvent('CHAT_MESSAGE', newMsg);
+  }, [roomId, currentUser, broadcastEvent]);
 
   // Reset Session
   const resetRoomSession = useCallback(async (): Promise<boolean> => {
@@ -430,11 +621,9 @@ export function useTripPick() {
     setSwipes([]);
     setMatchedDestination(null);
     setStep('lobby');
-    broadcastChannelRef.current?.postMessage({
-      type: 'REQUEST_ROOM_STATE'
-    });
+    broadcastEvent('REQUEST_ROOM_STATE', { fromUserId: currentUser?.id });
     return true;
-  }, [roomId]);
+  }, [roomId, currentUser, broadcastEvent]);
 
   return {
     roomId,
