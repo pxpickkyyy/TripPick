@@ -56,10 +56,11 @@ body {
   display: flex;
   flex-direction: column;
   background-color: #11111b;
-  /* Ultra-lightweight static radial accents - zero GPU recalculation cost on low-end devices */
+  /* Linear-tier ethereal ambient lighting mesh */
   background-image: 
-    radial-gradient(circle at 10% 10%, rgba(203, 166, 247, 0.05), transparent 45%),
-    radial-gradient(circle at 90% 90%, rgba(116, 199, 236, 0.04), transparent 45%);
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(203, 166, 247, 0.08), transparent),
+    radial-gradient(circle at 10% 20%, rgba(203, 166, 247, 0.04), transparent 45%),
+    radial-gradient(circle at 90% 80%, rgba(116, 199, 236, 0.05), transparent 45%);
   overflow-x: hidden;
   color: #cdd6f4;
 }
@@ -103,5 +104,44 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Print Optimization for B2B RFP Procurement Document */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+  body {
+    background: #ffffff !important;
+    color: #111827 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  header, nav, .no-print, [data-non-printable] {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .print-document-container {
+    position: static !important;
+    inset: auto !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  .print-document {
+    border: 1px solid #9ca3af !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+    box-shadow: none !important;
+    padding: 16px !important;
   }
 }

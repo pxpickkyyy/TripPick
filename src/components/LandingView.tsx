@@ -40,10 +40,14 @@ export function LandingView({
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       className="flex flex-col items-center justify-center min-h-[calc(100dvh-5rem)] px-4 sm:px-6 py-10 sm:py-16 text-center relative z-20"
     >
+      {/* Ambient Radial Glowing Mesh */}
+      <div className="absolute top-1/4 -left-20 w-80 h-80 bg-[#cba6f7]/10 blur-[100px] rounded-full pointer-events-none -z-10" />
+      <div className="absolute top-1/3 -right-20 w-80 h-80 bg-[#74c7ec]/10 blur-[100px] rounded-full pointer-events-none -z-10" />
+
       <div className="w-full max-w-2xl flex flex-col items-center">
         {/* Minimalist Micro Eyebrow Badge */}
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#181825] border border-[#313244] mb-5">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#a6e3a1]" />
+        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#181825]/90 border border-white/10 mb-5 shadow-sm">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#a6e3a1] animate-pulse" />
           <span className="text-[10px] uppercase font-mono tracking-widest font-semibold text-[#cba6f7]">
             B2B CONSENSUS &amp; RETREAT ENGINE
           </span>
@@ -64,41 +68,41 @@ export function LandingView({
 
         {/* Error notification banner */}
         {(error || joinError) && (
-          <div className="mb-5 p-3.5 rounded-xl bg-[#f38ba8]/15 border border-[#f38ba8]/30 text-[#f38ba8] text-xs w-full max-w-md text-center">
+          <div className="mb-5 p-3.5 rounded-2xl bg-[#f38ba8]/15 border border-[#f38ba8]/30 text-[#f38ba8] text-xs w-full max-w-md text-center">
             {error || joinError}
           </div>
         )}
 
-        {/* Minimalist Action Enclosure (Optimized for Low-End Devices) */}
-        <div className="w-full max-w-md p-2 rounded-2xl bg-[#181825] border border-[#313244] shadow-sm">
-          <div className="rounded-xl p-5 sm:p-6 bg-[#1e1e2e] border border-[#313244] flex flex-col gap-3.5">
+        {/* Double-Bezel Action Enclosure (Nested Architectural Frame) */}
+        <div className="w-full max-w-md p-2 rounded-[2rem] bg-[#181825]/90 border border-white/10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] backdrop-blur-xl">
+          <div className="rounded-[calc(2rem-0.5rem)] p-5 sm:p-6 bg-[#1e1e2e]/95 border border-white/5 flex flex-col gap-3.5">
             {/* Re-enter Previous Session */}
             {cachedRoomId && (
               <button
                 onClick={onReenterSession}
                 disabled={loading}
-                className="group w-full py-2.5 px-4 rounded-xl bg-[#181825] hover:bg-[#313244] border border-[#313244] hover:border-[#a6e3a1]/50 text-[#a6e3a1] text-xs font-semibold transition-colors duration-150 cursor-pointer flex items-center justify-between active:scale-[0.98]"
+                className="group w-full py-2.5 px-4 rounded-full bg-[#181825] hover:bg-[#313244] border border-[#313244] hover:border-[#a6e3a1]/50 text-[#a6e3a1] text-xs font-semibold transition-all duration-150 cursor-pointer flex items-center justify-between active:scale-[0.98]"
               >
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#a6e3a1]" />
                   <span>กลับเข้าห้องเดิมของทีม</span>
                 </div>
-                <span className="font-mono bg-[#313244] px-2 py-0.5 rounded text-[11px] text-[#a6e3a1]">
+                <span className="font-mono bg-[#313244] px-2.5 py-0.5 rounded-full text-[11px] text-[#a6e3a1] font-bold">
                   {cachedRoomId}
                 </span>
               </button>
             )}
 
-            {/* Primary Action Button */}
+            {/* Primary Action Button (Nested Island Button Architecture) */}
             <button
               onClick={() => onCreateRoom()}
               disabled={loading}
-              className="group relative w-full py-3.5 px-5 rounded-xl bg-[#cba6f7] hover:bg-[#b4befe] text-[#11111b] font-bold text-sm transition-colors duration-150 cursor-pointer flex items-center justify-between active:scale-[0.98] disabled:opacity-50"
+              className="group relative w-full py-4 px-6 rounded-full bg-[#cba6f7] hover:bg-[#b4befe] text-[#11111b] font-bold text-sm shadow-lg hover:shadow-[#cba6f7]/25 transition-all duration-200 cursor-pointer flex items-center justify-between active:scale-[0.98] disabled:opacity-50"
             >
               <span className="tracking-tight">
                 {loading ? 'กำลังสร้างห้องทริปใหม่...' : 'สร้างห้องทริปใหม่สำหรับทีม'}
               </span>
-              <div className="w-7 h-7 rounded-lg bg-[#11111b]/15 text-[#11111b] flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-full bg-[#11111b]/15 text-[#11111b] flex items-center justify-center shrink-0 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
                 <svg className="w-4 h-4 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
                 </svg>
@@ -107,9 +111,9 @@ export function LandingView({
 
             {/* Divider */}
             <div className="flex items-center gap-3 my-0.5">
-              <div className="flex-1 h-[1px] bg-[#313244]" />
+              <div className="flex-1 h-[1px] bg-white/10" />
               <span className="text-[10px] uppercase font-mono tracking-wider text-[#6c7086]">หรือ เข้าร่วมด้วยรหัส</span>
-              <div className="flex-1 h-[1px] bg-[#313244]" />
+              <div className="flex-1 h-[1px] bg-white/10" />
             </div>
 
             {/* Join Form (Instant Reactive Validation) */}
@@ -123,13 +127,13 @@ export function LandingView({
                   if (joinError) setJoinError(null);
                 }}
                 placeholder="รหัส 4 หลัก"
-                className="flex-1 py-2.5 px-3.5 rounded-xl bg-[#181825] border border-[#313244] text-[#cdd6f4] placeholder-[#6c7086] text-xs font-mono font-medium tracking-widest text-center uppercase focus:outline-none focus:border-[#cba6f7] transition-colors"
+                className="flex-1 py-3 px-4 rounded-full bg-[#181825] border border-white/10 text-[#cdd6f4] placeholder-[#6c7086] text-xs font-mono font-medium tracking-widest text-center uppercase focus:outline-none focus:border-[#cba6f7] transition-colors"
               />
 
               <button
                 type="submit"
                 disabled={loading || code.trim().length !== 4}
-                className="px-5 py-2.5 rounded-xl bg-[#313244] hover:bg-[#45475a] border border-[#45475a] text-[#cdd6f4] text-xs font-semibold transition-colors duration-150 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                className="px-6 py-3 rounded-full bg-[#313244] hover:bg-[#45475a] border border-[#45475a] text-[#cdd6f4] text-xs font-semibold transition-all duration-150 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
                 เข้าห้อง
               </button>
@@ -137,13 +141,13 @@ export function LandingView({
           </div>
         </div>
 
-        {/* Minimalist Bento Value Grid (Crisp 1px borders, zero blur cost) */}
+        {/* Minimalist Bento Value Grid (Linear-Tier Concentric Grid) */}
         <div className="w-full max-w-md grid grid-cols-3 gap-2.5 mt-6">
-          <div className="p-3 rounded-xl bg-[#181825] border border-[#313244] text-left">
+          <div className="p-3.5 rounded-2xl bg-[#181825]/80 border border-white/10 hover:border-[#cba6f7]/40 transition-all backdrop-blur-md text-left group">
             <span className="text-[10px] font-mono text-[#cba6f7] font-semibold uppercase tracking-wider block">
               SPEED
             </span>
-            <p className="text-xs font-bold text-[#cdd6f4] mt-1">
+            <p className="text-xs font-bold text-[#cdd6f4] mt-1 group-hover:text-[#cba6f7] transition-colors">
               ฉันทามติ 3 นาที
             </p>
             <span className="text-[10px] text-[#a6adc8] block mt-0.5 tabular-data">
@@ -151,11 +155,11 @@ export function LandingView({
             </span>
           </div>
 
-          <div className="p-3 rounded-xl bg-[#181825] border border-[#313244] text-left">
+          <div className="p-3.5 rounded-2xl bg-[#181825]/80 border border-white/10 hover:border-[#74c7ec]/40 transition-all backdrop-blur-md text-left group">
             <span className="text-[10px] font-mono text-[#74c7ec] font-semibold uppercase tracking-wider block">
               NETWORK
             </span>
-            <p className="text-xs font-bold text-[#cdd6f4] mt-1">
+            <p className="text-xs font-bold text-[#cdd6f4] mt-1 group-hover:text-[#74c7ec] transition-colors">
               เน็ต 500+ Mbps
             </p>
             <span className="text-[10px] text-[#a6adc8] block mt-0.5">
@@ -163,11 +167,11 @@ export function LandingView({
             </span>
           </div>
 
-          <div className="p-3 rounded-xl bg-[#181825] border border-[#313244] text-left">
+          <div className="p-3.5 rounded-2xl bg-[#181825]/80 border border-white/10 hover:border-[#a6e3a1]/40 transition-all backdrop-blur-md text-left group">
             <span className="text-[10px] font-mono text-[#a6e3a1] font-semibold uppercase tracking-wider block">
               REVENUE
             </span>
-            <p className="text-xs font-bold text-[#cdd6f4] mt-1">
+            <p className="text-xs font-bold text-[#cdd6f4] mt-1 group-hover:text-[#a6e3a1] transition-colors">
               B2B 10–15%
             </p>
             <span className="text-[10px] text-[#a6adc8] block mt-0.5 tabular-data">

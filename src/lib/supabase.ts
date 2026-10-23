@@ -1,9 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-let supabaseInstance: any = null;
+let supabaseInstance: SupabaseClient | null = null;
 
 const isValidUrl = (url: string) => {
   try {
@@ -28,13 +28,13 @@ if (isSupabaseConfigured) {
 
 if (!supabaseInstance) {
   // Safe mock client proxy for zero-config local testing and offline demos
-  const createMockProxy = (): any => {
+  const createMockProxy = (): unknown => {
     const mockTarget = () => {};
-    mockTarget.then = (onFulfilled?: any) => {
+    mockTarget.then = (onFulfilled?: (value: { data: null; error: null }) => void) => {
       return Promise.resolve({ data: null, error: null }).then(onFulfilled);
     };
     return new Proxy(mockTarget, {
-      get: (_target: any, prop: string | symbol) => {
+      get: (_target: unknown, prop: string | symbol) => {
         if (prop === 'then') return mockTarget.then;
         if (prop === 'removeChannel') return () => {};
         if (prop === 'channel') {
@@ -49,7 +49,7 @@ if (!supabaseInstance) {
       apply: () => createMockProxy()
     });
   };
-  supabaseInstance = createMockProxy();
+  supabaseInstance = createMockProxy() as SupabaseClient;
 }
 
 export const supabase = supabaseInstance;

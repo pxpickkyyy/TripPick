@@ -8,11 +8,14 @@ import { SwiperView } from './components/SwiperView';
 import { MatchOverlayView } from './components/MatchOverlayView';
 import { ConciergeDrawer } from './components/ConciergeDrawer';
 import { BusinessModelModal } from './components/BusinessModelModal';
+import { RevenueMetricsHUD } from './components/RevenueMetricsHUD';
+import { ProcurementModal } from './components/ProcurementModal';
 
 function App() {
   const {
     roomId,
     step,
+    room,
     users,
     currentUser,
     isHost,
@@ -21,6 +24,11 @@ function App() {
     unswipedDestinations,
     isWaitingForOthers,
     matchedDestination,
+    depositStatus,
+    depositReceipt,
+    confirmDepositEscrow,
+    escrowNotification,
+    clearEscrowNotification,
     swipes,
     error,
     receivedEmojis,
@@ -38,6 +46,7 @@ function App() {
 
   const [isConciergeOpen, setIsConciergeOpen] = useState(false);
   const [isBusinessModalOpen, setIsBusinessModalOpen] = useState(false);
+  const [isProcurementOpen, setIsProcurementOpen] = useState(false);
 
   // Auto-join from URL Query Parameters
   useEffect(() => {
@@ -77,20 +86,24 @@ function App() {
             error={error}
           />
         );
-      case 'lobby':
+      case 'lobby': {
+        const isAuthoritativeHost = Boolean(
+          isHost && currentUser?.isHost && (!room?.host_id || room.host_id === currentUser?.id)
+        );
         return (
           <WaitingLobbyView
             key="lobby"
             roomId={roomId || ''}
             users={users}
             currentUser={currentUser}
-            isHost={isHost}
+            isHost={isAuthoritativeHost}
             onStartSession={startSession}
             onLeave={leaveRoom}
             loading={loading}
             error={error}
           />
         );
+      }
       case 'swiping':
         return (
           <SwiperView
@@ -105,6 +118,8 @@ function App() {
             sendBroadcastEmoji={sendBroadcastEmoji}
             isHost={isHost}
             onRestartSession={resetRoomSession}
+            users={users}
+            swipes={swipes}
           />
         );
       case 'matched':
@@ -116,6 +131,11 @@ function App() {
             onReset={leaveRoom}
             swipes={swipes}
             destinationsDeck={destinationsDeck}
+            roomId={roomId || ''}
+            depositStatus={depositStatus}
+            depositReceipt={depositReceipt}
+            onConfirmDeposit={confirmDepositEscrow}
+            onOpenProcurement={() => setIsProcurementOpen(true)}
           />
         );
       default:
@@ -144,7 +164,7 @@ function App() {
             <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-[#1e1e2e] border border-[#313244] text-xs">
               <span className="text-[10px] uppercase tracking-wider text-[#a6adc8] font-mono">ห้อง:</span>
               <span className="font-mono font-bold text-[#cba6f7] tracking-wider tabular-data">{roomId}</span>
-              {isHost && (
+              {Boolean(isHost && currentUser?.isHost && (!room?.host_id || room.host_id === currentUser?.id)) && (
                 <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-[#cba6f7]/20 text-[#cba6f7] font-medium ml-1">
                   Host
                 </span>
@@ -178,6 +198,46 @@ function App() {
         isOpen={isBusinessModalOpen}
         onClose={() => setIsBusinessModalOpen(false)}
       />
+
+      {/* Live Pitch Revenue HUD Widget (B2B Take-Rate & Escrow Proof) */}
+      <RevenueMetricsHUD
+        matchedDestination={matchedDestination}
+        step={step}
+        usersCount={users.length}
+        depositStatus={depositStatus}
+        depositReceipt={depositReceipt}
+        onOpenProcurement={() => setIsProcurementOpen(true)}
+      />
+
+      {/* Enterprise Procurement & Escrow Modal */}
+      <ProcurementModal
+        isOpen={isProcurementOpen}
+        onClose={() => setIsProcurementOpen(false)}
+        matchedDestination={matchedDestination}
+        users={users}
+        roomId={roomId || 'TRIP'}
+        depositStatus={depositStatus}
+        depositReceipt={depositReceipt}
+        onConfirmDeposit={confirmDepositEscrow}
+      />
+
+      {/* Real-Time Peer Sync Notification Toast */}
+      <AnimatePresence>
+        {escrowNotification && (
+          <div className="fixed top-16 sm:top-20 inset-x-4 max-w-md mx-auto z-50 p-3 rounded-xl bg-[#181825] border border-[#a6e3a1] shadow-2xl text-center flex items-center justify-between gap-2 no-print">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#a6e3a1]">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#a6e3a1] animate-ping" />
+              <span>{escrowNotification}</span>
+            </div>
+            <button
+              onClick={clearEscrowNotification}
+              className="text-[#a6adc8] hover:text-[#cdd6f4] text-xs font-bold px-2 py-0.5 rounded cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

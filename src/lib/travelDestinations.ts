@@ -11,6 +11,7 @@ export interface TravelDestination {
   city: string;
   country: string;
   category: string;
+  archetype?: 'coastal' | 'mountain' | 'urban' | 'regional_apac';
   overview: string;
   hero_image: string;
   gallery: string[];
@@ -28,6 +29,13 @@ export interface TravelDestination {
   ai_reason: string;
   virtual_tour_id?: string;
   is_sponsored?: boolean;
+  // Google Places API (New) & Google Routes
+  google_place_id?: string;
+  google_maps_uri?: string;
+  formatted_address?: string;
+  airport_travel_time?: string;
+  nearest_airport?: string;
+  google_verified?: boolean;
 }
 
 export const ALL_AMENITIES: BusinessAmenity[] = [
@@ -48,6 +56,7 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     city: 'ภูเก็ต',
     country: 'ประเทศไทย',
     category: 'รีสอร์ตผู้บริหารระดับพรีเมียม',
+    archetype: 'coastal',
     overview: 'พูลวิลล่าส่วนตัวบนแนวชายฝั่งตะวันตกเฉียงเหนือของภูเก็ต มาพร้อมอินเทอร์เน็ตความเร็วสูง Starlink ห้องประชุมเปิดโล่งรับลมทะเลอันดามัน และมื้อค่ำอาหารทะเลระดับมิชลินสำหรับทีมผู้นำระดับผู้บริหาร',
     hero_image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80',
     gallery: [
@@ -68,7 +77,13 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     commission_percentage: 12,
     ai_reason: 'ความเป็นส่วนตัวสูงสุดและวิวทะเลอันดามันพาโนรามา เหมาะสำหรับวางแผนกลยุทธ์ประจำปีของฝ่ายบริหาร',
     virtual_tour_id: '1aBcDeFgHiJ',
-    is_sponsored: true
+    is_sponsored: true,
+    google_place_id: 'ChIJVXN2d_44UDARFpYg_m3_rWw',
+    google_maps_uri: 'https://maps.google.com/?cid=1244465487635678912',
+    formatted_address: '60/5 Moo 6, Srisoonthorn Rd, Cherngtalay, Thalang, Phuket 83110 Thailand',
+    nearest_airport: 'สนามบินนานาชาติภูเก็ต (HKT)',
+    airport_travel_time: '18 นาที (12.4 กม. ผ่าน ทล.4018)',
+    google_verified: true
   },
   {
     id: 102,
@@ -76,6 +91,7 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     city: 'เชียงใหม่',
     country: 'ประเทศไทย',
     category: 'ฟื้นฟูสุขภาพ & Eco Retreat',
+    archetype: 'mountain',
     overview: 'รีสอร์ตริมแม่น้ำปิงอันเงียบสงบ ผสมผสานจิตวิญญาณสถาปัตยกรรมล้านนากับพื้นที่ทำงานที่เป็นกลางทางคาร์บอน ศาลาระดมสมองริมน้ำ พิธีชงชา และโซนนั่งทำงานเพื่อจุดประกายความคิดสร้างสรรค์',
     hero_image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80',
     gallery: [
@@ -93,7 +109,13 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     reviews_count: 215,
     affiliate_booking_url: 'https://www.agoda.com/raya-heritage/hotel/chiang-mai-th.html?cid=trippick',
     commission_percentage: 11,
-    ai_reason: 'พื้นที่สงบเยียวยาภาวะหมดไฟของทีมเทคโนโลยี ช่วยสร้างไอเดียใหม่ๆ ได้อย่างมีประสิทธิภาพ'
+    ai_reason: 'พื้นที่สงบเยียวยาภาวะหมดไฟของทีมเทคโนโลยี ช่วยสร้างไอเดียใหม่ๆ ได้อย่างมีประสิทธิภาพ',
+    google_place_id: 'ChIJzWp72_022DARjKx129_abcd',
+    google_maps_uri: 'https://maps.google.com/?cid=894372109847123984',
+    formatted_address: '157 Moo 6, Tambol Donkaew, Mae Rim, Chiang Mai 50180 Thailand',
+    nearest_airport: 'สนามบินนานาชาติเชียงใหม่ (CNX)',
+    airport_travel_time: '25 นาที (16.2 กม. ผ่าน ถ.โชตนา)',
+    google_verified: true
   },
   {
     id: 103,
@@ -101,6 +123,7 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     city: 'เกาะสมุย',
     country: 'ประเทศไทย',
     category: 'ทำงานพักผ่อน (Bleisure & Coworking)',
+    archetype: 'coastal',
     overview: 'การรวมตัวของพลังงานชีวิตที่สดใสและประสิทธิภาพการทำงาน คาบาน่าริมหาดพร้อมปลั๊กและเน็ต สระว่ายน้ำอินฟินิตี้ส่วนตัวทุกหลัง ปาร์ตี้ดีเจยามพระอาทิตย์ตก และห้อง Great Room สำหรับพรีเซนต์งานสำคัญ',
     hero_image: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=1200&q=80',
     gallery: [
@@ -118,7 +141,13 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     reviews_count: 310,
     affiliate_booking_url: 'https://www.booking.com/hotel/th/w-retreat-koh-samui.html?aid=trippick_b2b',
     commission_percentage: 13,
-    ai_reason: 'บรรยากาศสนุกสนานที่เปลี่ยนการจัดออฟไซต์ธรรมดาให้เป็นความทรงจำที่น่าประทับใจของทุกคนในทีม'
+    ai_reason: 'บรรยากาศสนุกสนานที่เปลี่ยนการจัดออฟไซต์ธรรมดาให้เป็นความทรงจำที่น่าประทับใจของทุกคนในทีม',
+    google_place_id: 'ChIJX0897y58UDARk81273_wxyz',
+    google_maps_uri: 'https://maps.google.com/?cid=918237465019283746',
+    formatted_address: '4/1 Moo 1 Tambol Maenam, Koh Samui, Surat Thani 84330 Thailand',
+    nearest_airport: 'สนามบินนานาชาติสมุย (USM)',
+    airport_travel_time: '15 นาที (8.5 กม. ผ่าน ทล.4169)',
+    google_verified: true
   },
   {
     id: 104,
@@ -126,6 +155,7 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     city: 'กระบี่',
     country: 'ประเทศไทย',
     category: 'ผจญภัยกระชับมิตรทีม',
+    archetype: 'coastal',
     overview: 'โอบล้อมด้วย 3 ชายหาดและยอดเขาหินปูนสูงตระหง่านใจกลางอุทยานแห่งชาติทางทะเล เหมาะสำหรับการผจญภัยเสริมสร้างความสามัคคี ควบคู่กับอาหารค่ำสุดหรูในถ้ำหินปูนและห้องประชุมกลางป่าเขตร้อน',
     hero_image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
     gallery: [
@@ -143,7 +173,13 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     reviews_count: 168,
     affiliate_booking_url: 'https://www.agoda.com/rayavadee-hotel/hotel/krabi-th.html?cid=trippick',
     commission_percentage: 10,
-    ai_reason: 'ทัศนียภาพธรรมชาติอันตระการตาที่ถูกออกแบบมาเพื่อสร้างความไว้วางใจและการผูกสัมพันธ์ในทีม'
+    ai_reason: 'ทัศนียภาพธรรมชาติอันตระการตาที่ถูกออกแบบมาเพื่อสร้างความไว้วางใจและการผูกสัมพันธ์ในทีม',
+    google_place_id: 'ChIJk71928374DARm82910_qwer',
+    google_maps_uri: 'https://maps.google.com/?cid=456789123049586712',
+    formatted_address: '214 Moo 2, Tambon Ao-Nang, Mueang, Krabi 81000 Thailand',
+    nearest_airport: 'สนามบินนานาชาติกระบี่ (KBV)',
+    airport_travel_time: '40 นาที (รถตู้ VIP + เรือสปีดโบ๊ตส่วนตัว)',
+    google_verified: true
   },
   {
     id: 105,
@@ -151,6 +187,7 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     city: 'กรุงเทพมหานคร',
     country: 'ประเทศไทย',
     category: 'จัดประชุม MICE หรูใจกลางเมือง',
+    archetype: 'urban',
     overview: 'โอเอซิสริมแม่น้ำเจ้าพระยา นำเสนอสิ่งอำนวยความสะดวกในการจัดประชุมผู้บริหารระดับโลก อาหารระดับดาวมิชลิน วิลล่าริมน้ำส่วนตัว และบริการวางแผนการประชุมระดับองค์กรอย่างสมบูรณ์แบบ',
     hero_image: 'https://images.unsplash.com/photo-1508873696983-2df5293cb32b?auto=format&fit=crop&w=1200&q=80',
     gallery: [
@@ -168,7 +205,13 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     reviews_count: 240,
     affiliate_booking_url: 'https://www.booking.com/hotel/th/capella-bangkok.html?aid=trippick_b2b',
     commission_percentage: 12,
-    ai_reason: 'โรงแรมอันดับ 1 ของโลกที่ผสมผสานความสะดวกใจกลางเมืองหลวงกับความเงียบสงบริมสายน้ำ'
+    ai_reason: 'โรงแรมอันดับ 1 ของโลกที่ผสมผสานความสะดวกใจกลางเมืองหลวงกับความเงียบสงบริมสายน้ำ',
+    google_place_id: 'ChIJb78291024DARc81920_asdf',
+    google_maps_uri: 'https://maps.google.com/?cid=384910293847561029',
+    formatted_address: '300/2 Charoenkrung Road, Yannawa, Sathon, Bangkok 10120 Thailand',
+    nearest_airport: 'สนามบินสุวรรณภูมิ (BKK)',
+    airport_travel_time: '35 นาที (34.0 กม. ผ่าน ทางพิเศษศรีรัช)',
+    google_verified: true
   },
   {
     id: 106,
@@ -176,6 +219,7 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     city: 'บาหลี',
     country: 'อินโดนีเซีย',
     category: 'ทำงานพักผ่อน (Bleisure & Coworking)',
+    archetype: 'regional_apac',
     overview: 'มาตรฐานระดับโลกสำหรับออฟไซต์ของบริษัทเทคโนโลยีและเอเจนซี่ดีไซน์ สถาปัตยกรรมไร้ขยะ (Zero-Waste) อัฒจันทร์ไม้ไผ่ พื้นที่ทำงานริมหาด และวัฒนธรรมดนตรียามเย็นริมหาดเซมินยัค',
     hero_image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=80',
     gallery: [
@@ -193,7 +237,13 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     reviews_count: 420,
     affiliate_booking_url: 'https://www.booking.com/hotel/id/desa-potato-head.html?aid=trippick_b2b',
     commission_percentage: 11,
-    ai_reason: 'สถานที่ดึงดูดใจสำหรับทีมดีไซน์ สตาร์ทอัพ และผู้ก่อตั้งสายเทคโนโลยีรุ่นใหม่'
+    ai_reason: 'สถานที่ดึงดูดใจสำหรับทีมดีไซน์ สตาร์ทอัพ และผู้ก่อตั้งสายเทคโนโลยีรุ่นใหม่',
+    google_place_id: 'ChIJa91827364DARd82719_zxcv',
+    google_maps_uri: 'https://maps.google.com/?cid=671829384910293847',
+    formatted_address: 'Jl. Petitenget No.51B, Seminyak, Badung, Bali 80361 Indonesia',
+    nearest_airport: 'Ngurah Rai International Airport (DPS)',
+    airport_travel_time: '30 นาที (13.5 กม. ผ่าน Jl. Sunset Road)',
+    google_verified: true
   },
   {
     id: 107,
@@ -201,6 +251,7 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     city: 'ดานัง',
     country: 'เวียดนาม',
     category: 'จัดประชุม MICE หรูใจกลางเมือง',
+    archetype: 'regional_apac',
     overview: 'ผลงานชิ้นเอกที่ออกแบบโดย บิล เบนส์ลีย์ ข้ามภูเขาลิง วิลล่าสำหรับการประชุมระดับผู้นำพร้อมบริการบัตเลอร์ส่วนตัว ร้านอาหารระดับมิชลิน และรถรางไฟฟ้าส่วนตัวลงสู่อ่าวชายหาด',
     hero_image: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?auto=format&fit=crop&w=1200&q=80',
     gallery: [
@@ -218,7 +269,13 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     reviews_count: 198,
     affiliate_booking_url: 'https://www.agoda.com/intercontinental-danang-sun-peninsula-resort/hotel/da-nang-vn.html?cid=trippick',
     commission_percentage: 12,
-    ai_reason: 'ความยิ่งใหญ่อลังการที่ภูเขาบรรจบกับท้องทะเล สำหรับการประชุมระดับภูมิภาค APAC'
+    ai_reason: 'ความยิ่งใหญ่อลังการที่ภูเขาบรรจบกับท้องทะเล สำหรับการประชุมระดับภูมิภาค APAC',
+    google_place_id: 'ChIJc82719283DARe91827_tyui',
+    google_maps_uri: 'https://maps.google.com/?cid=561029384756192834',
+    formatted_address: 'Bai Bac, Son Tra Peninsula, Da Nang 550000 Vietnam',
+    nearest_airport: 'Da Nang International Airport (DAD)',
+    airport_travel_time: '35 นาที (22.0 กม. ผ่าน ถ. Hoang Sa)',
+    google_verified: true
   },
   {
     id: 108,
@@ -226,6 +283,7 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     city: 'เซ็นโตซ่า',
     country: 'สิงคโปร์',
     category: 'รีสอร์ตผู้บริหารระดับพรีเมียม',
+    archetype: 'regional_apac',
     overview: 'คฤหาสน์สไตล์โคโลเนียลท่ามกลางพื้นที่ธรรมชาติกว่า 30 เอเคอร์บนเกาะเซ็นโตซ่า สถานที่จัดการประชุมระดับผู้นำนานาชาติ มีพูลวิลล่าส่วนตัว ระบบรักษาความปลอดภัยระดับสูงสุด และห่างจากย่านการเงินเพียง 10 นาที',
     hero_image: 'https://images.unsplash.com/photo-1565967511849-76a60a516170?auto=format&fit=crop&w=1200&q=80',
     gallery: [
@@ -243,7 +301,77 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     reviews_count: 275,
     affiliate_booking_url: 'https://www.booking.com/hotel/sg/capella-singapore.html?aid=trippick_b2b',
     commission_percentage: 10,
-    ai_reason: 'ความปลอดภัยสูงสุด ความเป็นส่วนตัวระดับสากล และการเชื่อมต่อที่รวดเร็วสำหรับการประชุมบอร์ดบริหาร'
+    ai_reason: 'ความปลอดภัยสูงสุด ความเป็นส่วนตัวระดับสากล และการเชื่อมต่อที่รวดเร็วสำหรับการประชุมบอร์ดบริหาร',
+    google_place_id: 'ChIJd91827364DARf82719_ghjk',
+    google_maps_uri: 'https://maps.google.com/?cid=891029384756102938',
+    formatted_address: '1 The Knolls, Sentosa Island, Singapore 098297',
+    nearest_airport: 'Singapore Changi Airport (SIN)',
+    airport_travel_time: '25 นาที (26.5 กม. ผ่าน ECP Highway)',
+    google_verified: true
+  },
+  {
+    id: 109,
+    title: 'ภูใจใส เมาน์เทน แอนด์ บรูว์ แซงค์ทัวรี',
+    city: 'เชียงราย',
+    country: 'ประเทศไทย',
+    category: 'ฟื้นฟูสุขภาพ & Eco Retreat',
+    archetype: 'mountain',
+    overview: 'รีสอร์ตไม้ไผ่ธรรมชาติบนยอดดอยแม่สลอง โอบล้อมด้วยไร่ชาขั้นบันไดและทะเลหมอก สัญญาณอินเทอร์เน็ต Starlink ครอบคลุมทั่วบริเวณ ศาลาประชุมรับลมหนาว และเวิร์กช็อประดมสมองพร้อมชาออร์แกนิก',
+    hero_image: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=800&q=80'
+    ],
+    price_per_night: 22000,
+    price_per_person: 3500,
+    min_capacity: 6,
+    max_capacity: 30,
+    wifi_speed_mbps: 400,
+    business_amenities: ['อินเทอร์เน็ต Starlink / Fiber 500+ Mbps', 'โซนทำงาน Coworking พร้อมวิวธรรมชาติ', 'สปา นวดแผนไทย & คลาสโยคะผ่อนคลาย', 'รถตู้ VIP รับ-ส่งสนามบินส่วนตัว'],
+    tourism_highlights: ['กิจกรรมเก็บใบชาและชงชาออร์แกนิกบนยอดดอย', 'ชมพระอาทิตย์ขึ้นเหนือทะเลหมอกดอยแม่สลอง', 'เดินป่าศึกษาเส้นทางธรรมชาติกระชับมิตรทีม'],
+    rating: 4.95,
+    reviews_count: 142,
+    affiliate_booking_url: 'https://www.booking.com/hotel/th/phu-chaisai-mountain-resort.html?aid=trippick_b2b',
+    commission_percentage: 12,
+    ai_reason: 'บรรยากาศเทือกเขาสูงและความเงียบสงบที่ปราศจากมลภาวะ ช่วยให้การวางแผนกลยุทธ์ทีมมีความคิดสร้างสรรค์สูงสุด',
+    google_place_id: 'ChIJe91827364DARg82719_bnml',
+    google_maps_uri: 'https://maps.google.com/?cid=901928374650192834',
+    formatted_address: '142 Moo 4, Mae Salong Nok, Mae Chan, Chiang Rai 57110 Thailand',
+    nearest_airport: 'สนามบินนานาชาติแม่ฟ้าหลวง เชียงราย (CEI)',
+    airport_travel_time: '45 นาที (38.0 กม. ผ่าน ทล.1 และ ทล.1089)',
+    google_verified: true
+  },
+  {
+    id: 110,
+    title: 'คีรีมายา กอล์ฟ รีสอร์ต แอนด์ สปา เอ็กเซ็กคิวทีฟ ฮับ',
+    city: 'เขาใหญ่',
+    country: 'ประเทศไทย',
+    category: 'ฟื้นฟูสุขภาพ & Eco Retreat',
+    archetype: 'mountain',
+    overview: 'รีสอร์ตระดับลักชัวรีติดอุทยานแห่งชาติเขาใหญ่ ขับรถจากกรุงเทพฯ เพียง 2 ชั่วโมง เพียบพร้อมด้วยสนามกอล์ฟ 18 หลุม ห้องสัมมนามาตรฐาน MICE พร้อมจอขนาดใหญ่และวิวเทือกเขาดงพญาเย็น',
+    hero_image: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80'
+    ],
+    price_per_night: 27000,
+    price_per_person: 4100,
+    min_capacity: 10,
+    max_capacity: 50,
+    wifi_speed_mbps: 500,
+    business_amenities: ['อินเทอร์เน็ต Starlink / Fiber 500+ Mbps', 'ห้องประชุมผู้บริหาร & ระบบ AV ครบครัน', 'สระว่ายน้ำส่วนตัวริมผา/ติดหาด', 'เชฟส่วนตัว & จัดเลี้ยงอาหารสำหรับทีม', 'รถตู้ VIP รับ-ส่งสนามบินส่วนตัว'],
+    tourism_highlights: ['ทัวร์ชิมไวน์ในไร่องุ่นเขาใหญ่', 'กิจกรรมส่องสัตว์กลางคืนอุทยานแห่งชาติ', 'แข่งขันกอล์ฟกระชับมิตรทีมผู้บริหาร'],
+    rating: 4.90,
+    reviews_count: 195,
+    affiliate_booking_url: 'https://www.agoda.com/kirimaya-golf-resort-spa/hotel/khao-yai-th.html?cid=trippick',
+    commission_percentage: 11,
+    ai_reason: 'เดินทางสะดวกใกล้กรุงเทพฯ พร้อมสิ่งอำนวยความสะดวกระดับพรีเมียมและพื้นที่สีเขียวกว้างขวางสำหรับกิจกรรมเอาต์ดอร์',
+    google_place_id: 'ChIJf91827364DARh82719_poiu',
+    google_maps_uri: 'https://maps.google.com/?cid=781920394857102938',
+    formatted_address: '1/3 Moo 6 Thanarat Road, Mu Si, Pak Chong, Nakhon Ratchasima 30130 Thailand',
+    nearest_airport: 'สนามบินดอนเมือง / สุวรรณภูมิ (DMK / BKK)',
+    airport_travel_time: '2 ชม. (160 กม. ผ่าน มอเตอร์เวย์ M6)',
+    google_verified: true
   }
 ];
 
@@ -278,4 +406,52 @@ export function getFallbackDestinations(
   }
 
   return list;
+}
+
+export function findCongruentDestination(query: {
+  id?: number;
+  city?: string;
+  category?: string;
+  vibe?: string;
+  archetype?: 'coastal' | 'mountain' | 'urban' | 'regional_apac';
+}): TravelDestination {
+  // 1. Direct ID match
+  if (query.id) {
+    const direct = CURATED_DESTINATIONS.find(d => d.id === query.id);
+    if (direct) return direct;
+  }
+
+  // 2. City match (e.g. เชียงใหม่, เชียงราย, เขาใหญ่, ภูเก็ต, สมุย, บาหลี)
+  if (query.city) {
+    const cleanCity = query.city.toLowerCase().trim();
+    const cityMatch = CURATED_DESTINATIONS.find(d =>
+      d.city.toLowerCase().includes(cleanCity) || cleanCity.includes(d.city.toLowerCase())
+    );
+    if (cityMatch) return cityMatch;
+  }
+
+  // 3. Archetype match
+  let targetArchetype = query.archetype;
+  if (!targetArchetype && query.vibe) {
+    const v = query.vibe.toLowerCase();
+    if (v.includes('เขา') || v.includes('ดอย') || v.includes('หมอก') || v.includes('ป่า') || v.includes('eco') || v.includes('mountain')) {
+      targetArchetype = 'mountain';
+    } else if (v.includes('ทะเล') || v.includes('หาด') || v.includes('เกาะ') || v.includes('beach') || v.includes('coastal')) {
+      targetArchetype = 'coastal';
+    } else if (v.includes('เมือง') || v.includes('สัมมนา') || v.includes('mice') || v.includes('city') || v.includes('urban')) {
+      targetArchetype = 'urban';
+    } else if (v.includes('บาหลี') || v.includes('สิงคโปร์') || v.includes('ต่างประเทศ') || v.includes('regional')) {
+      targetArchetype = 'regional_apac';
+    }
+  }
+
+  if (targetArchetype) {
+    const archetypeMatches = CURATED_DESTINATIONS.filter(d => d.archetype === targetArchetype);
+    if (archetypeMatches.length > 0) {
+      return archetypeMatches[0];
+    }
+  }
+
+  // Fallback to highest rated curated destination
+  return CURATED_DESTINATIONS[0];
 }

@@ -63,14 +63,18 @@ export function WaitingLobbyView({
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       className="flex flex-col items-center justify-center min-h-[calc(100dvh-5rem)] px-4 sm:px-6 py-8 sm:py-12 relative z-20"
     >
-      {/* Minimalist Enclosure (Low-End Optimized) */}
-      <div className="w-full max-w-2xl p-2 rounded-2xl bg-[#181825] border border-[#313244] shadow-sm">
-        <div className="rounded-xl p-5 sm:p-6 bg-[#1e1e2e] border border-[#313244]">
+      {/* Ambient Radial Glowing Mesh */}
+      <div className="absolute top-1/4 -left-20 w-80 h-80 bg-[#cba6f7]/10 blur-[100px] rounded-full pointer-events-none -z-10" />
+      <div className="absolute top-1/3 -right-20 w-80 h-80 bg-[#74c7ec]/10 blur-[100px] rounded-full pointer-events-none -z-10" />
+
+      {/* Double-Bezel Enclosure (Nested Architectural Frame) */}
+      <div className="w-full max-w-2xl p-2 rounded-[2rem] bg-[#181825]/90 border border-white/10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] backdrop-blur-xl">
+        <div className="rounded-[calc(2rem-0.5rem)] p-5 sm:p-6 bg-[#1e1e2e]/95 border border-white/5">
           {/* Header with Room Code Hero */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-[#313244]">
             <div>
               <div className="flex items-center gap-1.5 mb-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#a6e3a1]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#a6e3a1] animate-pulse" />
                 <span className="text-[10px] uppercase font-mono tracking-widest text-[#cba6f7] font-semibold">
                   WAR ROOM // LIVE RADAR
                 </span>
@@ -91,7 +95,12 @@ export function WaitingLobbyView({
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#181825] border border-[#a6e3a1]/30 text-[#a6e3a1] text-[10px] font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#a6e3a1] animate-pulse" />
+                <span className="hidden sm:inline">สถานะ: </span>
+                <span>ระบบซิงค์อัตโนมัติ (Zero-Latency Realtime)</span>
+              </div>
               <span className="text-xs text-[#a6e3a1] font-semibold px-2.5 py-0.5 rounded bg-[#313244] border border-[#45475a] font-mono">
                 {users.length} ONLINE
               </span>
@@ -233,11 +242,11 @@ export function WaitingLobbyView({
                 </div>
               </div>
 
-              {/* Start Session CTA */}
+              {/* Start Session CTA (Nested Island Button Architecture) */}
               <button
                 onClick={handleStart}
                 disabled={loading}
-                className="w-full py-3.5 px-5 rounded-xl bg-[#cba6f7] hover:bg-[#b4befe] text-[#11111b] font-bold text-sm transition-colors cursor-pointer flex items-center justify-between active:scale-[0.98] disabled:opacity-50"
+                className="group w-full py-4 px-6 rounded-full bg-[#cba6f7] hover:bg-[#b4befe] text-[#11111b] font-bold text-sm shadow-lg hover:shadow-[#cba6f7]/25 transition-all duration-200 cursor-pointer flex items-center justify-between active:scale-[0.98] disabled:opacity-50"
               >
                 <span className="tracking-tight">
                   {loading ? (
@@ -246,7 +255,7 @@ export function WaitingLobbyView({
                     `เริ่มปัดเลือกสถานที่ด้วยระบบฉันทามติ (${users.length} คน)`
                   )}
                 </span>
-                <div className="w-7 h-7 rounded-lg bg-[#11111b]/15 text-[#11111b] flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-full bg-[#11111b]/15 text-[#11111b] flex items-center justify-center shrink-0 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
                   <svg className="w-4 h-4 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
                   </svg>
@@ -254,9 +263,9 @@ export function WaitingLobbyView({
               </button>
             </div>
           ) : (
-            <div className="py-6 text-center">
-              <div className="inline-flex items-center gap-2 p-3 rounded-xl bg-[#181825] border border-[#313244] text-[#cdd6f4] text-xs mb-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#cba6f7]" />
+            <div className="py-8 text-center">
+              <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-[#181825] border border-white/10 text-[#cdd6f4] text-xs mb-2.5 shadow-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#cba6f7] animate-pulse" />
                 <span>กำลังรอหัวหน้าห้อง (Host) เริ่มต้นรอบการปัดเลือกสถานที่...</span>
               </div>
               <p className="text-[11px] text-[#a6adc8]">
