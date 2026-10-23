@@ -6,6 +6,7 @@ import { generateExecutiveAgenda } from '../lib/ai';
 import { enrichDestinationWithGooglePlaces, type GooglePlaceData } from '../lib/googlePlaces';
 import { generatePromptPayPayload, generateQrSvgPath } from '../lib/promptpay';
 import { useAudioBriefing, VOICE_ENGINES, type VoiceEngine, ELEVENLABS_2MIN_PITCH_SCRIPT } from '../lib/audioConcierge';
+import { useLanguage } from '../lib/i18n';
 
 interface MatchOverlayViewProps {
   matchedDestination: TravelDestination | null;
@@ -21,7 +22,7 @@ interface MatchOverlayViewProps {
 }
 
 export function MatchOverlayView({
-  matchedDestination,
+  matchedDestination: rawMatchedDestination,
   users,
   onReset,
   roomId = 'TRIP',
@@ -30,6 +31,12 @@ export function MatchOverlayView({
   onConfirmDeposit,
   onOpenProcurement,
 }: MatchOverlayViewProps) {
+  const { language, t, localizeDestination } = useLanguage();
+  const matchedDestination = useMemo(() => {
+    if (!rawMatchedDestination) return null;
+    return { ...rawMatchedDestination, ...localizeDestination(rawMatchedDestination) };
+  }, [rawMatchedDestination, localizeDestination]);
+
   const [activeTab, setActiveTab] = useState<'rfp' | 'agenda'>('rfp');
   const [teamSize, setTeamSize] = useState(Math.max(4, users.length));
   const [nights, setNights] = useState(3);
@@ -89,8 +96,8 @@ export function MatchOverlayView({
   // Synthesize Autonomous 3-Day Executive Agenda
   const agenda = useMemo(() => {
     if (!matchedDestination) return [];
-    return generateExecutiveAgenda(matchedDestination, teamSize);
-  }, [matchedDestination, teamSize]);
+    return generateExecutiveAgenda(matchedDestination, teamSize, undefined, language);
+  }, [matchedDestination, teamSize, language]);
 
   // Financial Procurement Calculations
   const netTotal = matchedDestination ? matchedDestination.price_per_person * teamSize * nights : 0;
@@ -150,7 +157,7 @@ export function MatchOverlayView({
 
   const isEscrowLocked = depositStatus === 'SECURED_ESCROW' || Boolean(depositReceipt);
 
-  const issueDateFormatted = new Date().toLocaleDateString('th-TH', {
+  const issueDateFormatted = new Date().toLocaleDateString(language === 'en' ? 'en-US' : 'th-TH', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -161,7 +168,35 @@ export function MatchOverlayView({
   };
 
   const handleCopySummary = async () => {
-    const summary = `=====================================================
+    const isEn = language === 'en';
+    const summary = isEn
+      ? `=====================================================
+B2B Corporate Retreat Procurement Proposal (RFP Document)
+Reference No.: ${proposalRef}
+Issue Date: ${issueDateFormatted}
+Consensus Status: 100% Unanimous Approved
+Escrow Deposit Status: ${isEscrowLocked ? `Escrow Secured & Locked (${depositReceipt?.receiptNo || depositCode})` : 'Pending Deposit (฿5,000)'}
+-----------------------------------------------------
+Venue: ${matchedDestination.title}
+Location: ${googleData?.formattedAddress || `${matchedDestination.city}, ${matchedDestination.country}`}
+Google Maps: ${googleData?.googleMapsUri || matchedDestination.affiliate_booking_url}
+Airport Transit: ${googleData?.airportTravelTime || '30 mins'}
+Attendees: ${teamSize} Pax | Duration: ${nights} Nights
+Connectivity: ${matchedDestination.wifi_speed_mbps} Mbps (Starlink Business SLA)
+Executive Boardroom: Max capacity ${matchedDestination.max_capacity} Pax
+-----------------------------------------------------
+Statutory Tax & Financial Summary (THB):
+1. Net Accommodation & Facilities (Net Subtotal): ฿${netTotal.toLocaleString()}
+2. Value Added Tax 7% (VAT 7%): +฿${vat7.toLocaleString()}
+3. Gross Invoice Total: ฿${grossTotal.toLocaleString()}
+4. Withholding Tax 3% (WHT 3% Services Tor.Por. 4/2528): -฿${wht3.toLocaleString()}
+-----------------------------------------------------
+Net Payable Amount to Vendor: ฿${netPayable.toLocaleString()}
+Wholesale Margin (12%): ฿${commissionEarned.toLocaleString()}
+=====================================================
+Issued by: TripPick Business Travel Solutions Co., Ltd. (Headquarters)
+Tax ID: 0-1055-69018-92-4`
+      : `=====================================================
 ใบเสนอราคาและเอกสารจัดซื้อจัดจ้างทริปองค์กร (B2B RFP Document)
 เลขที่อ้างอิง: ${proposalRef}
 วันที่ออกเอกสาร: ${issueDateFormatted}
@@ -198,43 +233,80 @@ Tax ID: 0-1055-69018-92-4`;
 
   // Google Workspace & Microsoft Sheets Compatible CSV Export
   const handleDownloadCsv = () => {
+    const isEn = language === 'en';
     const csvContent =
       '\uFEFF' +
-      `"TripPick - ใบเสนอราคาและงบประมาณจัดซื้อจัดจ้างทริปองค์กร (B2B Procurement RFP)"\n` +
-      `"เลขที่เอกสารอ้างอิง","${proposalRef}"\n` +
-      `"วันที่ออกเอกสาร","${issueDateFormatted}"\n` +
-      `"สถานะฉันทามติ","100% Unanimous Consensus Approved"\n` +
-      `"สถานะการล็อกสิทธิ์","${isEscrowLocked ? `Escrow Secured & Locked (${depositReceipt?.receiptNo || depositCode})` : 'Pending Deposit'}"\n` +
-      `"รหัสห้องสัมมนา","#${roomId}"\n` +
-      `"องค์กรลูกค้า","${companyName}"\n` +
-      `"เลขประจำตัวผู้เสียภาษีลูกค้า","${companyTaxId}"\n` +
-      `"ผู้ประสานงานหลัก","${leadOrganizer} (${leadRole})"\n` +
-      `"สถานที่จัดงาน","${matchedDestination.title}"\n` +
-      `"เมือง / ประเทศ","${matchedDestination.city}, ${matchedDestination.country}"\n` +
-      `"ที่อยู่รับรอง Google Maps","${googleData?.formattedAddress || `${matchedDestination.city}, ${matchedDestination.country}`}"\n` +
-      `"ระยะเวลาเดินทางจากสนามบิน","${googleData?.airportTravelTime || '30 นาที'}"\n` +
-      `"ลิงก์ Google Maps","${googleData?.googleMapsUri || ''}"\n` +
-      `"จำนวนผู้เข้าร่วม","${teamSize} ท่าน"\n` +
-      `"ระยะเวลาพำนัก","${nights} คืน"\n` +
-      `"สเปกอินเทอร์เน็ตที่รับรอง","${matchedDestination.wifi_speed_mbps} Mbps (Starlink Business SLA Guarantee)"\n` +
-      `"ความจุห้องประชุมผู้บริหาร","${matchedDestination.max_capacity} ท่าน (จอ 4K & ระบบเสียง AV)"\n` +
-      `\n` +
-      `"ลำดับ","รายการจัดซื้อจัดจ้าง (Line Items)","จำนวน","ราคาต่อหน่วย (THB)","ยอดรวม (THB)"\n` +
-      `"1","ค่าแพ็กเกจที่พักและสิ่งอำนวยความสะดวก MICE เหมารีสอร์ต","${teamSize * nights} คน/คืน","${matchedDestination.price_per_person}","${netTotal}"\n` +
-      `"2","สัญญาณอินเทอร์เน็ตความเร็วสูง Starlink Business SLA Guarantee","1 ระบบ","รวมในแพ็กเกจ","0"\n` +
-      `"3","บริการประสานงานผู้ช่วยจัดทริปองค์กร 24 ชม. ผ่าน TripPick AI Concierge","1 รายการ","รวมในแพ็กเกจ","0"\n` +
-      `\n` +
-      `"สรุปงบประมาณและภาษีตามกฎหมาย (Tax & Accounting Breakdown)","จำนวนเงิน (THB)"\n` +
-      `"มูลค่ารวมก่อนภาษี (Net Subtotal)","${netTotal}"\n` +
-      `"ภาษีมูลค่าเพิ่ม 7% (VAT 7%)","${vat7}"\n` +
-      `"ยอดรวมทั้งสิ้นรวมภาษี (Gross Invoice Total)","${grossTotal}"\n` +
-      `"หัก ภาษี ณ ที่จ่าย 3% (Withholding Tax 3% หมวดบริการ)","-${wht3}"\n` +
-      `"ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable Amount)","${netPayable}"\n` +
-      `"ส่วนแบ่งคอมมิชชั่น B2B MICE (${matchedDestination.commission_percentage}%)","${commissionEarned}"\n` +
-      `\n` +
-      `"เงื่อนไขการชำระเงิน","เครดิตเทอม 30 วัน (Net 30) หรือชำระผ่าน Corporate Credit Card / PromptPay B2B"\n` +
-      `"ออกโดย","บริษัท ทริปพิก บิสซิเนส ทราเวล โซลูชั่นส์ จำกัด (สำนักงานใหญ่)"\n` +
-      `"เลขประจำตัวผู้เสียภาษี","0-1055-69018-92-4"\n`;
+      (isEn
+        ? `"TripPick - Enterprise B2B Procurement RFP & Budget Reconciliation"\n` +
+          `"Document Reference","${proposalRef}"\n` +
+          `"Issue Date","${issueDateFormatted}"\n` +
+          `"Consensus Status","100% Unanimous Consensus Approved"\n` +
+          `"Escrow Lock Status","${isEscrowLocked ? `Escrow Secured & Locked (${depositReceipt?.receiptNo || depositCode})` : 'Pending Deposit'}"\n` +
+          `"Room Code","#${roomId}"\n` +
+          `"Purchasing Organization","${companyName}"\n` +
+          `"Corporate Tax ID","${companyTaxId}"\n` +
+          `"Lead Organizer","${leadOrganizer} (${leadRole})"\n` +
+          `"Selected Venue","${matchedDestination.title}"\n` +
+          `"City / Country","${matchedDestination.city}, ${matchedDestination.country}"\n` +
+          `"Verified Address","${googleData?.formattedAddress || `${matchedDestination.city}, ${matchedDestination.country}`}"\n` +
+          `"Airport Travel Time","${googleData?.airportTravelTime || '30 mins'}"\n` +
+          `"Google Maps Link","${googleData?.googleMapsUri || ''}"\n` +
+          `"Attendees","${teamSize} Pax"\n` +
+          `"Duration","${nights} Nights"\n` +
+          `"Connectivity Guarantee","${matchedDestination.wifi_speed_mbps} Mbps (Starlink Business SLA Guarantee)"\n` +
+          `"Executive Boardroom","${matchedDestination.max_capacity} Seats (4K Display & AV System)"\n` +
+          `\n` +
+          `"Item #","Procurement Line Items","Quantity","Unit Price (THB)","Total (THB)"\n` +
+          `"1","Exclusive Venue & MICE Facilities Package","${teamSize * nights} Pax-Nights","${matchedDestination.price_per_person}","${netTotal}"\n` +
+          `"2","Starlink Business SLA High-Speed Guarantee","1 System","Included","0"\n` +
+          `"3","24/7 TripPick AI Executive Concierge Coordination","1 Service","Included","0"\n` +
+          `\n` +
+          `"Statutory Tax & Accounting Breakdown (Tor.Por. 4/2528)","Amount (THB)"\n` +
+          `"Net Subtotal (Pre-VAT / GBV)","${netTotal}"\n` +
+          `"Value Added Tax 7% (VAT 7%)","${vat7}"\n` +
+          `"Gross Invoice Total (with VAT)","${grossTotal}"\n` +
+          `"Withholding Tax 3% (WHT 3% Services)","-${wht3}"\n` +
+          `"Net Payable Amount to Vendor","${netPayable}"\n` +
+          `"Wholesale Take-Rate Commission (${matchedDestination.commission_percentage}%)","${commissionEarned}"\n` +
+          `\n` +
+          `"Payment Terms","Net 30 or Corporate Credit Card / PromptPay B2B Escrow"\n` +
+          `"Issued By","TripPick Business Travel Solutions Co., Ltd. (Headquarters)"\n` +
+          `"Tax ID","0-1055-69018-92-4"\n`
+        : `"TripPick - ใบเสนอราคาและงบประมาณจัดซื้อจัดจ้างทริปองค์กร (B2B Procurement RFP)"\n` +
+          `"เลขที่เอกสารอ้างอิง","${proposalRef}"\n` +
+          `"วันที่ออกเอกสาร","${issueDateFormatted}"\n` +
+          `"สถานะฉันทามติ","100% Unanimous Consensus Approved"\n` +
+          `"สถานะการล็อกสิทธิ์","${isEscrowLocked ? `Escrow Secured & Locked (${depositReceipt?.receiptNo || depositCode})` : 'Pending Deposit'}"\n` +
+          `"รหัสห้องสัมมนา","#${roomId}"\n` +
+          `"องค์กรลูกค้า","${companyName}"\n` +
+          `"เลขประจำตัวผู้เสียภาษีลูกค้า","${companyTaxId}"\n` +
+          `"ผู้ประสานงานหลัก","${leadOrganizer} (${leadRole})"\n` +
+          `"สถานที่จัดงาน","${matchedDestination.title}"\n` +
+          `"เมือง / ประเทศ","${matchedDestination.city}, ${matchedDestination.country}"\n` +
+          `"ที่อยู่รับรอง Google Maps","${googleData?.formattedAddress || `${matchedDestination.city}, ${matchedDestination.country}`}"\n` +
+          `"ระยะเวลาเดินทางจากสนามบิน","${googleData?.airportTravelTime || '30 นาที'}"\n` +
+          `"ลิงก์ Google Maps","${googleData?.googleMapsUri || ''}"\n` +
+          `"จำนวนผู้เข้าร่วม","${teamSize} ท่าน"\n` +
+          `"ระยะเวลาพำนัก","${nights} คืน"\n` +
+          `"สเปกอินเทอร์เน็ตที่รับรอง","${matchedDestination.wifi_speed_mbps} Mbps (Starlink Business SLA Guarantee)"\n` +
+          `"ความจุห้องประชุมผู้บริหาร","${matchedDestination.max_capacity} ท่าน (จอ 4K & ระบบเสียง AV)"\n` +
+          `\n` +
+          `"ลำดับ","รายการจัดซื้อจัดจ้าง (Line Items)","จำนวน","ราคาต่อหน่วย (THB)","ยอดรวม (THB)"\n` +
+          `"1","ค่าแพ็กเกจที่พักและสิ่งอำนวยความสะดวก MICE เหมารีสอร์ต","${teamSize * nights} คน/คืน","${matchedDestination.price_per_person}","${netTotal}"\n` +
+          `"2","สัญญาณอินเทอร์เน็ตความเร็วสูง Starlink Business SLA Guarantee","1 ระบบ","รวมในแพ็กเกจ","0"\n` +
+          `"3","บริการประสานงานผู้ช่วยจัดทริปองค์กร 24 ชม. ผ่าน TripPick AI Concierge","1 รายการ","รวมในแพ็กเกจ","0"\n` +
+          `\n` +
+          `"สรุปงบประมาณและภาษีตามกฎหมาย (Tax & Accounting Breakdown)","จำนวนเงิน (THB)"\n` +
+          `"มูลค่ารวมก่อนภาษี (Net Subtotal)","${netTotal}"\n` +
+          `"ภาษีมูลค่าเพิ่ม 7% (VAT 7%)","${vat7}"\n` +
+          `"ยอดรวมทั้งสิ้นรวมภาษี (Gross Invoice Total)","${grossTotal}"\n` +
+          `"หัก ภาษี ณ ที่จ่าย 3% (Withholding Tax 3% หมวดบริการ)","-${wht3}"\n` +
+          `"ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable Amount)","${netPayable}"\n` +
+          `"ส่วนแบ่งคอมมิชชั่น B2B MICE (${matchedDestination.commission_percentage}%)","${commissionEarned}"\n` +
+          `\n` +
+          `"เงื่อนไขการชำระเงิน","เครดิตเทอม 30 วัน (Net 30) หรือชำระผ่าน Corporate Credit Card / PromptPay B2B"\n` +
+          `"ออกโดย","บริษัท ทริปพิก บิสซิเนส ทราเวล โซลูชั่นส์ จำกัด (สำนักงานใหญ่)"\n` +
+          `"เลขประจำตัวผู้เสียภาษี","0-1055-69018-92-4"\n`);
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -249,39 +321,73 @@ Tax ID: 0-1055-69018-92-4`;
 
   // 1-Click Direct Google Sheets Export
   const handleOpenGoogleSheets = async () => {
+    const isEn = language === 'en';
     // Generate clean Tab-Separated Values (TSV) which pastes natively into Google Sheets with multi-column alignment
-    const tsvContent = [
-      ['TripPick - ใบเสนอราคาและงบประมาณจัดซื้อจัดจ้างทริปองค์กร (B2B Procurement RFP)'],
-      ['เลขที่เอกสารอ้างอิง', proposalRef],
-      ['วันที่ออกเอกสาร', issueDateFormatted],
-      ['สถานะฉันทามติ', '100% Unanimous Consensus Approved'],
-      ['สถานะการวางมัดจำ', isEscrowLocked ? `Escrow Secured & Locked (${depositReceipt?.receiptNo || depositCode})` : 'Pending Deposit'],
-      ['รหัสห้องสัมมนา', `#${roomId}`],
-      ['องค์กรลูกค้า', companyName],
-      ['เลขประจำตัวผู้เสียภาษี', companyTaxId],
-      ['ผู้ประสานงานหลัก', `${leadOrganizer} (${leadRole})`],
-      ['สถานที่จัดงาน', matchedDestination.title],
-      ['เมือง / ประเทศ', `${matchedDestination.city}, ${matchedDestination.country}`],
-      ['ระยะเวลาเดินทางจากสนามบิน', googleData?.airportTravelTime || '30 นาที'],
-      ['พิกัด Google Maps', googleData?.googleMapsUri || ''],
-      ['จำนวนผู้เข้าร่วม', `${teamSize} ท่าน`],
-      ['ระยะเวลาพำนัก', `${nights} คืน`],
-      ['อินเทอร์เน็ตที่รับรอง', `${matchedDestination.wifi_speed_mbps} Mbps (Starlink Business SLA)`],
-      ['ความจุห้องประชุมผู้บริหาร', `${matchedDestination.max_capacity} ท่าน`],
-      [''],
-      ['ลำดับ', 'รายการจัดซื้อจัดจ้าง (Line Items)', 'จำนวน', 'ราคาต่อหน่วย (THB)', 'ยอดรวม (THB)'],
-      ['1', `ค่าแพ็กเกจที่พักและสิ่งอำนวยความสะดวก ${matchedDestination.title}`, `${teamSize * nights} คน/คืน`, matchedDestination.price_per_person, netTotal],
-      ['2', 'สัญญาณอินเทอร์เน็ต Starlink Business SLA Guarantee', '1 ระบบ', 'รวมในแพ็กเกจ', 0],
-      ['3', 'บริการประสานงานผู้ช่วยจัดทริปองค์กร 24 ชม. ผ่าน TripPick AI Concierge', '1 รายการ', 'รวมในแพ็กเกจ', 0],
-      [''],
-      ['สรุปงบประมาณและภาษีตามกฎหมาย (Tax Breakdown)', 'จำนวนเงิน (THB)'],
-      ['มูลค่ารวมก่อนภาษี (Net Subtotal)', netTotal],
-      ['ภาษีมูลค่าเพิ่ม 7% (VAT 7%)', vat7],
-      ['ยอดรวมทั้งสิ้นรวมภาษี (Gross Invoice Total)', grossTotal],
-      ['หัก ภาษี ณ ที่จ่าย 3% (Withholding Tax 3%)', -wht3],
-      ['ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable Amount)', netPayable],
-      ['ส่วนแบ่งคอมมิชชั่น B2B (${matchedDestination.commission_percentage}%)', commissionEarned],
-    ].map(row => row.join('\t')).join('\n');
+    const tsvContent = isEn
+      ? [
+          ['TripPick - Enterprise B2B Procurement RFP & Budget Reconciliation'],
+          ['Document Reference', proposalRef],
+          ['Issue Date', issueDateFormatted],
+          ['Consensus Status', '100% Unanimous Consensus Approved'],
+          ['Escrow Deposit Status', isEscrowLocked ? `Escrow Secured & Locked (${depositReceipt?.receiptNo || depositCode})` : 'Pending Deposit (฿5,000)'],
+          ['Room Code', `#${roomId}`],
+          ['Purchasing Organization', companyName],
+          ['Corporate Tax ID', companyTaxId],
+          ['Lead Organizer', `${leadOrganizer} (${leadRole})`],
+          ['Selected Venue', matchedDestination.title],
+          ['City / Country', `${matchedDestination.city}, ${matchedDestination.country}`],
+          ['Airport Travel Time', googleData?.airportTravelTime || '30 mins'],
+          ['Google Maps Coordinates', googleData?.googleMapsUri || ''],
+          ['Attendees', `${teamSize} Pax`],
+          ['Duration', `${nights} Nights`],
+          ['Connectivity Guarantee', `${matchedDestination.wifi_speed_mbps} Mbps (Starlink Business SLA)`],
+          ['Executive Boardroom', `${matchedDestination.max_capacity} Seats`],
+          [''],
+          ['Item #', 'Procurement Line Items', 'Quantity', 'Unit Price (THB)', 'Total (THB)'],
+          ['1', `Accommodation & Workspace Package ${matchedDestination.title}`, `${teamSize * nights} Pax-Nights`, matchedDestination.price_per_person, netTotal],
+          ['2', 'Starlink Business SLA Guarantee', '1 System', 'Included', 0],
+          ['3', 'TripPick 24/7 AI Concierge Coordination', '1 Service', 'Included', 0],
+          [''],
+          ['Statutory Tax Breakdown (Tor.Por. 4/2528)', 'Amount (THB)'],
+          ['Net Subtotal (Pre-VAT / GBV)', netTotal],
+          ['Value Added Tax 7% (VAT 7%)', vat7],
+          ['Gross Invoice Total', grossTotal],
+          ['Withholding Tax 3% (WHT 3% Services)', -wht3],
+          ['Net Payable Amount to Vendor', netPayable],
+          ['Wholesale Margin (12% Take-Rate)', commissionEarned],
+        ].map(row => row.join('\t')).join('\n')
+      : [
+          ['TripPick - ใบเสนอราคาและงบประมาณจัดซื้อจัดจ้างทริปองค์กร (B2B Procurement RFP)'],
+          ['เลขที่เอกสารอ้างอิง', proposalRef],
+          ['วันที่ออกเอกสาร', issueDateFormatted],
+          ['สถานะฉันทามติ', '100% Unanimous Consensus Approved'],
+          ['สถานะการวางมัดจำ', isEscrowLocked ? `Escrow Secured & Locked (${depositReceipt?.receiptNo || depositCode})` : 'Pending Deposit'],
+          ['รหัสห้องสัมมนา', `#${roomId}`],
+          ['องค์กรลูกค้า', companyName],
+          ['เลขประจำตัวผู้เสียภาษี', companyTaxId],
+          ['ผู้ประสานงานหลัก', `${leadOrganizer} (${leadRole})`],
+          ['สถานที่จัดงาน', matchedDestination.title],
+          ['เมือง / ประเทศ', `${matchedDestination.city}, ${matchedDestination.country}`],
+          ['ระยะเวลาเดินทางจากสนามบิน', googleData?.airportTravelTime || '30 นาที'],
+          ['พิกัด Google Maps', googleData?.googleMapsUri || ''],
+          ['จำนวนผู้เข้าร่วม', `${teamSize} ท่าน`],
+          ['ระยะเวลาพำนัก', `${nights} คืน`],
+          ['อินเทอร์เน็ตที่รับรอง', `${matchedDestination.wifi_speed_mbps} Mbps (Starlink Business SLA)`],
+          ['ความจุห้องประชุมผู้บริหาร', `${matchedDestination.max_capacity} ท่าน`],
+          [''],
+          ['ลำดับ', 'รายการจัดซื้อจัดจ้าง (Line Items)', 'จำนวน', 'ราคาต่อหน่วย (THB)', 'ยอดรวม (THB)'],
+          ['1', `ค่าแพ็กเกจที่พักและสิ่งอำนวยความสะดวก ${matchedDestination.title}`, `${teamSize * nights} คน/คืน`, matchedDestination.price_per_person, netTotal],
+          ['2', 'สัญญาณอินเทอร์เน็ต Starlink Business SLA Guarantee', '1 ระบบ', 'รวมในแพ็กเกจ', 0],
+          ['3', 'บริการประสานงานผู้ช่วยจัดทริปองค์กร 24 ชม. ผ่าน TripPick AI Concierge', '1 รายการ', 'รวมในแพ็กเกจ', 0],
+          [''],
+          ['สรุปงบประมาณและภาษีตามกฎหมาย (Tax Breakdown)', 'จำนวนเงิน (THB)'],
+          ['มูลค่ารวมก่อนภาษี (Net Subtotal)', netTotal],
+          ['ภาษีมูลค่าเพิ่ม 7% (VAT 7%)', vat7],
+          ['ยอดรวมทั้งสิ้นรวมภาษี (Gross Invoice Total)', grossTotal],
+          ['หัก ภาษี ณ ที่จ่าย 3% (Withholding Tax 3%)', -wht3],
+          ['ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable Amount)', netPayable],
+          ['ส่วนแบ่งคอมมิชชั่น B2B (${matchedDestination.commission_percentage}%)', commissionEarned],
+        ].map(row => row.join('\t')).join('\n');
 
     try {
       await navigator.clipboard.writeText(tsvContent);
@@ -488,14 +594,14 @@ ${item.description}
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#181825] border border-[#a6e3a1]/40 text-[#a6e3a1] text-xs font-semibold mb-3">
             <span className="w-1.5 h-1.5 rounded-full bg-[#a6e3a1]" />
             <span className="font-mono text-[10px] uppercase tracking-wider">
-              100% UNANIMOUS CONSENSUS
+              {t.unanimousBadge}
             </span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#cdd6f4] mb-1.5">
-            ทริปออฟไซต์นี้... แมตช์แล้ว
+            {t.matchTitle}
           </h1>
           <p className="text-xs sm:text-sm text-[#a6adc8] max-w-md leading-relaxed text-balance">
-            ทุกคนในทีมโหวตเห็นชอบตรงกัน 100% ไร้ข้อโต้แย้งในห้องแชท พร้อมเริ่มต้นปิดดีล วางมัดจำ และจัดเตรียมเดินทางได้ทันที
+            {t.matchSubtitle}
           </p>
         </div>
 
@@ -513,10 +619,12 @@ ${item.description}
               </span>
               <div>
                 <span className="text-[10px] font-mono font-bold text-[#a6e3a1] uppercase tracking-wider block">
-                  ESCROW SECURED &amp; LOCKED // ล็อกสิทธิ์เรียบร้อย 100%
+                  {language === 'th' ? 'ESCROW SECURED & LOCKED // ล็อกสิทธิ์เรียบร้อย 100%' : 'ESCROW SECURED & LOCKED // 100% CONFIRMED'}
                 </span>
                 <span className="text-xs text-[#cdd6f4] font-medium">
-                  เงินมัดจำ ฿5,000.00 THB ได้รับการคุ้มครองในระบบ Escrow (ใบเสร็จ: {depositReceipt?.receiptNo || depositCode})
+                  {language === 'th'
+                    ? `เงินมัดจำ ฿5,000.00 THB ได้รับการคุ้มครองในระบบ Escrow (ใบเสร็จ: ${depositReceipt?.receiptNo || depositCode})`
+                    : `฿5,000.00 THB corporate deposit secured in Escrow (Receipt: ${depositReceipt?.receiptNo || depositCode})`}
                 </span>
               </div>
             </div>
@@ -524,7 +632,7 @@ ${item.description}
               onClick={() => onOpenProcurement ? onOpenProcurement() : setShowProposalModal(true)}
               className="py-1 px-2.5 rounded-lg bg-[#a6e3a1] hover:bg-[#94e2d5] text-[#11111b] text-[11px] font-bold cursor-pointer transition-colors shrink-0"
             >
-              ดูใบเสร็จ ภาษีหัก 3%
+              {language === 'th' ? 'ดูใบเสร็จ ภาษีหัก 3%' : 'View Receipt & 3% WHT'}
             </button>
           </motion.div>
         )}
@@ -542,7 +650,7 @@ ${item.description}
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
             </svg>
-            <span>ใบเสนอราคาองค์กร (Procurement RFP)</span>
+            <span>{t.tabRfp}</span>
           </button>
 
           <button
@@ -556,7 +664,7 @@ ${item.description}
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
             </svg>
-            <span>กำหนดการและเวิร์กช็อป (AI 3-Day Agenda)</span>
+            <span>{t.tabAgenda}</span>
           </button>
         </div>
 
@@ -594,7 +702,7 @@ ${item.description}
                 <div className="flex items-center gap-1.5">
                   {/* Google Maps Pin Icon */}
                   <svg className="w-3.5 h-3.5 text-[#f38ba8]" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5 2.5-1.12 2.5 2.5z" />
                   </svg>
                   <span className="text-[10px] font-mono text-[#a6adc8] uppercase font-bold tracking-wider">
                     GOOGLE PLACES &amp; ROUTES
@@ -606,7 +714,7 @@ ${item.description}
                   rel="noopener noreferrer"
                   className="text-[10px] text-[#89dceb] hover:underline flex items-center gap-0.5"
                 >
-                  <span>เปิดใน Google Maps</span>
+                  <span>{language === 'th' ? 'เปิดใน Google Maps' : 'Open in Google Maps'}</span>
                   <span>↗</span>
                 </a>
               </div>
@@ -614,11 +722,11 @@ ${item.description}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 text-[11px] text-[#bac2de]">
                 <div className="flex items-center gap-1.5">
                   <span className="text-[#f9e2af]">★</span>
-                  <span><strong>{googleData?.rating || matchedDestination.rating}</strong> ({googleData?.userRatingCount.toLocaleString() || matchedDestination.reviews_count} รีวิวบน Google Maps)</span>
+                  <span><strong>{googleData?.rating || matchedDestination.rating}</strong> ({googleData?.userRatingCount.toLocaleString() || matchedDestination.reviews_count} {language === 'th' ? 'รีวิวบน Google Maps' : 'reviews on Google Maps'})</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span>🚗</span>
-                  <span className="text-[#a6e3a1]"><strong>{googleData?.airportTravelTime || '30 นาที'}</strong> ({googleData?.nearestAirport?.split(' ')[0] || 'สนามบิน'})</span>
+                  <span className="text-[#a6e3a1]"><strong>{googleData?.airportTravelTime || (language === 'th' ? '30 นาที' : '30 mins')}</strong> ({googleData?.nearestAirport?.split(' ')[0] || (language === 'th' ? 'สนามบิน' : 'Airport')})</span>
                 </div>
               </div>
             </div>
@@ -651,14 +759,21 @@ ${item.description}
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-[#cdd6f4]">
-                            🎧 30-Second CFO Audio Memo
+                            {t.cfoMemoTitle}
                           </span>
                           <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#cba6f7]/15 text-[#cba6f7] border border-[#cba6f7]/30">
                             {VOICE_ENGINES[audioBriefing.engine].badge}
                           </span>
+                          {audioBriefing.engine === 'elevenlabs-hd' && (
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#a6e3a1]/20 text-[#a6e3a1] border border-[#a6e3a1]/40 font-bold uppercase tracking-wider">
+                              🇬🇧 Pure English Voiceover
+                            </span>
+                          )}
                         </div>
                         <p className="text-[11px] text-[#a6adc8]">
-                          สรุปเสียงสั้นสำหรับผู้บริหารและฝ่ายจัดซื้อ (B2B Executive Briefing)
+                          {audioBriefing.engine === 'elevenlabs-hd'
+                            ? (language === 'th' ? 'เสียงพากย์ผู้บริหารภาษาอังกฤษระดับพรีเมียม (Brian / Adam Executive English)' : 'Premium Corporate English Executive Voiceover (Brian / Adam)')
+                            : t.cfoMemoSubtitle}
                         </p>
                       </div>
                     </div>
@@ -667,9 +782,11 @@ ${item.description}
                     <div className="flex items-center gap-1 bg-[#11111b] border border-[#313244] p-0.5 rounded-lg shrink-0 self-start sm:self-center">
                       <button
                         onClick={() => audioBriefing.setLanguage('th')}
+                        disabled={audioBriefing.engine === 'elevenlabs-hd'}
                         className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors cursor-pointer ${
                           audioBriefing.language === 'th' ? 'bg-[#cba6f7] text-[#11111b]' : 'text-[#a6adc8] hover:text-[#cdd6f4]'
-                        }`}
+                        } ${audioBriefing.engine === 'elevenlabs-hd' ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        title={audioBriefing.engine === 'elevenlabs-hd' ? 'ElevenLabs is strictly configured for Pure Professional English' : 'Thai'}
                       >
                         🇹🇭 TH
                       </button>
@@ -737,7 +854,7 @@ ${item.description}
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-[#cdd6f4]">
-                            {audioBriefing.isPlaying ? 'กำลังเล่นเสียงสรุปผู้บริหาร' : audioBriefing.isPaused ? 'หยุดชั่วคราว' : 'คลิกเพื่อฟังเสียงสรุป (30s)'}
+                            {audioBriefing.isPlaying ? t.playingMemoStatus : audioBriefing.isPaused ? t.pauseMemoBtn : t.playMemoBtn}
                           </span>
                           {audioBriefing.isPlaying && (
                             <span className="w-2 h-2 rounded-full bg-[#a6e3a1] animate-ping" />
@@ -771,7 +888,7 @@ ${item.description}
                       onClick={() => setShowTranscript((prev) => !prev)}
                       className="text-[#cba6f7] hover:underline cursor-pointer flex items-center gap-1 font-medium"
                     >
-                      <span>{showTranscript ? 'ซ่อนบทพูดสรุป' : 'ดูบทพูดสรุปผู้บริหาร (Transcript)'}</span>
+                      <span>{showTranscript ? t.hideTranscriptBtn : t.viewTranscriptBtn}</span>
                       <span>{showTranscript ? '▲' : '▼'}</span>
                     </button>
 
@@ -779,9 +896,9 @@ ${item.description}
                       <button
                         onClick={() => setShowPitchModal(true)}
                         className="text-[#89b4fa] hover:underline cursor-pointer flex items-center gap-1 font-mono text-[10px]"
-                        title="ดูและคัดลอกสคริปต์วิดีโอ 2 นาทีสำหรับ ElevenLabs (Prompt A)"
+                        title={language === 'th' ? 'ดูและคัดลอกสคริปต์วิดีโอ 2 นาทีสำหรับ ElevenLabs (Prompt A)' : 'View and copy official 2-min ElevenLabs pitch script (Prompt A)'}
                       >
-                        <span>🎬 สคริปต์คลิป 2 นาที (115s Pitch)</span>
+                        <span>{t.pitchScriptBtn}</span>
                       </button>
                       <span className="text-[#6c7086] font-mono text-[10px] hidden sm:inline">
                         • Hybrid Voice Architecture
@@ -822,18 +939,18 @@ ${item.description}
                     <div className="flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#a6e3a1]" />
                       <span className="text-xs text-[#a6e3a1] font-semibold font-mono uppercase tracking-wider">
-                        MAKE ME MONEY // REVENUE
+                        {t.financialTerminalTitle}
                       </span>
                     </div>
                     <span className="text-[11px] text-[#a6adc8] font-mono">
-                      ส่วนแบ่งคอมมิชชั่น {matchedDestination.commission_percentage}%
+                      {language === 'th' ? `ส่วนแบ่งคอมมิชชั่น ${matchedDestination.commission_percentage}%` : `Wholesale Take-Rate ${matchedDestination.commission_percentage}%`}
                     </span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3.5 my-3">
                     <div>
                       <label className="text-[10px] text-[#a6adc8] block mb-1 font-mono">
-                        จำนวนสมาชิก: <span className="text-[#cdd6f4] font-bold tabular-data">{teamSize} ท่าน</span>
+                        {language === 'th' ? 'จำนวนสมาชิก:' : 'Attendees:'} <span className="text-[#cdd6f4] font-bold tabular-data">{teamSize} {language === 'th' ? 'ท่าน' : 'pax'}</span>
                       </label>
                       <input
                         type="range"
@@ -846,7 +963,7 @@ ${item.description}
                     </div>
                     <div>
                       <label className="text-[10px] text-[#a6adc8] block mb-1 font-mono">
-                        ระยะเวลาพัก: <span className="text-[#cdd6f4] font-bold tabular-data">{nights} คืน</span>
+                        {language === 'th' ? 'ระยะเวลาพัก:' : 'Duration:'} <span className="text-[#cdd6f4] font-bold tabular-data">{nights} {language === 'th' ? 'คืน' : 'nights'}</span>
                       </label>
                       <input
                         type="range"
@@ -861,14 +978,16 @@ ${item.description}
 
                   <div className="grid grid-cols-2 gap-3 pt-2.5 border-t border-[#313244]">
                     <div>
-                      <span className="text-[10px] text-[#a6adc8] block mb-0.5 font-mono">มูลค่ายอดจองรวม (GBV)</span>
+                      <span className="text-[10px] text-[#a6adc8] block mb-0.5 font-mono">
+                        {language === 'th' ? 'มูลค่ายอดจองรวม (GBV)' : 'Gross Booking Value (GBV)'}
+                      </span>
                       <p className="text-base sm:text-lg font-bold text-[#cdd6f4] tabular-data font-mono">
                         ฿{netTotal.toLocaleString()}
                       </p>
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] text-[#a6e3a1] font-semibold block mb-0.5 font-mono">
-                        คอมมิชชั่น B2B ที่ได้รับ
+                        {language === 'th' ? 'คอมมิชชั่น B2B ที่ได้รับ' : 'B2B Revenue (Take-Rate)'}
                       </span>
                       <p className="text-base sm:text-lg font-bold text-[#a6e3a1] tabular-data font-mono">
                         +฿{commissionEarned.toLocaleString()}
@@ -894,8 +1013,8 @@ ${item.description}
                     </svg>
                     <span>
                       {isEscrowLocked
-                        ? `✓ มัดจำแล้วใน Escrow (${depositReceipt?.receiptNo || depositCode})`
-                        : 'วางเงินมัดจำล็อกวันจัดงาน (฿5,000 Corporate Deposit)'}
+                        ? (language === 'th' ? `✓ มัดจำแล้วใน Escrow (${depositReceipt?.receiptNo || depositCode})` : `✓ Secured in Escrow (${depositReceipt?.receiptNo || depositCode})`)
+                        : (language === 'th' ? 'วางเงินมัดจำล็อกวันจัดงาน (฿5,000 Corporate Deposit)' : 'Secure Escrow Lock (฿5,000 Deposit)')}
                     </span>
                   </button>
 
@@ -908,7 +1027,7 @@ ${item.description}
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.08-1.64.222-2.426.234-.847 1.058-1.354 1.938-1.354h2.24z" />
                     </svg>
                     <span>
-                      {audioBriefing.isPlaying ? '❚❚ หยุดเล่นเสียงสรุปผู้บริหาร' : '🎧 ฟังเสียงสรุปผู้บริหาร (30s Audio Briefing)'}
+                      {audioBriefing.isPlaying ? (language === 'th' ? '❚❚ หยุดเล่นเสียงสรุปผู้บริหาร' : '❚❚ Pause CFO Audio Memo') : (language === 'th' ? '🎧 ฟังเสียงสรุปผู้บริหาร (30s Audio Briefing)' : '🎧 Listen to 30s CFO Audio Memo')}
                     </span>
                   </button>
 
@@ -917,7 +1036,7 @@ ${item.description}
                     onClick={() => onOpenProcurement ? onOpenProcurement() : setShowProposalModal(true)}
                     className="w-full py-3 px-4 bg-gradient-to-r from-[#a6e3a1] via-[#89dceb] to-[#cba6f7] hover:opacity-95 text-[#11111b] text-xs sm:text-sm font-extrabold rounded-xl transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2 shadow-lg mb-2"
                   >
-                    <span>💼 ดูเอกสารจัดซื้อจัดจ้าง &amp; รายละเอียดการเงิน (Open Procurement Engine)</span>
+                    <span>{t.secureEscrowBtn}</span>
                     <span>→</span>
                   </button>
 
@@ -929,7 +1048,7 @@ ${item.description}
                       <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                       </svg>
-                      <span>ออกใบเสนอราคาองค์กร (RFP)</span>
+                      <span>{t.printRfpBtn}</span>
                     </button>
 
                     {/* Google Sheets Direct 1-Click Export */}
@@ -940,7 +1059,7 @@ ${item.description}
                       <svg className="w-3.5 h-3.5 text-[#a6e3a1]" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H6v-2h6v2zm0-4H6v-2h6v2zm0-4H6V7h6v2zm6 8h-4v-2h4v2zm0-4h-4v-2h4v2zm0-4h-4V7h4v2z" />
                       </svg>
-                      <span>{copiedSheetsToast ? '✓ เปิด Google Sheets แล้ว' : 'เปิดใน Google Sheets'}</span>
+                      <span>{copiedSheetsToast ? (language === 'th' ? '✓ เปิด Google Sheets แล้ว' : '✓ Opened Google Sheets') : t.exportSheetsBtn}</span>
                     </button>
                   </div>
 
@@ -952,7 +1071,7 @@ ${item.description}
                       <svg className="w-3 h-3 text-[#a6e3a1]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                       </svg>
-                      <span>ดาวน์โหลดเอกสารจัดซื้อ (.CSV)</span>
+                      <span>{t.exportCsvBtn}</span>
                     </button>
 
                     {/* Google Docs Direct 1-Click Export */}
@@ -963,7 +1082,7 @@ ${item.description}
                       <svg className="w-3 h-3 text-[#89b4fa]" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
                       </svg>
-                      <span>{copiedDocsToast ? '✓ เปิด Google Docs แล้ว' : 'เปิดใน Google Docs'}</span>
+                      <span>{copiedDocsToast ? (language === 'th' ? '✓ เปิด Google Docs แล้ว' : '✓ Opened Google Docs') : t.exportDocsBtn}</span>
                     </button>
                   </div>
                 </div>
@@ -985,7 +1104,7 @@ ${item.description}
                       AUTONOMOUS SYNTHESIS
                     </span>
                     <h3 className="text-xs font-bold text-[#cdd6f4]">
-                      กำหนดการสัมมนา 3 วัน 2 คืน ออกแบบตามสเปกสถานที่
+                      {language === 'th' ? 'กำหนดการสัมมนา 3 วัน 2 คืน ออกแบบตามสเปกสถานที่' : 'Autonomous 3-Day Retreat Agenda Tailored to Venue Specs'}
                     </h3>
                   </div>
 
@@ -994,13 +1113,13 @@ ${item.description}
                       onClick={handleOpenGoogleDocs}
                       className="py-1 px-2.5 bg-[#1e2a3a] hover:bg-[#25354b] border border-[#89b4fa]/40 text-[#89b4fa] text-[11px] font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1 active:scale-95"
                     >
-                      <span>เปิดใน Docs ↗</span>
+                      <span>{language === 'th' ? 'เปิดใน Docs ↗' : 'Open in Docs ↗'}</span>
                     </button>
                     <button
                       onClick={handleExportAgenda}
                       className="py-1 px-2.5 bg-[#a6e3a1]/15 hover:bg-[#a6e3a1]/25 border border-[#a6e3a1]/30 text-[#a6e3a1] text-[11px] font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1 active:scale-95"
                     >
-                      <span>{copiedAgendaToast ? '✓ ส่งออกแล้ว' : 'ดาวน์โหลด .MD'}</span>
+                      <span>{copiedAgendaToast ? (language === 'th' ? '✓ ส่งออกแล้ว' : '✓ Exported') : (language === 'th' ? 'ดาวน์โหลด .MD' : 'Download .MD')}</span>
                     </button>
                   </div>
                 </div>
@@ -1041,14 +1160,14 @@ ${item.description}
                     onClick={handleOpenGoogleDocs}
                     className="py-2.5 px-4 bg-[#1e2a3a] hover:bg-[#25354b] border border-[#89b4fa]/40 text-[#89b4fa] text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98]"
                   >
-                    <span>เปิดกำหนดการใน Google Docs ↗</span>
+                    <span>{language === 'th' ? 'เปิดกำหนดการใน Google Docs ↗' : 'Open Agenda in Google Docs ↗'}</span>
                   </button>
 
                   <button
                     onClick={handleOpenGoogleSheets}
                     className="py-2.5 px-4 bg-[#1e3a2f] hover:bg-[#254b3c] border border-[#a6e3a1]/40 text-[#a6e3a1] text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98]"
                   >
-                    <span>เปิดตารางใน Google Sheets ↗</span>
+                    <span>{language === 'th' ? 'เปิดตารางใน Google Sheets ↗' : 'Open Sheet in Google Sheets ↗'}</span>
                   </button>
                 </div>
               </motion.div>
@@ -1060,7 +1179,7 @@ ${item.description}
                 onClick={() => onOpenProcurement ? onOpenProcurement() : setShowProposalModal(true)}
                 className="text-[#cba6f7] hover:underline cursor-pointer"
               >
-                ดูเอกสารจัดซื้อฉบับเต็ม →
+                {language === 'th' ? 'ดูเอกสารจัดซื้อฉบับเต็ม →' : 'View Full Procurement Document →'}
               </button>
             </div>
 
@@ -1069,7 +1188,7 @@ ${item.description}
                 onClick={onReset}
                 className="text-xs text-[#a6adc8] hover:text-[#cdd6f4] transition-colors cursor-pointer font-medium"
               >
-                ← วางแผนทริปอื่นเพิ่มเติม
+                {language === 'th' ? '← วางแผนทริปอื่นเพิ่มเติม' : '← Plan Another Retreat'}
               </button>
             </div>
           </div>
@@ -1079,7 +1198,7 @@ ${item.description}
       {/* MODAL 1: B2B CORPORATE DEPOSIT FLOW (Live Stripe / Omise Sandbox & PromptPay QR) */}
       <AnimatePresence>
         {showDepositModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 overflow-y-auto">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -1092,7 +1211,7 @@ ${item.description}
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#a6e3a1]" />
                   <span className="text-xs font-bold text-[#cdd6f4]">
-                    วางเงินมัดจำล็อกวันจัดงานองค์กร (B2B Escrow Lock Sandbox)
+                    {language === 'th' ? 'วางเงินมัดจำล็อกวันจัดงานองค์กร (B2B Escrow Lock Sandbox)' : 'Secure Corporate Escrow Lock (B2B Escrow Sandbox)'}
                   </span>
                 </div>
                 <button
@@ -1109,28 +1228,30 @@ ${item.description}
                     {/* Value Summary Card */}
                     <div className="p-3.5 rounded-xl bg-[#11111b] border border-[#313244] mb-4">
                       <div className="flex justify-between items-center pb-2 border-b border-[#313244]">
-                        <span className="text-[10px] font-mono uppercase text-[#a6adc8]">สถานที่ที่เลือก</span>
+                        <span className="text-[10px] font-mono uppercase text-[#a6adc8]">{language === 'th' ? 'สถานที่ที่เลือก' : 'Selected Venue'}</span>
                         <span className="text-xs font-bold text-[#cdd6f4]">{matchedDestination.title}</span>
                       </div>
                       <div className="grid grid-cols-2 gap-2 pt-2 text-xs">
                         <div>
-                          <span className="text-[10px] text-[#a6adc8] block">ยอดประมาณการทริป</span>
+                          <span className="text-[10px] text-[#a6adc8] block">{language === 'th' ? 'ยอดประมาณการทริป' : 'Estimated Subtotal'}</span>
                           <span className="font-mono font-bold text-[#cdd6f4]">฿{netTotal.toLocaleString()}</span>
                         </div>
                         <div className="text-right">
-                          <span className="text-[10px] text-[#a6e3a1] font-semibold block">เงินมัดจำล็อกสิทธิ์ (Escrow)</span>
+                          <span className="text-[10px] text-[#a6e3a1] font-semibold block">{language === 'th' ? 'เงินมัดจำล็อกสิทธิ์ (Escrow)' : 'Escrow Deposit (100% Refundable)'}</span>
                           <span className="font-mono font-bold text-[#a6e3a1] text-sm">฿5,000.00 THB</span>
                         </div>
                       </div>
                     </div>
 
                     <p className="text-[11px] text-[#a6adc8] mb-4 leading-relaxed">
-                      * เงินมัดจำ ฿5,000 มีการคุ้มครองในระบบ Escrow คืนเงินได้ 100% หากแจ้งยกเลิกล่วงหน้า 14 วัน หรือนำไปหักลบเต็มจำนวนในใบแจ้งหนี้รอบจริง (Tax Invoice พร้อมภาษีหัก ณ ที่จ่าย 3%)
+                      {language === 'th'
+                        ? '* เงินมัดจำ ฿5,000 มีการคุ้มครองในระบบ Escrow คืนเงินได้ 100% หากแจ้งยกเลิกล่วงหน้า 14 วัน หรือนำไปหักลบเต็มจำนวนในใบแจ้งหนี้รอบจริง (Tax Invoice พร้อมภาษีหัก ณ ที่จ่าย 3%)'
+                        : '* ฿5,000 corporate deposit held safely in Escrow. 100% refundable up to 14 days prior, or deducted in full on the final tax invoice with statutory 3% WHT.'}
                     </p>
 
                     {/* Payment Method Selector */}
                     <label className="text-[10px] font-bold text-[#a6adc8] uppercase block mb-1.5 font-mono">
-                      เลือกช่องทางการชำระเงินของนิติบุคคล:
+                      {t.paymentMethodLabel}:
                     </label>
                     <div className="grid grid-cols-3 gap-2 mb-4">
                       <button
@@ -1151,7 +1272,7 @@ ${item.description}
                             : 'bg-[#1e1e2e] border-[#313244] text-[#a6adc8]'
                         }`}
                       >
-                        บัตรเครดิตองค์กร
+                        {language === 'th' ? 'บัตรเครดิตองค์กร' : 'Corporate Card'}
                       </button>
                       <button
                         onClick={() => setDepositMethod('wire')}
@@ -1161,14 +1282,14 @@ ${item.description}
                             : 'bg-[#1e1e2e] border-[#313244] text-[#a6adc8]'
                         }`}
                       >
-                        วางบิล (Net 30)
+                        {language === 'th' ? 'วางบิล (Net 30)' : 'Wire (Net 30)'}
                       </button>
                     </div>
 
                     {/* Company Info Inputs */}
                     <div className="space-y-3 mb-4">
                       <div>
-                        <label className="text-[10px] text-[#a6adc8] block mb-1 font-mono">ชื่อนิติบุคคล / บริษัท:</label>
+                        <label className="text-[10px] text-[#a6adc8] block mb-1 font-mono">{t.companyNameLabel}:</label>
                         <input
                           type="text"
                           value={companyName}
@@ -1178,7 +1299,7 @@ ${item.description}
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-[10px] text-[#a6adc8] block mb-1 font-mono">เลขผู้เสียภาษี (Tax ID 13 หลัก):</label>
+                          <label className="text-[10px] text-[#a6adc8] block mb-1 font-mono">{t.taxIdLabel}:</label>
                           <input
                             type="text"
                             value={companyTaxId}
@@ -1187,7 +1308,7 @@ ${item.description}
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] text-[#a6adc8] block mb-1 font-mono">ผู้มีอำนาจสั่งจ่าย:</label>
+                          <label className="text-[10px] text-[#a6adc8] block mb-1 font-mono">{language === 'th' ? 'ผู้มีอำนาจสั่งจ่าย:' : 'Authorized Signer:'}</label>
                           <input
                             type="text"
                             defaultValue={leadOrganizer}
@@ -1220,16 +1341,16 @@ ${item.description}
 
                         <div className="text-center font-mono">
                           <p className="text-xs font-bold text-slate-800">
-                            บริษัท ทริปพิก บิสซิเนส ทราเวล โซลูชั่นส์ จำกัด
+                            {language === 'th' ? 'บริษัท ทริปพิก บิสซิเนส ทราเวล โซลูชั่นส์ จำกัด' : 'TripPick Business Travel Solutions Co., Ltd.'}
                           </p>
                           <p className="text-[11px] text-slate-500">
-                            เลขประจำตัวผู้เสียภาษี: 0-1055-69018-92-4
+                            {language === 'th' ? 'เลขประจำตัวผู้เสียภาษี: 0-1055-69018-92-4' : 'Tax ID: 0-1055-69018-92-4'}
                           </p>
                           <p className="text-base font-extrabold text-[#003d79] mt-1">
                             ฿5,000.00 THB
                           </p>
                           <p className="text-[10px] text-slate-400 mt-0.5">
-                            Ref: {depositCode} (ห้อง #{roomId})
+                            Ref: {depositCode} ({language === 'th' ? `ห้อง #${roomId}` : `Room #${roomId}`})
                           </p>
                         </div>
                       </div>
@@ -1255,20 +1376,20 @@ ${item.description}
                         {isSimulatingScan ? (
                           <>
                             <span className="w-3.5 h-3.5 border-2 border-[#11111b] border-t-transparent rounded-full animate-spin" />
-                            <span>กำลังประมวลผล Webhook ผ่านธนาคาร...</span>
+                            <span>{language === 'th' ? 'กำลังประมวลผล Webhook ผ่านธนาคาร...' : 'Processing Webhook via Banking Network...'}</span>
                           </>
                         ) : (
                           <>
                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
                             </svg>
-                            <span>ทดสอบสแกนจ่ายเงิน (Live Sandbox Webhook Trigger)</span>
+                            <span>{language === 'th' ? 'ทดสอบสแกนจ่ายเงิน (Live Sandbox Webhook Trigger)' : 'Simulate Scan & Pay (Live Sandbox Webhook Trigger)'}</span>
                           </>
                         )}
                       </button>
 
                       <p className="text-[10px] text-center text-[#a6adc8] font-mono">
-                        * ส่ง Webhook POST /api/deposit-webhook และซิงค์สถานะห้องเป็น SECURED_ESCROW อัตโนมัติ
+                        {language === 'th' ? '* ส่ง Webhook POST /api/deposit-webhook และซิงค์สถานะห้องเป็น SECURED_ESCROW อัตโนมัติ' : '* Dispatches Webhook POST /api/deposit-webhook and syncs room state to SECURED_ESCROW'}
                       </p>
                     </div>
                   </div>
@@ -1285,32 +1406,32 @@ ${item.description}
                     </div>
 
                     <h3 className="text-lg font-bold text-[#cdd6f4] mb-1">
-                      วางเงินมัดจำและล็อกสิทธิ์สำเร็จ
+                      {t.escrowSecuredTitle}
                     </h3>
                     <p className="text-xs text-[#a6e3a1] font-mono font-semibold mb-4">
-                      รหัสรับรองการจอง: {depositReceipt?.receiptNo || depositCode}
+                      {language === 'th' ? 'รหัสรับรองการจอง:' : 'Booking Confirmation Ref:'} {depositReceipt?.receiptNo || depositCode}
                     </p>
 
                     <div className="p-4 rounded-xl bg-[#11111b] border border-[#313244] text-left text-xs mb-5 space-y-1.5 font-mono">
                       <div className="flex justify-between">
-                        <span className="text-[#a6adc8]">จำนวนเงินที่ชำระ:</span>
+                        <span className="text-[#a6adc8]">{language === 'th' ? 'จำนวนเงินที่ชำระ:' : 'Amount Paid:'}</span>
                         <span className="font-bold text-[#cdd6f4]">฿5,000.00 THB</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-[#a6adc8]">ออกในนาม:</span>
+                        <span className="text-[#a6adc8]">{language === 'th' ? 'ออกในนาม:' : 'Issued To:'}</span>
                         <span className="text-[#cdd6f4]">{companyName}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-[#a6adc8]">เลขประจำตัวผู้เสียภาษี:</span>
+                        <span className="text-[#a6adc8]">{language === 'th' ? 'เลขประจำตัวผู้เสียภาษี:' : 'Corporate Tax ID:'}</span>
                         <span className="text-[#cdd6f4]">{companyTaxId}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-[#a6adc8]">สถานะการคุ้มครอง:</span>
+                        <span className="text-[#a6adc8]">{language === 'th' ? 'สถานะการคุ้มครอง:' : 'Protection Status:'}</span>
                         <span className="text-[#a6e3a1] font-semibold">SECURED IN ESCROW (100% REFUNDABLE)</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-[#a6adc8]">ผู้ประสานงาน MICE:</span>
-                        <span className="text-[#cba6f7]">คุณอลิสา สิทธิพงศ์ (B2B Concierge)</span>
+                        <span className="text-[#a6adc8]">{language === 'th' ? 'ผู้ประสานงาน MICE:' : 'MICE Lead Concierge:'}</span>
+                        <span className="text-[#cba6f7]">{language === 'th' ? 'คุณอลิสา สิทธิพงศ์ (B2B Concierge)' : 'Alisa Sitthipong (B2B Concierge)'}</span>
                       </div>
                     </div>
 
@@ -1322,14 +1443,14 @@ ${item.description}
                         }}
                         className="flex-1 py-2.5 px-4 bg-[#cba6f7] hover:bg-[#b4befe] text-[#11111b] text-xs font-bold rounded-xl transition-colors cursor-pointer"
                       >
-                        เปิดใบเสนอราคาและใบเสร็จ
+                        {language === 'th' ? 'เปิดใบเสนอราคาและใบเสร็จ' : 'Open RFP & Receipt'}
                       </button>
 
                       <button
                         onClick={() => setShowDepositModal(false)}
                         className="py-2.5 px-4 bg-[#313244] hover:bg-[#45475a] text-[#cdd6f4] text-xs font-semibold rounded-xl transition-colors cursor-pointer"
                       >
-                        กลับสู่หน้าหลัก
+                        {language === 'th' ? 'กลับสู่หน้าหลัก' : 'Return to Overview'}
                       </button>
                     </div>
                   </motion.div>
@@ -1343,7 +1464,7 @@ ${item.description}
       {/* MODAL 2: OFFICIAL PRINTABLE B2B PROCUREMENT QUOTATION */}
       <AnimatePresence>
         {showProposalModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto print-dialog-backdrop">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 overflow-y-auto print-dialog-backdrop">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -1356,22 +1477,22 @@ ${item.description}
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#a6e3a1]" />
                   <span className="text-xs font-bold text-[#cdd6f4] tracking-tight">
-                    เอกสารจัดซื้อจัดจ้างระดับองค์กร (B2B Procurement Proposal)
+                    {t.procurementModalTitle}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={audioBriefing.toggle}
                     className="py-1 px-2.5 bg-[#cba6f7]/20 hover:bg-[#cba6f7]/30 border border-[#cba6f7]/40 text-[#cba6f7] rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5"
-                    title="ฟังเสียงสรุปสำหรับผู้บริหาร 30 วินาที"
+                    title={language === 'th' ? 'ฟังเสียงสรุปสำหรับผู้บริหาร 30 วินาที' : 'Listen to 30-second Executive CFO Memo'}
                   >
-                    <span>{audioBriefing.isPlaying ? '❚❚ หยุดเสียง' : '🎧 ฟังเสียงสรุป'}</span>
+                    <span>{audioBriefing.isPlaying ? (language === 'th' ? '❚❚ หยุดเสียง' : '❚❚ Pause') : (language === 'th' ? '🎧 ฟังเสียงสรุป' : '🎧 Listen')}</span>
                   </button>
                   <button
                     onClick={handleOpenGoogleSheets}
                     className="py-1 px-3 bg-[#1e3a2f] hover:bg-[#254b3c] border border-[#a6e3a1]/40 text-[#a6e3a1] rounded-lg text-xs font-medium cursor-pointer transition-colors flex items-center gap-1"
                   >
-                    <span>{copiedSheetsToast ? '✓ Sheets' : 'เปิดใน Google Sheets ↗'}</span>
+                    <span>{copiedSheetsToast ? '✓ Sheets' : (language === 'th' ? 'เปิดใน Google Sheets ↗' : 'Google Sheets ↗')}</span>
                   </button>
                   <button
                     onClick={handleDownloadCsv}
@@ -1383,7 +1504,7 @@ ${item.description}
                     onClick={handleCopySummary}
                     className="py-1 px-3 bg-[#313244] hover:bg-[#45475a] text-[#cdd6f4] rounded-lg text-xs font-medium cursor-pointer transition-colors"
                   >
-                    {copiedToast ? '✓ คัดลอกแล้ว' : 'คัดลอกสรุป'}
+                    {copiedToast ? (language === 'th' ? '✓ คัดลอกแล้ว' : '✓ Copied') : (language === 'th' ? 'คัดลอกสรุป' : 'Copy Summary')}
                   </button>
                   <button
                     onClick={handlePrint}
@@ -1392,13 +1513,13 @@ ${item.description}
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24-1.255.438-2.54 1.62-3.042l10.87-4.606c1.196-.507 2.533.15 2.822 1.417l2.673 11.666c.29 1.266-.462 2.54-1.728 2.83l-10.87 2.49c-1.266.29-2.533-.46-2.823-1.727L6.72 13.83z" />
                     </svg>
-                    <span>พิมพ์เอกสาร (Print / PDF)</span>
+                    <span>{t.printRfpBtn}</span>
                   </button>
                   <button
                     onClick={() => setShowProposalModal(false)}
                     className="py-1 px-2.5 text-[#a6adc8] hover:text-[#f38ba8] text-xs font-semibold cursor-pointer"
                   >
-                    ปิด ✕
+                    {t.closeBtn} ✕
                   </button>
                 </div>
               </div>
@@ -1417,19 +1538,19 @@ ${item.description}
                       </span>
                     </div>
                     <p className="text-xs text-slate-600">
-                      บริษัท ทริปพิก บิสซิเนส ทราเวล โซลูชั่นส์ จำกัด (สำนักงานใหญ่)
+                      {language === 'th' ? 'บริษัท ทริปพิก บิสซิเนส ทราเวล โซลูชั่นส์ จำกัด (สำนักงานใหญ่)' : 'TripPick Business Travel Solutions Co., Ltd. (Headquarters)'}
                     </p>
                     <p className="text-[11px] text-slate-500 font-mono">
-                      เลขประจำตัวผู้เสียภาษีอากร: 0-1055-69018-92-4 | โทร 02-888-TRIP
+                      {language === 'th' ? 'เลขประจำตัวผู้เสียภาษีอากร: 0-1055-69018-92-4 | โทร 02-888-TRIP' : 'Tax ID: 0-1055-69018-92-4 | Tel: 02-888-TRIP'}
                     </p>
                   </div>
 
                   <div className="text-left sm:text-right">
                     <span className="text-xs font-mono font-bold text-slate-900 block">
-                      เลขที่เอกสาร: {proposalRef}
+                      {language === 'th' ? `เลขที่เอกสาร: ${proposalRef}` : `Document Ref: ${proposalRef}`}
                     </span>
                     <span className="text-xs text-slate-600 block">
-                      วันที่ออกเอกสาร: {issueDateFormatted}
+                      {language === 'th' ? `วันที่ออกเอกสาร: ${issueDateFormatted}` : `Issue Date: ${issueDateFormatted}`}
                     </span>
                     <span className="inline-block mt-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
                       ✓ UNANIMOUS CONSENSUS APPROVED
@@ -1442,19 +1563,19 @@ ${item.description}
                   <div className="my-3 p-2.5 bg-emerald-50 border border-emerald-300 rounded-lg flex items-center justify-between text-xs text-emerald-900">
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
-                      <span className="font-bold">สถานะเงินมัดจำ: วางเงินมัดจำและล็อกสิทธิ์แล้ว (Escrow Secured)</span>
+                      <span className="font-bold">{language === 'th' ? 'สถานะเงินมัดจำ: วางเงินมัดจำและล็อกสิทธิ์แล้ว (Escrow Secured)' : 'Escrow Status: Deposit Secured & Inventory Locked (Escrow Secured)'}</span>
                     </div>
-                    <span className="font-mono text-[11px]">เลขที่ใบเสร็จ: {depositReceipt?.receiptNo || depositCode}</span>
+                    <span className="font-mono text-[11px]">{language === 'th' ? 'เลขที่ใบเสร็จ:' : 'Receipt No:'} {depositReceipt?.receiptNo || depositCode}</span>
                   </div>
                 )}
 
                 {/* Document Title */}
                 <div className="my-5 text-center">
                   <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-                    ใบเสนอราคาและเอกสารจัดซื้อจัดจ้างทริปองค์กร (B2B Procurement Proposal)
+                    {language === 'th' ? 'ใบเสนอราคาและเอกสารจัดซื้อจัดจ้างทริปองค์กร (B2B Procurement Proposal)' : 'B2B Procurement Proposal & Corporate Retreat Quotation'}
                   </h2>
                   <p className="text-xs text-slate-500">
-                    ผ่านการลงคะแนนและรับรองฉันทามติ 100% จากสมาชิกทีมผ่านระบบ TripPick Consensus Engine
+                    {language === 'th' ? 'ผ่านการลงคะแนนและรับรองฉันทามติ 100% จากสมาชิกทีมผ่านระบบ TripPick Consensus Engine' : '100% Unanimous Consensus Approved by Team via TripPick Consensus Engine'}
                   </p>
                 </div>
 
@@ -1464,10 +1585,12 @@ ${item.description}
                     <span className="text-lg">🎧</span>
                     <div>
                       <span className="font-bold block">
-                        30-Second CFO Audio Memo (Executive Audio Briefing)
+                        {language === 'en' ? '🎧 30-Second CFO Audio Memo (Executive Audio Briefing)' : '🎧 สรุปเสียงสั้นสำหรับผู้บริหาร 30 วินาที (CFO Audio Memo)'}
                       </span>
                       <span className="text-[11px] text-purple-700">
-                        สรุปเสียงสั้นสำหรับผู้บริหารและฝ่ายบัญชี (Modular Voice Adapter: ElevenLabs HD / Google Cloud TTS)
+                        {language === 'en'
+                          ? 'Ultra-realistic executive voiceover (Modular Voice Adapter: ElevenLabs HD English - Brian / Google Cloud TTS)'
+                          : 'สรุปเสียงสั้นสำหรับผู้บริหารและฝ่ายบัญชี (Modular Voice Adapter: ElevenLabs HD English - Brian / Google Cloud TTS)'}
                       </span>
                     </div>
                   </div>
@@ -1475,7 +1598,11 @@ ${item.description}
                     onClick={audioBriefing.toggle}
                     className="py-1.5 px-3 bg-purple-700 hover:bg-purple-800 text-white rounded-lg text-xs font-bold cursor-pointer transition-colors shrink-0 flex items-center justify-center gap-1.5"
                   >
-                    <span>{audioBriefing.isPlaying ? '❚❚ หยุดเสียง' : '▶ ฟังเสียงสรุป'}</span>
+                    <span>
+                      {audioBriefing.isPlaying
+                        ? (language === 'en' ? '❚❚ Pause Audio' : '❚❚ หยุดเสียง')
+                        : (language === 'en' ? '▶ Play Memo' : '▶ ฟังเสียงสรุป')}
+                    </span>
                   </button>
                 </div>
 
@@ -1483,34 +1610,34 @@ ${item.description}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-lg bg-slate-50 border border-slate-200 mb-6 text-xs">
                   <div>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                      ข้อมูลลูกค้าองค์กร (Client Information)
+                      {language === 'th' ? 'ข้อมูลลูกค้าองค์กร (Client Information)' : 'Client Information (Corporate)'}
                     </span>
                     <p className="font-semibold text-slate-900">
-                      หน่วยงาน: {companyName}
+                      {language === 'th' ? `หน่วยงาน: ${companyName}` : `Company: ${companyName}`}
                     </p>
                     <p className="text-slate-600">
-                      ผู้ประสานงานหลัก: {leadOrganizer} ({leadRole})
+                      {language === 'th' ? `ผู้ประสานงานหลัก: ${leadOrganizer} (${leadRole})` : `Lead Organizer: ${leadOrganizer} (${leadRole})`}
                     </p>
                     <p className="text-slate-600 font-mono">
-                      เลขผู้เสียภาษี: {companyTaxId} | รหัสห้อง: #{roomId}
+                      {language === 'th' ? `เลขผู้เสียภาษี: ${companyTaxId} | รหัสห้อง: #${roomId}` : `Tax ID: ${companyTaxId} | Room Ref: #${roomId}`}
                     </p>
                   </div>
 
                   <div>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                      รายละเอียดการเดินทาง (Retreat Details)
+                      {language === 'th' ? 'รายละเอียดการเดินทาง (Retreat Details)' : 'Retreat & Venue Details'}
                     </span>
                     <p className="font-semibold text-slate-900">
-                      สถานที่จัดงาน: {matchedDestination.title}
+                      {language === 'th' ? `สถานที่จัดงาน: ${matchedDestination.title}` : `Venue: ${matchedDestination.title}`}
                     </p>
                     <p className="text-slate-600">
-                      ที่ตั้ง: {googleData?.formattedAddress || `${matchedDestination.city}, ${matchedDestination.country}`}
+                      {language === 'th' ? `ที่ตั้ง: ${googleData?.formattedAddress || `${matchedDestination.city}, ${matchedDestination.country}`}` : `Location: ${googleData?.formattedAddress || `${matchedDestination.city}, ${matchedDestination.country}`}`}
                     </p>
                     <p className="text-slate-600">
-                      ระยะทางสนามบิน: <strong className="text-slate-900">{googleData?.airportTravelTime || '30 นาที'}</strong>
+                      {language === 'th' ? 'ระยะทางสนามบิน:' : 'Airport Distance:'} <strong className="text-slate-900">{language === 'en' && googleData?.airportTravelTime ? googleData.airportTravelTime.replace(/นาที/g, 'mins').replace(/ชั่วโมง/g, 'hours') : (googleData?.airportTravelTime || (language === 'th' ? '30 นาที' : '30 mins'))}</strong>
                     </p>
                     <p className="text-slate-600">
-                      จำนวนผู้เข้าร่วม: <strong className="text-slate-900">{teamSize} ท่าน</strong> | ระยะเวลา: <strong className="text-slate-900">{nights} คืน</strong>
+                      {language === 'th' ? 'จำนวนผู้เข้าร่วม: ' : 'Headcount: '}<strong className="text-slate-900">{teamSize} {language === 'th' ? 'ท่าน' : 'Guests'}</strong> | {language === 'th' ? 'ระยะเวลา: ' : 'Duration: '}<strong className="text-slate-900">{nights} {language === 'th' ? 'คืน' : 'Nights'}</strong>
                     </p>
                   </div>
                 </div>
@@ -1518,20 +1645,20 @@ ${item.description}
                 {/* Verified Technical Telemetry Specifications */}
                 <div className="mb-6 p-3.5 rounded-lg border border-slate-200 bg-slate-50/50">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2 font-mono">
-                    การรับรองคุณสมบัติทางเทคนิคระดับองค์กร (Verified B2B Amenities)
+                    {language === 'th' ? 'การรับรองคุณสมบัติทางเทคนิคระดับองค์กร (Verified B2B Amenities)' : 'Verified Enterprise Specifications & Amenities'}
                   </span>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs text-slate-700">
                     <div className="flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                      <span>เน็ตความเร็วสูง <strong>{matchedDestination.wifi_speed_mbps} Mbps</strong> (Starlink)</span>
+                      <span>{language === 'th' ? 'เน็ตความเร็วสูง ' : 'High-Speed Internet '}<strong>{matchedDestination.wifi_speed_mbps} Mbps</strong> (Starlink)</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                      <span>ห้องประชุมรองรับได้ <strong>{matchedDestination.max_capacity} ท่าน</strong></span>
+                      <span>{language === 'th' ? 'ห้องประชุมรองรับได้ ' : 'Boardroom Capacity '}<strong>{matchedDestination.max_capacity} {language === 'th' ? 'ท่าน' : 'Guests'}</strong></span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                      <span>ระบบภาพเสียง AV Boardroom ครบชุด</span>
+                      <span>{language === 'th' ? 'ระบบภาพเสียง AV Boardroom ครบชุด' : 'Full AV Boardroom Presentation Suite'}</span>
                     </div>
                   </div>
                 </div>
@@ -1541,11 +1668,11 @@ ${item.description}
                   <table className="w-full text-xs text-left">
                     <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-300">
                       <tr>
-                        <th className="py-2.5 px-3">ลำดับ</th>
-                        <th className="py-2.5 px-3">รายการจัดซื้อจัดจ้าง (Description)</th>
-                        <th className="py-2.5 px-3 text-center">จำนวน</th>
-                        <th className="py-2.5 px-3 text-right">ราคา/หน่วย (THB)</th>
-                        <th className="py-2.5 px-3 text-right">จำนวนเงิน (THB)</th>
+                        <th className="py-2.5 px-3">{language === 'th' ? 'ลำดับ' : 'Item'}</th>
+                        <th className="py-2.5 px-3">{language === 'th' ? 'รายการจัดซื้อจัดจ้าง (Description)' : 'Procurement Item & Description'}</th>
+                        <th className="py-2.5 px-3 text-center">{language === 'th' ? 'จำนวน' : 'Quantity'}</th>
+                        <th className="py-2.5 px-3 text-right">{language === 'th' ? 'ราคา/หน่วย (THB)' : 'Unit Price (THB)'}</th>
+                        <th className="py-2.5 px-3 text-right">{language === 'th' ? 'จำนวนเงิน (THB)' : 'Amount (THB)'}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 text-slate-800">
@@ -1554,29 +1681,31 @@ ${item.description}
                         <td className="py-3 px-3">
                           <strong className="text-slate-900 block">{matchedDestination.title}</strong>
                           <span className="text-slate-500 text-[11px] block">
-                            แพ็กเกจที่พักและพื้นที่สัมมนา MICE เหมารีสอร์ต ({teamSize} ท่าน × {nights} คืน) รวมสิ่งอำนวยความสะดวก
+                            {language === 'th'
+                              ? `แพ็กเกจที่พักและพื้นที่สัมมนา MICE เหมารีสอร์ต (${teamSize} ท่าน × ${nights} คืน) รวมสิ่งอำนวยความสะดวก`
+                              : `Exclusive MICE Resort & Workshop Package (${teamSize} Guests × ${nights} Nights) with verified amenities`}
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-center font-mono">{teamSize * nights} คน/คืน</td>
+                        <td className="py-3 px-3 text-center font-mono">{teamSize * nights} {language === 'th' ? 'คน/คืน' : 'Pax-Nights'}</td>
                         <td className="py-3 px-3 text-right font-mono">฿{matchedDestination.price_per_person.toLocaleString()}</td>
                         <td className="py-3 px-3 text-right font-mono font-semibold">฿{netTotal.toLocaleString()}</td>
                       </tr>
                       <tr>
                         <td className="py-2.5 px-3 font-mono text-center">2</td>
                         <td className="py-2.5 px-3">
-                          สัญญาณอินเทอร์เน็ตความเร็วสูง Starlink Business SLA Guarantee
+                          {language === 'th' ? 'สัญญาณอินเทอร์เน็ตความเร็วสูง Starlink Business SLA Guarantee' : 'Starlink Business Enterprise Internet with SLA Guarantee'}
                         </td>
-                        <td className="py-2.5 px-3 text-center font-mono">1 ระบบ</td>
-                        <td className="py-2.5 px-3 text-right text-emerald-600 font-semibold">รวมในแพ็กเกจ</td>
+                        <td className="py-2.5 px-3 text-center font-mono">{language === 'th' ? '1 ระบบ' : '1 Unit'}</td>
+                        <td className="py-2.5 px-3 text-right text-emerald-600 font-semibold">{language === 'th' ? 'รวมในแพ็กเกจ' : 'Included'}</td>
                         <td className="py-2.5 px-3 text-right font-mono">฿0</td>
                       </tr>
                       <tr>
                         <td className="py-2.5 px-3 font-mono text-center">3</td>
                         <td className="py-2.5 px-3">
-                          บริการประสานงานผู้ช่วยจัดทริปองค์กร 24 ชม. ผ่าน TripPick AI Concierge
+                          {language === 'th' ? 'บริการประสานงานผู้ช่วยจัดทริปองค์กร 24 ชม. ผ่าน TripPick AI Concierge' : '24/7 Dedicated Trip Coordinator via TripPick AI Concierge'}
                         </td>
-                        <td className="py-2.5 px-3 text-center font-mono">1 รายการ</td>
-                        <td className="py-2.5 px-3 text-right text-emerald-600 font-semibold">รวมในแพ็กเกจ</td>
+                        <td className="py-2.5 px-3 text-center font-mono">{language === 'th' ? '1 รายการ' : '1 Package'}</td>
+                        <td className="py-2.5 px-3 text-right text-emerald-600 font-semibold">{language === 'th' ? 'รวมในแพ็กเกจ' : 'Included'}</td>
                         <td className="py-2.5 px-3 text-right font-mono">฿0</td>
                       </tr>
                     </tbody>
@@ -1586,33 +1715,35 @@ ${item.description}
                 {/* Accounting & Tax Breakdown Terminal */}
                 <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-8">
                   <div className="text-xs text-slate-500 max-w-sm">
-                    <span className="font-bold text-slate-700 block mb-1">เงื่อนไขการชำระเงินและภาษี (Enterprise Terms):</span>
+                    <span className="font-bold text-slate-700 block mb-1">
+                      {language === 'th' ? 'เงื่อนไขการชำระเงินและภาษี (Enterprise Terms):' : 'Payment & Statutory Tax Terms (Enterprise Terms):'}
+                    </span>
                     <ul className="list-disc pl-4 space-y-1">
-                      <li>เครดิตเทอม 30 วัน (Net 30) หรือชำระด้วย Corporate Credit Card / PromptPay B2B</li>
-                      <li>ออกใบกำกับภาษีเต็มรูปตามมาตรา 86/4 แห่งประมวลรัษฎากร</li>
-                      <li>หักภาษี ณ ที่จ่าย 3% ตามคำสั่งกรมสรรพากร ที่ ท.ป. 4/2528</li>
+                      <li>{language === 'th' ? 'เครดิตเทอม 30 วัน (Net 30) หรือชำระด้วย Corporate Credit Card / PromptPay B2B' : 'Net 30 Credit Terms or Corporate Credit Card / PromptPay B2B'}</li>
+                      <li>{language === 'th' ? 'ออกใบกำกับภาษีเต็มรูปตามมาตรา 86/4 แห่งประมวลรัษฎากร' : 'Full Statutory Tax Invoice issued under Section 86/4 of Thai Revenue Code'}</li>
+                      <li>{language === 'th' ? 'หักภาษี ณ ที่จ่าย 3% ตามคำสั่งกรมสรรพากร ที่ ท.ป. 4/2528' : '3% Withholding Tax deducted under Thai Revenue Dept Order Tor.Por. 4/2528'}</li>
                     </ul>
                   </div>
 
                   <div className="w-full sm:w-72 p-3.5 rounded-lg bg-slate-50 border border-slate-300 text-xs">
                     <div className="flex justify-between py-1 border-b border-slate-200">
-                      <span className="text-slate-600">มูลค่ารวมก่อนภาษี (Net Subtotal):</span>
+                      <span className="text-slate-600">{language === 'th' ? 'มูลค่ารวมก่อนภาษี (Net Subtotal):' : 'Net Subtotal (Before Tax):'}</span>
                       <span className="font-mono font-semibold text-slate-900">฿{netTotal.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between py-1 border-b border-slate-200">
-                      <span className="text-slate-600">ภาษีมูลค่าเพิ่ม 7% (VAT):</span>
+                      <span className="text-slate-600">{language === 'th' ? 'ภาษีมูลค่าเพิ่ม 7% (VAT):' : 'Value Added Tax 7% (VAT):'}</span>
                       <span className="font-mono text-slate-800">+฿{vat7.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between py-1 border-b border-slate-200 font-semibold text-slate-900">
-                      <span>ยอดรวมทั้งสิ้น (Gross Total):</span>
+                      <span>{language === 'th' ? 'ยอดรวมทั้งสิ้น (Gross Total):' : 'Gross Total (With VAT):'}</span>
                       <span className="font-mono">฿{grossTotal.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between py-1 border-b border-slate-200 text-amber-700">
-                      <span>หัก ภาษี ณ ที่จ่าย 3% (WHT 3%):</span>
+                      <span>{language === 'th' ? 'หัก ภาษี ณ ที่จ่าย 3% (WHT 3%):' : 'Less 3% Withholding Tax (WHT):'}</span>
                       <span className="font-mono">-฿{wht3.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between pt-2 text-sm font-bold text-slate-900">
-                      <span>ยอดชำระสุทธิ (Net Payable):</span>
+                      <span>{language === 'th' ? 'ยอดชำระสุทธิ (Net Payable):' : 'Net Payable to Vendor:'}</span>
                       <span className="font-mono text-emerald-700">฿{netPayable.toLocaleString()}</span>
                     </div>
                   </div>
@@ -1622,22 +1753,22 @@ ${item.description}
                 <div className="grid grid-cols-2 gap-8 pt-6 border-t-2 border-slate-900 text-xs">
                   <div>
                     <p className="font-bold text-slate-800 mb-10">
-                      ลงนามผู้เสนอราคา (Prepared By TripPick Concierge):
+                      {language === 'th' ? 'ลงนามผู้เสนอราคา (Prepared By TripPick Concierge):' : 'Prepared By (TripPick Enterprise Concierge):'}
                     </p>
                     <div className="border-b border-slate-400 w-48 mb-1" />
-                    <p className="font-semibold text-slate-900">นางสาวอลิสา สิทธิพงศ์</p>
+                    <p className="font-semibold text-slate-900">{language === 'th' ? 'นางสาวอลิสา สิทธิพงศ์' : 'Ms. Alisa Sitthipong'}</p>
                     <p className="text-slate-500 text-[11px]">B2B Account Director, TripPick</p>
-                    <p className="text-slate-400 text-[10px] font-mono">วันที่: {issueDateFormatted}</p>
+                    <p className="text-slate-400 text-[10px] font-mono">{language === 'th' ? `วันที่: ${issueDateFormatted}` : `Date: ${issueDateFormatted}`}</p>
                   </div>
 
                   <div className="text-right">
                     <p className="font-bold text-slate-800 mb-10">
-                      ลงนามอนุมัติสั่งจ้าง (Authorized Corporate Approver):
+                      {language === 'th' ? 'ลงนามอนุมัติสั่งจ้าง (Authorized Corporate Approver):' : 'Authorized Corporate Approver (Client Sign-Off):'}
                     </p>
                     <div className="border-b border-slate-400 w-48 ml-auto mb-1" />
                     <p className="font-semibold text-slate-900">(........................................................)</p>
-                    <p className="text-slate-500 text-[11px]">ผู้อนุมัติฝ่ายจัดซื้อ / ทรัพยากรบุคคล / บัญชี</p>
-                    <p className="text-slate-400 text-[10px] font-mono">วันที่: _____ / _____ / _________</p>
+                    <p className="text-slate-500 text-[11px]">{language === 'th' ? 'ผู้อนุมัติฝ่ายจัดซื้อ / ทรัพยากรบุคคล / บัญชี' : 'Procurement / HR / Finance Approving Officer'}</p>
+                    <p className="text-slate-400 text-[10px] font-mono">{language === 'th' ? 'วันที่: _____ / _____ / _________' : 'Date: _____ / _____ / _________'}</p>
                   </div>
                 </div>
               </div>
@@ -1649,7 +1780,7 @@ ${item.description}
       {/* 2-Minute Video Pitch Script Modal (ElevenLabs Prompt A) */}
       <AnimatePresence>
         {showPitchModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto no-print">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 overflow-y-auto no-print">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -1691,7 +1822,7 @@ ${item.description}
                   onClick={handleTogglePitchAudio}
                   className="w-full sm:w-auto py-1.5 px-3 bg-[#cba6f7]/20 hover:bg-[#cba6f7]/30 border border-[#cba6f7]/40 text-[#cba6f7] rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center justify-center gap-1.5"
                 >
-                  <span>{isPitchPlaying ? '❚❚ หยุดทดสอบเสียง' : '▶ ทดสอบเสียงพากย์ (Voice Preview)'}</span>
+                  <span>{isPitchPlaying ? (language === 'th' ? '❚❚ หยุดทดสอบเสียง' : '❚❚ Pause Voice') : (language === 'th' ? '▶ ทดสอบเสียงพากย์ (Voice Preview)' : '▶ Play Voice Preview')}</span>
                 </button>
 
                 <button
@@ -1706,7 +1837,7 @@ ${item.description}
                   }}
                   className="w-full sm:w-auto py-1.5 px-3 bg-[#a6e3a1] hover:bg-[#94e2d5] text-[#11111b] rounded-lg text-xs font-bold cursor-pointer transition-colors flex items-center justify-center gap-1"
                 >
-                  <span>{copiedPitchToast ? '✓ คัดลอกสคริปต์แล้ว' : '📋 คัดลอกไปใส่ ElevenLabs'}</span>
+                  <span>{copiedPitchToast ? (language === 'th' ? '✓ คัดลอกสคริปต์แล้ว' : '✓ Copied Script') : (language === 'th' ? '📋 คัดลอกไปใส่ ElevenLabs' : '📋 Copy to ElevenLabs')}</span>
                 </button>
               </div>
             </motion.div>

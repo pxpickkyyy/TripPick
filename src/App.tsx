@@ -10,8 +10,10 @@ import { ConciergeDrawer } from './components/ConciergeDrawer';
 import { BusinessModelModal } from './components/BusinessModelModal';
 import { RevenueMetricsHUD } from './components/RevenueMetricsHUD';
 import { ProcurementModal } from './components/ProcurementModal';
+import { useLanguage } from './lib/i18n';
 
 function App() {
+  const { language, setLanguage, t } = useLanguage();
   const {
     roomId,
     step,
@@ -159,23 +161,59 @@ function App() {
             </span>
           </div>
 
-          {/* Center / Right: Live Room Badge or Status */}
-          {roomId ? (
-            <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-[#1e1e2e] border border-[#313244] text-xs">
-              <span className="text-[10px] uppercase tracking-wider text-[#a6adc8] font-mono">ห้อง:</span>
-              <span className="font-mono font-bold text-[#cba6f7] tracking-wider tabular-data">{roomId}</span>
-              {Boolean(isHost && currentUser?.isHost && (!room?.host_id || room.host_id === currentUser?.id)) && (
-                <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-[#cba6f7]/20 text-[#cba6f7] font-medium ml-1">
-                  Host
-                </span>
-              )}
+          {/* Center / Right: Language Toggle & Live Room Badge */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Language Switcher: 🇹🇭 TH | 🇬🇧 EN */}
+            <div
+              className="flex items-center bg-[#11111b] border border-[#313244] p-0.5 rounded-xl shadow-inner"
+              role="group"
+              aria-label={t.switchLanguage}
+            >
+              <button
+                type="button"
+                data-testid="lang-th-btn"
+                onClick={() => setLanguage('th')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  language === 'th'
+                    ? 'bg-[#cba6f7] text-[#11111b] shadow-sm'
+                    : 'text-[#a6adc8] hover:text-[#cdd6f4]'
+                }`}
+                title="เปลี่ยนเป็นภาษาไทย"
+              >
+                🇹🇭 TH
+              </button>
+              <button
+                type="button"
+                data-testid="lang-en-btn"
+                onClick={() => setLanguage('en')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  language === 'en'
+                    ? 'bg-[#cba6f7] text-[#11111b] shadow-sm'
+                    : 'text-[#a6adc8] hover:text-[#cdd6f4]'
+                }`}
+                title="Switch to English"
+              >
+                🇬🇧 EN
+              </button>
             </div>
-          ) : (
-            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[#1e1e2e] border border-[#313244] text-[10px] font-mono text-[#a6adc8]">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#a6e3a1]" />
-              <span>B2B CONSENSUS</span>
-            </div>
-          )}
+
+            {roomId ? (
+              <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-[#1e1e2e] border border-[#313244] text-xs">
+                <span className="text-[10px] uppercase tracking-wider text-[#a6adc8] font-mono">{t.roomLabel}</span>
+                <span className="font-mono font-bold text-[#cba6f7] tracking-wider tabular-data">{roomId}</span>
+                {Boolean(isHost && currentUser?.isHost && (!room?.host_id || room.host_id === currentUser?.id)) && (
+                  <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-[#cba6f7]/20 text-[#cba6f7] font-medium ml-1">
+                    {t.hostBadge}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#1e1e2e] border border-[#313244] text-[10px] font-mono text-[#a6adc8]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#a6e3a1]" />
+                <span>{t.b2bConsensus}</span>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 

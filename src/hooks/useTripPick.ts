@@ -849,11 +849,12 @@ export function useTripPick() {
       broadcastEvent('REQUEST_ROOM_STATE', { fromUserId: user.id });
 
       // Add welcoming chat
-      const welcome = await fetchAiCommentary('join', user.user_name);
+      const activeLang = (typeof window !== 'undefined' && (localStorage.getItem('trippick_lang') as 'th' | 'en')) || 'th';
+      const welcome = await fetchAiCommentary('join', user.user_name, activeLang);
       const welcomeMsg: ChatMessage = {
         id: 'msg_' + Date.now(),
         room_id: roomId,
-        sender_name: 'AI ผู้ช่วย TripPick',
+        sender_name: activeLang === 'en' ? 'TripPick AI Concierge' : 'AI ผู้ช่วย TripPick',
         message_text: welcome,
         created_at: new Date().toISOString()
       };

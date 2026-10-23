@@ -70,17 +70,22 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       process.env.VITE_GOOGLE_TTS_API_KEY ||
       '';
 
-    // 1. ElevenLabs High-Fidelity Studio Tier (Lively, Warm, Human Inflection)
+    // 1. ElevenLabs High-Fidelity Studio Tier (Pure Professional English Voiceover)
     if (engine === 'elevenlabs-hd' && elevenLabsApiKey && elevenLabsApiKey !== 'your_elevenlabs_key_here') {
-      const REQUESTED_THAI_VOICE = '7XW5JhaNn90bnFojQ5DA'; // Mali - Natural & Clear Thai (https://elevenlabs.io/voices/7XW5JhaNn90bnFojQ5DA)
-      const VERIFIED_THAI_VOICE = 'MYZYcGOqrkYQcwDunXl7';  // Hammy - Natural & Warm Thai Female
-      const DEFAULT_EN_VOICE = 'TX3LPaxmHKxFdv7VOQHJ';
+      const BRIAN_EN_VOICE = 'nPczCjzI2devNBz1zQrb'; // Brian - Deep, Authoritative Corporate Executive
+      const ADAM_EN_VOICE = 'pNInz6obpgDQGcFmaJgB';  // Adam - Professional Corporate B2B
+      const LIAM_EN_VOICE = 'TX3LPaxmHKxFdv7VOQHJ';  // Liam - Energetic Tech Executive
 
-      const requestedVoice = payload.voiceId || (language === 'th' ? REQUESTED_THAI_VOICE : DEFAULT_EN_VOICE);
+      const requestedVoice = payload.voiceId || BRIAN_EN_VOICE;
       const candidates = [requestedVoice];
-      if (language === 'th' && !candidates.includes(VERIFIED_THAI_VOICE)) {
-        candidates.push(VERIFIED_THAI_VOICE);
-      }
+      if (!candidates.includes(ADAM_EN_VOICE)) candidates.push(ADAM_EN_VOICE);
+      if (!candidates.includes(LIAM_EN_VOICE)) candidates.push(LIAM_EN_VOICE);
+
+      // Force English script for ElevenLabs
+      const effectiveScript =
+        language === 'en'
+          ? script
+          : `Executive and Finance Briefing: The team has reached unanimous consensus on ${destinationTitle} in ${city} for our corporate offsite. Net procurement total is ${netPayable.toLocaleString()} Thai Baht, fully reconciled with 7% VAT and 3% withholding tax. Equipped with ${wifiSpeed} Mbps Starlink connectivity and a ${maxCapacity}-seat executive boardroom. Click to approve budget instantly.`;
 
       for (const candidateId of candidates) {
         try {
@@ -92,12 +97,12 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
               Accept: 'audio/mpeg',
             },
             body: JSON.stringify({
-              text: script,
+              text: effectiveScript,
               model_id: 'eleven_multilingual_v2',
               voice_settings: {
-                stability: 0.35,
+                stability: 0.38,
                 similarity_boost: 0.85,
-                style: 0.45,
+                style: 0.40,
                 use_speaker_boost: true,
               },
             }),
@@ -113,8 +118,8 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
                 success: true,
                 engine: 'elevenlabs-hd',
                 voiceId: candidateId,
-                language,
-                script,
+                language: 'en',
+                script: effectiveScript,
                 mimeType: 'audio/mpeg',
                 audioContent: base64Audio,
               })
@@ -166,6 +171,11 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     }
 
     // 3. Deterministic Zero-Fail Fallback (Demo Resilience Mode)
+    const effectiveFallbackUrl =
+      engine === 'elevenlabs-hd' || language === 'en'
+        ? '/audio/test_Adam_eleven_multilingual_v2.mp3'
+        : '/audio/cfo_briefing_fallback.mp3';
+
     res.statusCode = 200;
     res.setHeader('Content-Type', 'application/json');
     res.end(
@@ -173,9 +183,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         success: true,
         fallback: true,
         engine,
-        language,
-        script,
-        fallbackAudioUrl: '/audio/cfo_briefing_fallback.mp3',
+        language: engine === 'elevenlabs-hd' ? 'en' : language,
+        script: engine === 'elevenlabs-hd' ? (payload.script && !/[\u0E00-\u0E7F]/.test(payload.script) ? payload.script : `Executive and Finance Briefing: The team has reached unanimous consensus on ${destinationTitle} in ${city} for our corporate offsite. Net procurement total is ${netPayable.toLocaleString()} Thai Baht, fully reconciled with 7% VAT and 3% withholding tax. Equipped with ${wifiSpeed} Mbps Starlink connectivity and a ${maxCapacity}-seat executive boardroom. Click to approve budget instantly.`) : script,
+        fallbackAudioUrl: effectiveFallbackUrl,
         message: 'Pre-bundled authentic audio preview ready for zero-latency stage execution.',
       })
     );

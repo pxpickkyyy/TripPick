@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { TravelDestination } from '../lib/travelDestinations';
 import type { StepType, DepositReceipt } from '../hooks/useTripPick';
 import { calculateRetreatPricing } from '../types/procurement';
+import { useLanguage } from '../lib/i18n';
 
 export interface RevenueMetricsHUDProps {
   matchedDestination: TravelDestination | null;
@@ -21,12 +22,14 @@ export const RevenueMetricsHUD: React.FC<RevenueMetricsHUDProps> = ({
   depositReceipt,
   onOpenProcurement,
 }) => {
+  const { t } = useLanguage();
+
   // Mobile responsive collapse state
   // On matched step: auto-expand to showcase financial proof to judges unless manually toggled
   const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
-  const [prevStep, setPrevStep] = useState<StepType>(step);
 
   // Automatically reset manual toggle when transitioning to matched consensus
+  const [prevStep, setPrevStep] = useState<StepType>(step);
   if (prevStep !== step) {
     setPrevStep(step);
     if (step === 'matched') {
@@ -34,7 +37,10 @@ export const RevenueMetricsHUD: React.FC<RevenueMetricsHUDProps> = ({
     }
   }
 
-  const isExpanded = userExpanded !== null ? userExpanded : step === 'matched';
+  const isExpanded =
+    userExpanded !== null
+      ? userExpanded
+      : (step === 'matched' && (typeof window !== 'undefined' ? window.innerWidth >= 640 : false));
 
   // Compute live financial yield
   const effectiveHeadcount = Math.max(4, usersCount || 12);
@@ -58,28 +64,45 @@ export const RevenueMetricsHUD: React.FC<RevenueMetricsHUDProps> = ({
   }
 
   return (
-    <aside
-      aria-label="Revenue Metrics HUD"
-      className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40 select-none no-print"
-    >
+    <>
+      {/* Mobile Backdrop when expanded (tap outside to collapse) */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            key="hud-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => setUserExpanded(false)}
+            className="sm:hidden fixed inset-0 bg-black/50 z-[35] no-print cursor-pointer"
+          />
+        )}
+      </AnimatePresence>
+
+      <aside
+        data-testid="revenue-hud"
+        aria-label="Revenue Metrics HUD"
+        className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 sm:right-5 z-40 select-none no-print pointer-events-auto"
+      >
       <AnimatePresence mode="wait">
         {!isExpanded ? (
           /* COLLAPSED FLOATING PILL (Mobile-first, zero obstruction for swiping) */
           <motion.button
             key="collapsed-hud-pill"
-            layoutId="revenue-hud-container"
             onClick={() => setUserExpanded(true)}
-            initial={{ opacity: 0, scale: 0.85, y: 10 }}
+            initial={{ opacity: 0, scale: 0.9, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.85, y: 10 }}
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.96 }}
-            className={`flex items-center gap-2 py-2 px-3.5 rounded-full border shadow-xl backdrop-blur-md text-left cursor-pointer transition-all ${
+            exit={{ opacity: 0, scale: 0.9, y: 8 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            className={`flex items-center gap-2 py-2 px-3.5 rounded-full border shadow-xl text-left cursor-pointer transition-colors ${
               isEscrowSecured
-                ? 'bg-[#181825]/95 border-[#a6e3a1] shadow-emerald-500/20'
-                : 'bg-[#181825]/95 border-[#a6e3a1]/50 hover:shadow-emerald-500/10'
+                ? 'bg-[#181825] border-[#a6e3a1] shadow-emerald-500/20'
+                : 'bg-[#181825] border-[#a6e3a1]/60 hover:border-[#a6e3a1] hover:shadow-emerald-500/10'
             }`}
-            title="คลิกเพื่อดูรายละเอียดรายได้ B2B & Gross Booking Value"
+            title={t.hudOpenProcurementBtn}
           >
             {/* Blinking Live Indicator */}
             <span className="flex h-2.5 w-2.5 relative shrink-0">
@@ -90,16 +113,16 @@ export const RevenueMetricsHUD: React.FC<RevenueMetricsHUDProps> = ({
             {isEscrowSecured ? (
               <div className="flex items-center gap-1.5 font-mono text-xs">
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#a6e3a1] text-[#11111b] font-black uppercase tracking-wider">
-                  SECURED
+                  {t.hudSecuredLabel}
                 </span>
                 <span className="font-extrabold text-[#a6e3a1]">
-                  ฿5,000 LOCKED
+                  {t.hudLockedBadge}
                 </span>
               </div>
             ) : (
               <div className="flex items-center gap-1.5 font-mono text-xs">
                 <span className="text-[10px] text-[#a6adc8] uppercase font-bold tracking-wider hidden sm:inline">
-                  YIELD:
+                  {t.hudYieldLabel}
                 </span>
                 <span className="font-extrabold text-[#a6e3a1]">
                   {formatShortCurrency(pricing.tripPickRevenue)}
@@ -117,12 +140,11 @@ export const RevenueMetricsHUD: React.FC<RevenueMetricsHUDProps> = ({
           /* EXPANDED EXECUTIVE REVENUE CARD */
           <motion.div
             key="expanded-hud-card"
-            layoutId="revenue-hud-container"
-            initial={{ opacity: 0, scale: 0.92, y: 15 }}
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.92, y: 15 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-            className="w-72 sm:w-80 max-w-[calc(100vw-2rem)] rounded-2xl bg-[#181825]/95 border border-[#a6e3a1]/40 shadow-2xl backdrop-blur-xl p-4 text-left overflow-hidden relative"
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="w-72 sm:w-80 max-w-[calc(100vw-2rem)] rounded-2xl bg-[#181825] border border-[#a6e3a1]/50 shadow-2xl p-4 text-left overflow-hidden relative"
           >
             {/* Subtle Gradient Accent */}
             <div className="absolute top-0 right-0 w-32 h-20 bg-gradient-to-bl from-[#a6e3a1]/15 via-transparent to-transparent pointer-events-none" />
@@ -135,14 +157,14 @@ export const RevenueMetricsHUD: React.FC<RevenueMetricsHUDProps> = ({
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-[#a6e3a1]"></span>
                 </span>
                 <span className="text-[10px] font-mono font-bold text-[#a6e3a1] uppercase tracking-wider">
-                  B2B REVENUE HUD // 12% TAKE-RATE
+                  {t.hudTitle}
                 </span>
               </div>
 
               <button
                 onClick={() => setUserExpanded(false)}
                 className="w-6 h-6 rounded-md bg-[#11111b] hover:bg-[#313244] text-[#a6adc8] hover:text-[#cdd6f4] flex items-center justify-center text-xs cursor-pointer transition-colors"
-                title="ย่อขนาด HUD"
+                title={t.hudMinimizeTitle}
               >
                 ▼
               </button>
@@ -152,7 +174,7 @@ export const RevenueMetricsHUD: React.FC<RevenueMetricsHUDProps> = ({
             <div className="space-y-2 mb-3 font-mono">
               {/* Gross Booking Value */}
               <div className="flex items-center justify-between text-xs">
-                <span className="text-[#a6adc8] font-sans text-[11px]">Gross Booking Value (GBV):</span>
+                <span className="text-[#a6adc8] font-sans text-[11px]">{t.hudGbvLabel}</span>
                 <span className="font-bold text-[#cdd6f4]">
                   ฿{pricing.grossBookingValue.toLocaleString()}
                 </span>
@@ -161,7 +183,7 @@ export const RevenueMetricsHUD: React.FC<RevenueMetricsHUDProps> = ({
               {/* TripPick Take-Rate Commission */}
               <div className="flex items-center justify-between text-xs bg-[#11111b] p-2 rounded-lg border border-[#313244]">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[#a6e3a1] font-bold font-sans text-[11px]">Platform Take-Rate:</span>
+                  <span className="text-[#a6e3a1] font-bold font-sans text-[11px]">{t.hudTakeRateLabel}</span>
                   <span className="text-[10px] px-1 py-0.2 rounded bg-[#a6e3a1]/20 text-[#a6e3a1] font-bold">
                     12%
                   </span>
@@ -173,15 +195,15 @@ export const RevenueMetricsHUD: React.FC<RevenueMetricsHUDProps> = ({
 
               {/* Escrow Status Line */}
               <div className="flex items-center justify-between text-xs pt-0.5">
-                <span className="text-[#a6adc8] font-sans text-[11px]">สถานะเงินมัดจำ Escrow:</span>
+                <span className="text-[#a6adc8] font-sans text-[11px]">{t.escrowStatusLabel}</span>
                 {isEscrowSecured ? (
                   <span className="font-bold text-[#a6e3a1] flex items-center gap-1 text-[11px]">
-                    <span>🔒 SECURED</span>
-                    <span className="text-[10px] font-mono">(฿5,000 LOCKED)</span>
+                    <span>🔒 {t.hudSecuredLabel}</span>
+                    <span className="text-[10px] font-mono">({t.hudLockedBadge})</span>
                   </span>
                 ) : (
                   <span className="font-semibold text-[#f9e2af] text-[11px]">
-                    ⏳ READY (฿5,000 ESCROW)
+                    {t.escrowReadyStatus}
                   </span>
                 )}
               </div>
@@ -191,26 +213,25 @@ export const RevenueMetricsHUD: React.FC<RevenueMetricsHUDProps> = ({
             <div className="text-[10px] text-[#a6adc8] bg-[#11111b]/80 p-2 rounded-lg border border-[#313244] mb-3 flex items-center justify-between font-sans">
               <span className="flex items-center gap-1">
                 <span className="text-[#a6e3a1]">✓</span>
-                <span>VAT 7% + WHT 3% (ท.ป. 4/2528)</span>
-              </span>
-              <span className="text-[9px] font-mono text-[#89dceb] font-semibold">
-                AUDIT READY
+                <span>{t.hudAuditReady}</span>
               </span>
             </div>
 
             {/* Primary Action Button: Open Procurement Engine */}
             <button
+              data-testid="hud-open-procurement-btn"
               onClick={() => {
                 onOpenProcurement();
               }}
               className="w-full py-2 px-3 bg-gradient-to-r from-[#a6e3a1] to-[#94e2d5] hover:opacity-95 text-[#11111b] text-xs font-extrabold rounded-xl transition-all cursor-pointer shadow-md active:scale-[0.98] flex items-center justify-center gap-1.5"
             >
-              <span>💼 ดูเอกสารจัดซื้อ B2B &amp; มัดจำ Escrow</span>
+              <span>{t.hudOpenProcurementBtn}</span>
               <span>→</span>
             </button>
           </motion.div>
         )}
       </AnimatePresence>
     </aside>
+    </>
   );
 };

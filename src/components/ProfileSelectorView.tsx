@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ALL_AMENITIES } from '../lib/travelDestinations';
+import { useLanguage } from '../lib/i18n';
 
 interface ProfileSelectorViewProps {
   onSubmit: (name: string, role: string, preferredAmenities: string[]) => Promise<boolean>;
@@ -9,47 +10,77 @@ interface ProfileSelectorViewProps {
   onBack: () => void;
 }
 
-const ROLES = [
-  'ผู้บริหาร / ผู้ก่อตั้ง (C-Level)',
-  'หัวหน้าฝ่ายวิศวกรรม / เทค (Tech Lead)',
-  'ฝ่ายผลิตภัณฑ์ & ดีไซน์ (Product & Design)',
-  'ฝ่ายบุคคล & จัดกิจกรรม (HR & People)',
-  'สมาชิกทีม (Team Member)'
-];
+const ROLES_MAP = {
+  th: [
+    'ผู้บริหาร / ผู้ก่อตั้ง (C-Level)',
+    'หัวหน้าฝ่ายวิศวกรรม / เทค (Tech Lead)',
+    'ฝ่ายผลิตภัณฑ์ & ดีไซน์ (Product & Design)',
+    'ฝ่ายบุคคล & จัดกิจกรรม (HR & People)',
+    'สมาชิกทีม (Team Member)',
+  ],
+  en: [
+    'Executive / Founder (C-Level)',
+    'Head of Engineering (Tech Lead)',
+    'Product & Design Lead',
+    'HR & People Operations',
+    'Team Member / Attendee',
+  ],
+};
+
+const AMENITIES_EN_MAP: Record<string, string> = {
+  'wifi': 'Starlink / Fiber Internet 500+ Mbps',
+  'boardroom': 'Executive Boardroom & Full AV System',
+  'private_pool': 'Private Cliffside / Beachfront Pool',
+  'team_dining': 'Private Chef & Group Catering',
+  'airport_shuttle': 'Private VIP Airport Vans',
+  'coworking': 'Coworking Zone with Nature Views',
+  'wellness': 'Spa, Thai Massage & Yoga Classes',
+  'adventure': 'Private Yacht Cruise & Team Bonding',
+};
 
 export function ProfileSelectorView({ onSubmit, loading, error, onBack }: ProfileSelectorViewProps) {
+  const { language, t } = useLanguage();
+  const currentRoles = ROLES_MAP[language];
+
   const [name, setName] = useState('');
-  const [role, setRole] = useState(ROLES[0]);
+  const [roleIndex, setRoleIndex] = useState(0);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([
-    'อินเทอร์เน็ต Starlink / Fiber 500+ Mbps',
-    'ห้องประชุมผู้บริหาร & ระบบ AV ครบครัน'
+    'wifi',
+    'boardroom',
   ]);
   const [nameError, setNameError] = useState<string | null>(null);
 
-  const toggleAmenity = (amenityName: string) => {
-    setSelectedAmenities(prev =>
-      prev.includes(amenityName)
-        ? prev.filter(a => a !== amenityName)
-        : [...prev, amenityName]
+  const toggleAmenity = (amenityId: string) => {
+    setSelectedAmenities((prev) =>
+      prev.includes(amenityId)
+        ? prev.filter((a) => a !== amenityId)
+        : [...prev, amenityId]
     );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      setNameError('กรุณากรอกชื่อหรือตำแหน่งของคุณ');
+      setNameError(t.nameError);
       return;
     }
-    await onSubmit(name.trim(), role, selectedAmenities);
+    const selectedRole = currentRoles[roleIndex] || currentRoles[0];
+    // Map selected IDs back to standard names for room matching
+    const amenitiesToSubmit = selectedAmenities.map((id) => {
+      const found = ALL_AMENITIES.find((a) => a.id === id);
+      return found ? found.name : id;
+    });
+
+    await onSubmit(name.trim(), selectedRole, amenitiesToSubmit);
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -12 }}
-      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      className="flex flex-col items-center justify-center min-h-[calc(100dvh-5rem)] px-4 sm:px-6 py-8 sm:py-12 text-center relative z-20"
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
+      className="flex flex-col items-center justify-center min-h-[calc(100dvh-5rem)] px-4 sm:px-6 py-6 sm:py-10 text-center relative z-20"
     >
       <div className="w-full max-w-xl text-left mb-3 flex items-center justify-between">
         <button
@@ -59,16 +90,16 @@ export function ProfileSelectorView({ onSubmit, loading, error, onBack }: Profil
           <svg className="w-3.5 h-3.5 text-[#cba6f7]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
           </svg>
-          <span>ย้อนกลับ</span>
+          <span>{t.backBtn}</span>
         </button>
 
         <span className="text-[11px] font-mono text-[#6c7086] uppercase tracking-wider">
-          STEP 01 // 02
+          {t.profileStep}
         </span>
       </div>
 
       {/* Minimalist Enclosure (Low-End Optimized Solid Surfaces) */}
-      <div className="w-full max-w-xl p-2 rounded-2xl bg-[#181825] border border-[#313244] shadow-sm">
+      <div className="w-full max-w-xl p-2 rounded-2xl bg-[#181825] border border-[#313244] shadow-xl">
         <div className="rounded-xl p-5 sm:p-6 bg-[#1e1e2e] border border-[#313244] text-left">
           <div className="mb-5">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#313244] border border-[#45475a] mb-2.5">
@@ -78,15 +109,15 @@ export function ProfileSelectorView({ onSubmit, loading, error, onBack }: Profil
               </span>
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-[#cdd6f4] tracking-tight">
-              ตั้งค่าโปรไฟล์และสิ่งที่ต้องการ
+              {t.profileTitle}
             </h2>
             <p className="text-xs text-[#a6adc8] mt-1.5 leading-relaxed">
-              เลือกสิ่งอำนวยความสะดวกที่ทีมของคุณให้ความสำคัญ เพื่อให้ระบบฉันทามติคัดเลือกสถานที่ได้ตรงเป้าหมายที่สุด
+              {t.profileSubtitle}
             </p>
           </div>
 
           {(error || nameError) && (
-            <div className="mb-5 p-3 rounded-xl bg-[#f38ba8]/15 border border-[#f38ba8]/30 text-[#f38ba8] text-xs">
+            <div className="mb-4 p-3 rounded-xl bg-[#f38ba8]/15 border border-[#f38ba8]/30 text-[#f38ba8] text-xs">
               {error || nameError}
             </div>
           )}
@@ -95,18 +126,19 @@ export function ProfileSelectorView({ onSubmit, loading, error, onBack }: Profil
             {/* Display Name Input */}
             <div>
               <label className="text-xs font-semibold text-[#bac2de] block mb-1.5 font-mono uppercase tracking-wider text-[11px]">
-                ชื่อและตำแหน่งของคุณ
+                {t.nameLabel}
               </label>
               <input
+                data-testid="user-name-input"
                 type="text"
                 required
-                maxLength={25}
+                maxLength={30}
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);
                   if (nameError) setNameError(null);
                 }}
-                placeholder="เช่น นนท์ (Head of Tech) หรือ มุก (HR Lead)"
+                placeholder={t.namePlaceholder}
                 className="w-full py-2.5 px-3.5 rounded-xl bg-[#181825] border border-[#313244] text-[#cdd6f4] placeholder-[#6c7086] text-xs font-medium focus:outline-none focus:border-[#cba6f7] transition-colors"
               />
             </div>
@@ -114,16 +146,16 @@ export function ProfileSelectorView({ onSubmit, loading, error, onBack }: Profil
             {/* Role selector */}
             <div>
               <label className="text-xs font-semibold text-[#bac2de] block mb-1.5 font-mono uppercase tracking-wider text-[11px]">
-                บทบาทของคุณในทริปนี้
+                {t.roleLabel}
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {ROLES.map((r) => {
-                  const isSelected = role === r;
+                {currentRoles.map((r, idx) => {
+                  const isSelected = roleIndex === idx;
                   return (
                     <button
                       type="button"
                       key={r}
-                      onClick={() => setRole(r)}
+                      onClick={() => setRoleIndex(idx)}
                       className={`p-2.5 rounded-xl text-xs font-medium text-left transition-colors cursor-pointer flex items-center justify-between border active:scale-[0.98] ${
                         isSelected
                           ? 'bg-[#313244] border-[#cba6f7] text-[#cba6f7]'
@@ -143,22 +175,24 @@ export function ProfileSelectorView({ onSubmit, loading, error, onBack }: Profil
             {/* Must-Have Business & Tourism Amenities */}
             <div>
               <label className="text-xs font-semibold text-[#bac2de] block mb-1.5 font-mono uppercase tracking-wider text-[11px]">
-                สิ่งอำนวยความสะดวกที่จำเป็นต้องมี
+                {t.amenitiesLabel}
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {ALL_AMENITIES.map((amenity) => {
-                  const isSelected = selectedAmenities.includes(amenity.name);
+                  const isSelected = selectedAmenities.includes(amenity.id);
+                  const displayName = language === 'en' ? (AMENITIES_EN_MAP[amenity.id] || amenity.name) : amenity.name;
+
                   return (
                     <div
                       key={amenity.id}
-                      onClick={() => toggleAmenity(amenity.name)}
+                      onClick={() => toggleAmenity(amenity.id)}
                       className={`flex items-center justify-between p-3 rounded-xl border transition-colors cursor-pointer active:scale-[0.98] ${
                         isSelected
                           ? 'bg-[#181825] border-[#a6e3a1]/60 text-[#cdd6f4]'
                           : 'bg-[#181825] border-[#313244] text-[#a6adc8] hover:text-[#cdd6f4] hover:bg-[#313244]/50'
                       }`}
                     >
-                      <span className="text-xs font-medium pr-2">{amenity.name}</span>
+                      <span className="text-xs font-medium pr-2">{displayName}</span>
                       <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border ${
                         isSelected
                           ? 'bg-[#a6e3a1] border-[#a6e3a1] text-[#11111b]'
@@ -178,11 +212,12 @@ export function ProfileSelectorView({ onSubmit, loading, error, onBack }: Profil
 
             {/* Submit Action */}
             <button
+              data-testid="enter-lobby-btn"
               type="submit"
               disabled={loading}
               className="w-full py-3.5 px-5 mt-1 rounded-xl bg-[#cba6f7] hover:bg-[#b4befe] text-[#11111b] font-bold text-sm transition-colors cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50"
             >
-              <span>{loading ? 'กำลังเข้าสู่ห้องล็อบบี้...' : 'เข้าสู่ห้องล็อบบี้ทริป'}</span>
+              <span>{loading ? t.enteringLobbyBtn : t.enterLobbyBtn}</span>
               <svg className="w-4 h-4 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
               </svg>

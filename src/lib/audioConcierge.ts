@@ -52,8 +52,8 @@ export const VOICE_ENGINES: Record<VoiceEngine, VoiceEngineInfo> = {
     id: 'elevenlabs-hd',
     name: 'ElevenLabs High-Fidelity Voice',
     provider: 'ElevenLabs AI',
-    badge: 'Premium Studio Voice',
-    description: 'Ultra-realistic human nuance voice (Mali 7XW5JhaNn90bnFojQ5DA / Hammy Native Thai / Multilingual v2)',
+    badge: 'Executive Studio Voice (EN)',
+    description: 'Ultra-realistic corporate English executive voiceover (Brian / Adam Professional Executive English)',
   },
   'web-speech': {
     id: 'web-speech',
@@ -72,15 +72,21 @@ export const VOICE_ENGINES: Record<VoiceEngine, VoiceEngineInfo> = {
 };
 
 /**
- * ElevenLabs Dedicated Voice IDs:
- * Primary Thai: Mali - Natural & Clear Thai (URL: https://elevenlabs.io/voices/7XW5JhaNn90bnFojQ5DA)
- * Fallback Thai: Hammy - Warm & Friendly Natural Thai Female (Verified 200 OK)
- * Primary English: Liam - Energetic Executive EN
+ * ElevenLabs Dedicated Executive English Voice IDs:
+ * Primary English: Brian - Deep, Authoritative Corporate Executive (nPczCjzI2devNBz1zQrb)
+ * Secondary English: Adam - Professional Corporate B2B Narrator (pNInz6obpgDQGcFmaJgB)
+ * Tertiary English: Liam - Energetic Tech Executive (TX3LPaxmHKxFdv7VOQHJ)
  */
+export const ELEVENLABS_BRIAN_VOICE_ID = 'nPczCjzI2devNBz1zQrb';
+export const ELEVENLABS_ADAM_VOICE_ID = 'pNInz6obpgDQGcFmaJgB';
+export const ELEVENLABS_LIAM_VOICE_ID = 'TX3LPaxmHKxFdv7VOQHJ';
+export const PRIMARY_ENGLISH_VOICE_ID = ELEVENLABS_BRIAN_VOICE_ID;
+export const SECONDARY_ENGLISH_VOICE_ID = ELEVENLABS_ADAM_VOICE_ID;
+export const DEFAULT_ENGLISH_VOICE_ID = ELEVENLABS_BRIAN_VOICE_ID;
+
+// Preserved for legacy reference if needed
 export const REQUESTED_THAI_VOICE_ID = '7XW5JhaNn90bnFojQ5DA';
-export const REQUESTED_THAI_VOICE_URL = 'https://elevenlabs.io/voices/7XW5JhaNn90bnFojQ5DA';
 export const VERIFIED_THAI_VOICE_ID = 'MYZYcGOqrkYQcwDunXl7';
-export const DEFAULT_ENGLISH_VOICE_ID = 'TX3LPaxmHKxFdv7VOQHJ';
 
 /**
  * 2-Minute Video Pitch Script (Prompt A)
@@ -165,16 +171,24 @@ export function playJackboxChime(): void {
  */
 export async function playJackboxHostAnnouncement(
   script: string,
-  lang: BriefingLanguage = 'th'
+  lang: BriefingLanguage = 'en',
+  englishScript?: string
 ): Promise<void> {
   playJackboxChime();
 
-  // 1. Prioritize ElevenLabs with Requested Thai Voice (Mali 7XW5JhaNn90bnFojQ5DA) & Verified Native Fallback
-  const voiceId = lang === 'th' ? REQUESTED_THAI_VOICE_ID : DEFAULT_ENGLISH_VOICE_ID;
-  const audioUrl = await fetchElevenLabsAudio(script, voiceId, {
-    stability: 0.32,
+  // 1. Prioritize ElevenLabs with Professional Corporate English Voice (Brian / Adam)
+  // Ensure ElevenLabs strictly speaks pure English per requirement 2
+  const textForElevenLabs =
+    (englishScript && englishScript.trim()) ||
+    (!/[\u0E00-\u0E7F]/.test(script)
+      ? script
+      : 'Consensus alert! Corporate offsite match is locking in with high-speed Starlink!');
+
+  const voiceId = PRIMARY_ENGLISH_VOICE_ID;
+  const audioUrl = await fetchElevenLabsAudio(textForElevenLabs, voiceId, {
+    stability: 0.35,
     similarity_boost: 0.85,
-    style: 0.48,
+    style: 0.45,
     use_speaker_boost: true,
   });
 
@@ -184,15 +198,13 @@ export async function playJackboxHostAnnouncement(
     return;
   }
 
-  // 2. Play pre-bundled authentic Thai announcement audio if offline
-  if (lang === 'th') {
-    try {
-      const offlineAudio = new Audio('/audio/jackbox_alert_thai.mp3');
-      await offlineAudio.play();
-      return;
-    } catch {
-      // Fall through to browser speech synthesis
-    }
+  // 2. Play pre-bundled authentic announcement audio if offline
+  try {
+    const offlineAudio = new Audio('/audio/live_test.mp3');
+    await offlineAudio.play();
+    return;
+  } catch {
+    // Fall through to browser speech synthesis
   }
 
   // 3. Fallback to Web Speech only if network and audio files fail
@@ -200,14 +212,14 @@ export async function playJackboxHostAnnouncement(
     try {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(script);
-      utterance.lang = lang === 'th' ? 'th-TH' : 'en-US';
+      utterance.lang = lang === 'en' ? 'en-US' : 'th-TH';
       utterance.rate = 1.05;
       utterance.pitch = 1.02;
 
       const voices = window.speechSynthesis.getVoices();
       const preferred = voices.find(
         (v) =>
-          v.lang.startsWith(lang === 'th' ? 'th' : 'en') &&
+          v.lang.startsWith(lang === 'en' ? 'en' : 'th') &&
           (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Premium'))
       );
       if (preferred) utterance.voice = preferred;
@@ -229,6 +241,10 @@ export async function fetchAudioBriefingFromApi(
   engine: VoiceEngine
 ): Promise<string | null> {
   try {
+    // When ElevenLabs is used, enforce pure professional English
+    const effectiveLang = engine === 'elevenlabs-hd' ? 'en' : language;
+    const effectiveVoiceId = engine === 'elevenlabs-hd' ? PRIMARY_ENGLISH_VOICE_ID : DEFAULT_ENGLISH_VOICE_ID;
+
     const response = await fetch('/api/audio-briefing', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -238,10 +254,10 @@ export async function fetchAudioBriefingFromApi(
         wifiSpeed: specs.wifiSpeed,
         maxCapacity: specs.maxCapacity,
         netPayable: specs.netPayable,
-        language,
+        language: effectiveLang,
         engine,
-        voiceId: language === 'th' ? REQUESTED_THAI_VOICE_ID : DEFAULT_ENGLISH_VOICE_ID,
-        script: generateCfoMemoScript(specs, language),
+        voiceId: effectiveVoiceId,
+        script: generateCfoMemoScript(specs, effectiveLang),
       }),
     });
 
@@ -254,7 +270,7 @@ export async function fetchAudioBriefingFromApi(
       if (data.audioUrl) {
         return data.audioUrl;
       }
-      if (data.fallbackAudioUrl && engine === 'synth-fallback') {
+      if (data.fallbackAudioUrl && (engine === 'synth-fallback' || engine === 'elevenlabs-hd')) {
         return data.fallbackAudioUrl;
       }
     }
@@ -273,12 +289,12 @@ export interface ElevenLabsVoiceSettings {
 
 /**
  * ElevenLabs High-Fidelity Voice Synthesis (Direct REST API Fallback)
- * Configured with requested Thai voice (Mali 7XW5JhaNn90bnFojQ5DA) and
- * verified fluent fallback (Hammy MYZYcGOqrkYQcwDunXl7) with lively settings.
+ * Configured with professional corporate English voices:
+ * Brian (nPczCjzI2devNBz1zQrb) and Adam (pNInz6obpgDQGcFmaJgB) with executive cadence.
  */
 export async function fetchElevenLabsAudio(
   text: string,
-  voiceId = REQUESTED_THAI_VOICE_ID,
+  voiceId = PRIMARY_ENGLISH_VOICE_ID,
   settings?: ElevenLabsVoiceSettings
 ): Promise<string | null> {
   const apiKey =
@@ -290,10 +306,13 @@ export async function fetchElevenLabsAudio(
     return null;
   }
 
-  // Build candidate order: requested voice first, with verified native Thai fallback if requested voice fails
+  // Build candidate order: Brian (Executive) -> Adam (B2B) -> Liam (Tech Executive)
   const candidates: string[] = [voiceId];
-  if (voiceId === REQUESTED_THAI_VOICE_ID && !candidates.includes(VERIFIED_THAI_VOICE_ID)) {
-    candidates.push(VERIFIED_THAI_VOICE_ID);
+  if (!candidates.includes(SECONDARY_ENGLISH_VOICE_ID)) {
+    candidates.push(SECONDARY_ENGLISH_VOICE_ID);
+  }
+  if (!candidates.includes(ELEVENLABS_LIAM_VOICE_ID)) {
+    candidates.push(ELEVENLABS_LIAM_VOICE_ID);
   }
 
   for (const candidateId of candidates) {
@@ -309,9 +328,9 @@ export async function fetchElevenLabsAudio(
           text,
           model_id: 'eleven_multilingual_v2',
           voice_settings: {
-            stability: settings?.stability ?? 0.35, // Dynamic human variance, prevents robotic monotone
+            stability: settings?.stability ?? 0.38, // Executive calm & clarity
             similarity_boost: settings?.similarity_boost ?? 0.85,
-            style: settings?.style ?? 0.45, // Adds human warmth, expressive emotion, and natural inflection
+            style: settings?.style ?? 0.40, // Authoritative corporate presence
             use_speaker_boost: settings?.use_speaker_boost ?? true,
           },
         }),
@@ -387,8 +406,8 @@ export async function fetchGoogleCloudTtsAudio(
  * ElevenLabs, Google Cloud TTS, Web Speech API, and pre-bundled audio.
  */
 export function useAudioBriefing(specs: AudioConciergeSpecs) {
-  const [engine, setEngine] = useState<VoiceEngine>('elevenlabs-hd');
-  const [language, setLanguage] = useState<BriefingLanguage>('th');
+  const [engine, setEngineState] = useState<VoiceEngine>('elevenlabs-hd');
+  const [language, setLanguage] = useState<BriefingLanguage>('en');
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -407,7 +426,16 @@ export function useAudioBriefing(specs: AudioConciergeSpecs) {
   const playStartTimeRef = useRef<number>(0);
   const accumulatedTimeRef = useRef<number>(0);
 
-  const transcript = generateCfoMemoScript(specs, language);
+  // ElevenLabs is strictly pure English per user requirement
+  const effectiveLanguage = engine === 'elevenlabs-hd' ? 'en' : language;
+  const transcript = generateCfoMemoScript(specs, effectiveLanguage);
+
+  const setEngine = useCallback((newEngine: VoiceEngine) => {
+    setEngineState(newEngine);
+    if (newEngine === 'elevenlabs-hd') {
+      setLanguage('en');
+    }
+  }, []);
 
   // Clean up any ongoing audio and animation on unmount or state change
   const cleanupPlayback = useCallback(() => {
@@ -453,22 +481,26 @@ export function useAudioBriefing(specs: AudioConciergeSpecs) {
     };
   }, [cleanupPlayback]);
 
-  // Waveform animation loop
+  // Waveform animation loop (throttled to 20fps to eliminate frame drops and layout thrashing on low-end hardware)
   const startWaveformAnimation = useCallback(() => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
     let phase = 0;
-    const updateWaveform = () => {
-      phase += 0.12;
-      setWaveformBars(() =>
-        Array.from({ length: 18 }, (_, i) => {
-          const base = 0.25;
-          const sine = Math.sin(phase + i * 0.45) * 0.35;
-          const cos = Math.cos(phase * 1.5 - i * 0.2) * 0.25;
-          return Math.min(1, Math.max(0.12, base + sine + cos));
-        })
-      );
+    let lastTick = 0;
+    const updateWaveform = (timestamp: number) => {
+      if (timestamp - lastTick >= 55) {
+        lastTick = timestamp;
+        phase += 0.15;
+        setWaveformBars(() =>
+          Array.from({ length: 18 }, (_, i) => {
+            const base = 0.25;
+            const sine = Math.sin(phase + i * 0.45) * 0.35;
+            const cos = Math.cos(phase * 1.5 - i * 0.2) * 0.25;
+            return Math.min(1, Math.max(0.12, base + sine + cos));
+          })
+        );
+      }
       animationFrameRef.current = requestAnimationFrame(updateWaveform);
     };
     animationFrameRef.current = requestAnimationFrame(updateWaveform);
@@ -542,14 +574,14 @@ export function useAudioBriefing(specs: AudioConciergeSpecs) {
 
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(textToSpeak);
-      utterance.lang = language === 'th' ? 'th-TH' : 'en-US';
+      utterance.lang = effectiveLanguage === 'th' ? 'th-TH' : 'en-US';
       utterance.rate = 1.05;
       utterance.pitch = 1.0;
 
       const voices = window.speechSynthesis.getVoices();
       const preferredVoice = voices.find(
         (v) =>
-          v.lang.startsWith(language === 'th' ? 'th' : 'en') &&
+          v.lang.startsWith(effectiveLanguage === 'th' ? 'th' : 'en') &&
           (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Premium'))
       );
       if (preferredVoice) {
@@ -583,7 +615,7 @@ export function useAudioBriefing(specs: AudioConciergeSpecs) {
       speechUtteranceRef.current = utterance;
       window.speechSynthesis.speak(utterance);
     },
-    [language, playProceduralSynth, startWaveformAnimation, cleanupPlayback]
+    [effectiveLanguage, playProceduralSynth, startWaveformAnimation, cleanupPlayback]
   );
 
   // Play audio stream from URL (Google Cloud TTS, ElevenLabs, or Pre-bundled Audio)
@@ -682,27 +714,34 @@ export function useAudioBriefing(specs: AudioConciergeSpecs) {
 
     try {
       // 1. Try Lightweight Backend API Endpoint (/api/audio-briefing)
-      const apiAudioUrl = await fetchAudioBriefingFromApi(specs, language, engine);
+      const apiAudioUrl = await fetchAudioBriefingFromApi(specs, effectiveLanguage, engine);
       if (apiAudioUrl) {
         playAudioStream(apiAudioUrl);
         return;
       }
 
-      // 2. Direct ElevenLabs High-Fidelity Tier
+      // 2. Direct ElevenLabs High-Fidelity Tier (Pure Corporate English)
       if (engine === 'elevenlabs-hd') {
-        const voiceId = language === 'th' ? REQUESTED_THAI_VOICE_ID : DEFAULT_ENGLISH_VOICE_ID;
+        const voiceId = PRIMARY_ENGLISH_VOICE_ID; // Brian (Executive English)
         const audioUrl = await fetchElevenLabsAudio(transcript, voiceId, {
-          stability: 0.35,
+          stability: 0.38,
           similarity_boost: 0.85,
-          style: 0.45,
+          style: 0.40,
           use_speaker_boost: true,
         });
         if (audioUrl) {
           playAudioStream(audioUrl);
           return;
         }
-        playWebSpeech(transcript);
-        return;
+
+        // Offline pre-bundled corporate audio fallback
+        try {
+          playAudioStream('/audio/test_Adam_eleven_multilingual_v2.mp3');
+          return;
+        } catch {
+          playWebSpeech(transcript);
+          return;
+        }
       }
 
       // 3. Direct Google Cloud Text-to-Speech Tier
@@ -735,6 +774,7 @@ export function useAudioBriefing(specs: AudioConciergeSpecs) {
     specs,
     engine,
     transcript,
+    effectiveLanguage,
     language,
     playAudioStream,
     playWebSpeech,

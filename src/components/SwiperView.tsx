@@ -1,8 +1,9 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useLayoutEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import type { TravelDestination } from '../lib/travelDestinations';
 import type { RoomUser, Swipe } from '../hooks/useTripPick';
 import { playJackboxHostAnnouncement, generateJackboxAnnouncerScript } from '../lib/audioConcierge';
+import { useLanguage } from '../lib/i18n';
 
 interface SwiperViewProps {
   destinationsDeck: TravelDestination[];
@@ -24,7 +25,6 @@ export function SwiperView({
   unswipedDestinations,
   isWaitingForOthers,
   onSubmitSwipe,
-  onLeave,
   roomId,
   receivedEmojis = [],
   sendBroadcastEmoji,
@@ -33,44 +33,47 @@ export function SwiperView({
   users = [],
   swipes = [],
 }: SwiperViewProps) {
+  const { language, t, localizeDestination } = useLanguage();
+
   const [activePhotoIdx, setActivePhotoIdx] = useState<{ [key: number]: number }>({});
   const [showTour, setShowTour] = useState<TravelDestination | null>(null);
 
   // Motion values for swipe drag physics (GPU-accelerated transforms)
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-250, 250], [-10, 10]);
-  const opacity = useTransform(x, [-200, -100, 0, 100, 200], [0.85, 1, 1, 1, 0.85]);
+  const opacity = useTransform(x, [-200, -100, 0, 100, 200], [0.88, 1, 1, 1, 0.88]);
   const likeBadgeOpacity = useTransform(x, [20, 120], [0, 1]);
   const rejectBadgeOpacity = useTransform(x, [-20, -120], [0, 1]);
 
-  const topCard = unswipedDestinations[0] || null;
+  const rawTopCard = unswipedDestinations[0] || null;
+  const topCard = rawTopCard ? { ...rawTopCard, ...localizeDestination(rawTopCard) } : null;
 
-  // Zero-flicker guard: Reset drag motion coordinate whenever top card transitions
-  useEffect(() => {
+  // Zero-flicker guard: Reset drag motion coordinate synchronously before paint
+  useLayoutEffect(() => {
     x.set(0);
-  }, [topCard?.id, x]);
+  }, [rawTopCard?.id, x]);
 
   const handleSwipe = useCallback(
     async (destinationId: number, isLike: boolean, isVeto: boolean = false) => {
+      x.set(0);
       await onSubmitSwipe(destinationId, isLike, isVeto);
     },
-    [onSubmitSwipe]
+    [onSubmitSwipe, x]
   );
-
 
   const [hostAnnouncement, setHostAnnouncement] = useState<string | null>(null);
   const hostTimerRef = useRef<number | null>(null);
   const lastAnnouncedMilestoneRef = useRef<{ [key: string]: number }>({});
 
-  const playAnnouncer = useCallback((script: string) => {
-    playJackboxHostAnnouncement(script, 'th');
-    setHostAnnouncement(script);
+  const playAnnouncer = useCallback((displayScript: string, englishAudioScript: string) => {
+    playJackboxHostAnnouncement(displayScript, language === 'th' ? 'th' : 'en', englishAudioScript);
+    setHostAnnouncement(displayScript);
 
     if (hostTimerRef.current) clearTimeout(hostTimerRef.current);
     hostTimerRef.current = window.setTimeout(() => {
       setHostAnnouncement(null);
     }, 4500);
-  }, []);
+  }, [language]);
 
   const announceNearConsensus = useCallback((destination: TravelDestination, remaining: number) => {
     const key = `${destination.id}_${remaining}`;
@@ -79,9 +82,11 @@ export function SwiperView({
       return;
     }
     lastAnnouncedMilestoneRef.current[key] = now;
-    const script = generateJackboxAnnouncerScript(destination.title, destination.wifi_speed_mbps, remaining, 'th');
-    playAnnouncer(script);
-  }, [playAnnouncer]);
+    const destLoc = localizeDestination(destination);
+    const script = generateJackboxAnnouncerScript(destLoc.title, destination.wifi_speed_mbps, remaining, language === 'th' ? 'th' : 'en');
+    const englishScript = generateJackboxAnnouncerScript(destLoc.title, destination.wifi_speed_mbps, remaining, 'en');
+    playAnnouncer(script, englishScript);
+  }, [playAnnouncer, language, localizeDestination]);
 
   // Monitor near-consensus milestones automatically (e.g. 1 or 2 votes remaining to reach 60%)
   useEffect(() => {
@@ -101,11 +106,12 @@ export function SwiperView({
     }
   }, [swipes, users, destinationsDeck, announceNearConsensus]);
 
-
-  const reactionTags = ['วิวทะเล', 'ห้องประชุมดี', 'คุ้มค่า', 'หรูหรา', 'เน็ตเร็ว'];
+  const reactionTags = language === 'en'
+    ? ['Beachfront', 'Boardroom', 'Great Value', 'Luxury', 'Fast WiFi']
+    : ['วิวทะเล', 'ห้องประชุมดี', 'คุ้มค่า', 'หรูหรา', 'เน็ตเร็ว'];
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100dvh-5rem)] px-3 sm:px-6 py-4 sm:py-6 relative select-none z-20">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100dvh-5rem)] px-3 sm:px-6 py-3 sm:py-5 relative select-none z-20">
       {/* Top HUD Bar */}
       <div className="w-full max-w-md flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
@@ -117,56 +123,43 @@ export function SwiperView({
           </span>
           <div className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#181825] border border-[#a6e3a1]/30 text-[#a6e3a1] text-[10px] font-mono">
             <span className="w-1.5 h-1.5 rounded-full bg-[#a6e3a1] animate-pulse" />
-            <span>Zero-Latency Realtime</span>
+            <span>{t.realtimeRadar}</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onLeave}
-            className="text-xs text-[#a6adc8] hover:text-[#f38ba8] transition-colors cursor-pointer font-medium px-2 py-1"
-          >
-            ออก
-          </button>
+        <div className="flex items-center gap-2 font-mono text-xs">
+          <span className="text-[10px] text-[#a6adc8] uppercase font-bold tracking-wider">
+            {t.swipeDeckProgress}:
+          </span>
+          <span className="text-[#cba6f7] font-bold tabular-data">
+            {Math.round(((destinationsDeck.length - unswipedDestinations.length) / destinationsDeck.length) * 100)}%
+          </span>
         </div>
       </div>
 
-      {/* Jackbox-Style Live Host Announcer Banner */}
-      <AnimatePresence>
-        {hostAnnouncement && (
-          <motion.div
-            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.95 }}
-            className="w-full max-w-md mb-2 p-2.5 rounded-xl bg-gradient-to-r from-[#cba6f7]/20 via-[#181825] to-[#a6e3a1]/20 border border-[#cba6f7]/50 text-left flex items-center gap-2.5 shadow-lg relative z-30"
-          >
-            <span className="text-lg animate-bounce shrink-0">🎙️</span>
-            <div className="flex-1 min-w-0">
-              <span className="text-[10px] font-mono uppercase font-bold text-[#cba6f7] block">
-                LIVE JACKBOX HOST ANNOUNCER // กระตุ้นการโหวตสด
-              </span>
-              <p className="text-xs font-semibold text-[#cdd6f4] leading-snug">
-                {hostAnnouncement}
-              </p>
-            </div>
-            <button
-              onClick={() => setHostAnnouncement(null)}
-              className="text-[#a6adc8] hover:text-[#cdd6f4] text-xs px-1 cursor-pointer shrink-0"
-            >
-              ✕
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Host Consensus Banner / Announcement Toast */}
+      {hostAnnouncement && (
+        <motion.div
+          initial={{ opacity: 0, y: -10, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="w-full max-w-md mb-3 p-3 rounded-xl bg-[#181825] border border-[#cba6f7] shadow-xl text-center"
+        >
+          <div className="flex items-center justify-center gap-2 text-xs font-bold text-[#cba6f7]">
+            <span className="w-2 h-2 rounded-full bg-[#cba6f7] animate-ping" />
+            <span>📢 {hostAnnouncement}</span>
+          </div>
+        </motion.div>
+      )}
 
-      {/* Floating Broadcast Reactions */}
-      <div className="fixed top-20 right-4 pointer-events-none z-50 flex flex-col gap-1.5">
+      {/* Floating Emojis Overlay */}
+      <div className="pointer-events-none fixed inset-x-0 top-24 bottom-24 flex items-center justify-center overflow-hidden z-30">
         <AnimatePresence>
           {receivedEmojis.map((e) => (
             <motion.div
               key={e.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 1, scale: 0.5, y: 20 }}
+              animate={{ opacity: 0, scale: 1.4, y: -120 }}
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.25 }}
               className="text-xs font-semibold px-3 py-1 rounded-full bg-[#181825] border border-[#cba6f7] text-[#cba6f7] shadow-md"
@@ -179,29 +172,29 @@ export function SwiperView({
 
       {/* Main Swiper Deck Area */}
       <div className="relative w-full max-w-md h-[560px] flex items-center justify-center">
-        {/* Subtle Ambient Radial Glow Mesh */}
+        {/* Subtle Ambient Radial Glow */}
         <div className="absolute -inset-6 bg-gradient-to-tr from-[#cba6f7]/15 via-transparent to-[#74c7ec]/12 blur-3xl rounded-[3rem] pointer-events-none -z-10" />
 
         {isWaitingForOthers ? (
-          <div className="w-full h-full p-2 rounded-[2rem] bg-[#181825]/90 border border-white/10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] backdrop-blur-xl flex items-center justify-center">
-            <div className="w-full h-full rounded-[calc(2rem-0.5rem)] p-6 bg-[#1e1e2e]/95 border border-white/5 flex flex-col items-center justify-center text-center">
+          <div className="w-full h-full p-2 rounded-[2rem] bg-[#181825] border border-[#313244] shadow-2xl flex items-center justify-center">
+            <div className="w-full h-full rounded-[calc(2rem-0.5rem)] p-6 bg-[#1e1e2e] border border-[#313244] flex flex-col items-center justify-center text-center">
               <div className="w-12 h-12 rounded-xl bg-[#a6e3a1]/15 border border-[#a6e3a1]/30 flex items-center justify-center text-[#a6e3a1] mb-3">
                 <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
               <h3 className="text-xl font-bold text-[#cdd6f4] mb-2 tracking-tight">
-                ปัดครบทุกสถานที่แล้ว
+                {t.waitingPeersTitle}
               </h3>
               <p className="text-xs text-[#a6adc8] leading-relaxed mb-5 max-w-xs text-balance">
-                คุณได้โหวตครบทุกตัวเลือกแล้ว กำลังรอเพื่อนร่วมทีมคนอื่นๆ โหวตให้ครบเพื่อคำนวณฉันทามติของกลุ่ม
+                {t.waitingPeersDesc}
               </p>
               {isHost && onRestartSession && (
                 <button
                   onClick={onRestartSession}
                   className="py-2.5 px-5 bg-[#313244] hover:bg-[#45475a] border border-[#45475a] text-[#cdd6f4] text-xs font-semibold rounded-xl transition-colors cursor-pointer active:scale-95"
                 >
-                  เริ่มรอบการโหวตใหม่
+                  {t.restartSessionBtn}
                 </button>
               )}
             </div>
@@ -210,12 +203,12 @@ export function SwiperView({
           <AnimatePresence mode="popLayout">
             {topCard ? (
               <motion.div
-                key={topCard.id}
+                key={rawTopCard?.id}
                 style={{ x, rotate, opacity }}
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={0.65}
-                initial={{ scale: 0.95, opacity: 0, y: 12 }}
+                initial={{ scale: 0.96, opacity: 0, y: 10 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.92, opacity: 0, transition: { duration: 0.15 } }}
                 transition={{ type: 'spring', stiffness: 350, damping: 28 }}
@@ -226,9 +219,9 @@ export function SwiperView({
                     handleSwipe(topCard.id, false, false);
                   }
                 }}
-                className="absolute inset-0 p-2 rounded-[2rem] bg-[#181825]/90 border border-white/10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] backdrop-blur-xl cursor-grab active:cursor-grabbing flex flex-col will-change-transform select-none"
+                className="absolute inset-0 p-2 rounded-[2rem] bg-[#181825] border border-[#313244] shadow-2xl cursor-grab active:cursor-grabbing flex flex-col will-change-transform select-none [transform:translateZ(0)]"
               >
-                <div className="w-full h-full rounded-[calc(2rem-0.5rem)] overflow-hidden bg-[#1e1e2e]/95 flex flex-col border border-white/5">
+                <div className="w-full h-full rounded-[calc(2rem-0.5rem)] overflow-hidden bg-[#1e1e2e] flex flex-col border border-[#313244]">
                   {/* Top Photo Viewport */}
                   <div className="relative w-full h-[235px] bg-[#11111b] overflow-hidden shrink-0">
                     <img
@@ -245,12 +238,12 @@ export function SwiperView({
                     {/* Static Dark Gradient Vignette */}
                     <div className="absolute inset-0 bg-gradient-to-t from-[#1e1e2e] via-transparent to-[#11111b]/40 pointer-events-none" />
 
-                    {/* Location & Rating Overlaid on Photo */}
+                    {/* Location & Rating Overlaid on Photo (Low-End Optimized Solid Surfaces) */}
                     <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2 z-10 pointer-events-none">
-                      <span className="px-2.5 py-0.5 rounded-md bg-[#11111b]/80 backdrop-blur-md border border-white/10 text-[#cdd6f4] text-[11px] font-medium">
+                      <span className="px-2.5 py-0.5 rounded-md bg-[#11111b]/95 border border-white/10 text-[#cdd6f4] text-[11px] font-medium">
                         {topCard.city}, {topCard.country}
                       </span>
-                      <span className="px-2.5 py-0.5 rounded-md bg-[#181825]/80 backdrop-blur-md border border-[#f9e2af]/30 text-[#f9e2af] text-[11px] font-semibold tabular-data font-mono">
+                      <span className="px-2.5 py-0.5 rounded-md bg-[#181825]/95 border border-[#f9e2af]/30 text-[#f9e2af] text-[11px] font-semibold tabular-data font-mono">
                         ★ {topCard.rating} ({topCard.reviews_count})
                       </span>
                     </div>
@@ -260,14 +253,14 @@ export function SwiperView({
                       <>
                         <button
                           type="button"
-                          aria-label="ภาพก่อนหน้า"
+                          aria-label={language === 'th' ? 'ภาพก่อนหน้า' : 'Previous photo'}
                           onClick={(e) => {
                             e.stopPropagation();
                             const current = activePhotoIdx[topCard.id] || 0;
                             const next = (current - 1 + topCard.gallery.length) % topCard.gallery.length;
                             setActivePhotoIdx((prev) => ({ ...prev, [topCard.id]: next }));
                           }}
-                          className="absolute left-2.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg bg-[#11111b]/80 backdrop-blur-md border border-white/10 text-[#cdd6f4] flex items-center justify-center cursor-pointer z-10 active:scale-95"
+                          className="absolute left-2.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg bg-[#11111b]/95 border border-white/10 text-[#cdd6f4] flex items-center justify-center cursor-pointer z-10 active:scale-95"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
@@ -276,26 +269,26 @@ export function SwiperView({
 
                         <button
                           type="button"
-                          aria-label="ภาพถัดไป"
+                          aria-label={language === 'th' ? 'ภาพถัดไป' : 'Next photo'}
                           onClick={(e) => {
                             e.stopPropagation();
                             const current = activePhotoIdx[topCard.id] || 0;
                             const next = (current + 1) % topCard.gallery.length;
                             setActivePhotoIdx((prev) => ({ ...prev, [topCard.id]: next }));
                           }}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg bg-[#11111b]/80 backdrop-blur-md border border-white/10 text-[#cdd6f4] flex items-center justify-center cursor-pointer z-10 active:scale-95"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg bg-[#11111b]/95 border border-white/10 text-[#cdd6f4] flex items-center justify-center cursor-pointer z-10 active:scale-95"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                           </svg>
                         </button>
 
-                        <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-1 z-10 px-2 py-0.5 rounded-md bg-[#11111b]/80 backdrop-blur-md border border-white/10">
+                        <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-1 z-10 px-2 py-0.5 rounded-md bg-[#11111b]/95 border border-white/10">
                           {topCard.gallery.map((_, idx) => (
                             <button
                               key={idx}
                               type="button"
-                              aria-label={`ภาพลำดับที่ ${idx + 1}`}
+                              aria-label={`Photo ${idx + 1}`}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setActivePhotoIdx((prev) => ({ ...prev, [topCard.id]: idx }));
@@ -313,15 +306,15 @@ export function SwiperView({
                   {/* Like / Reject Badges on Drag */}
                   <motion.div
                     style={{ opacity: likeBadgeOpacity }}
-                    className="absolute top-5 right-5 px-3 py-1 rounded-lg bg-[#a6e3a1] text-[#11111b] font-extrabold text-xs uppercase rotate-6 pointer-events-none z-20 shadow-md"
+                    className="absolute top-5 right-5 px-3 py-1 rounded-lg bg-[#a6e3a1] text-[#11111b] font-black text-xs uppercase rotate-6 pointer-events-none z-20 shadow-md"
                   >
-                    ถูกใจ ↗
+                    {language === 'th' ? 'ถูกใจ ↗' : 'LIKE ↗'}
                   </motion.div>
                   <motion.div
                     style={{ opacity: rejectBadgeOpacity }}
-                    className="absolute top-5 left-5 px-3 py-1 rounded-lg bg-[#f38ba8] text-[#11111b] font-extrabold text-xs uppercase -rotate-6 pointer-events-none z-20 shadow-md"
+                    className="absolute top-5 left-5 px-3 py-1 rounded-lg bg-[#f38ba8] text-[#11111b] font-black text-xs uppercase -rotate-6 pointer-events-none z-20 shadow-md"
                   >
-                    ผ่าน ✕
+                    {language === 'th' ? 'ผ่าน ✕' : 'PASS ✕'}
                   </motion.div>
 
                   {/* Bottom Content Info */}
@@ -368,7 +361,7 @@ export function SwiperView({
                         <span className="text-base font-bold text-[#cdd6f4] tabular-data font-mono">
                           ฿{topCard.price_per_person.toLocaleString()}
                         </span>
-                        <span className="text-[10px] text-[#a6adc8]"> /คน/คืน</span>
+                        <span className="text-[10px] text-[#a6adc8]"> {language === 'th' ? '/คน/คืน' : '/person/night'}</span>
                         <span className="block text-[10px] text-[#a6e3a1] font-mono tabular-data font-medium">
                           B2B Rev: ~฿{Math.round(topCard.price_per_night * (topCard.commission_percentage / 100)).toLocaleString()}
                         </span>
@@ -379,7 +372,7 @@ export function SwiperView({
                         onClick={() => setShowTour(topCard)}
                         className="py-1 px-3 rounded-lg bg-[#313244] hover:bg-[#45475a] border border-[#45475a] text-[#cdd6f4] text-xs font-medium cursor-pointer transition-colors active:scale-95"
                       >
-                        รายละเอียด
+                        {t.viewDetailsBtn}
                       </button>
                     </div>
                   </div>
@@ -387,7 +380,7 @@ export function SwiperView({
               </motion.div>
             ) : (
               <div className="text-center text-[#a6adc8] text-sm">
-                ไม่พบสถานที่เพิ่มเติมในตัวกรองนี้
+                {language === 'th' ? 'ไม่พบสถานที่เพิ่มเติมในตัวกรองนี้' : 'No further venues available in this filter.'}
               </div>
             )}
           </AnimatePresence>
@@ -402,7 +395,7 @@ export function SwiperView({
             onClick={() => handleSwipe(topCard.id, false, false)}
             className="group h-12 px-5 rounded-full bg-[#181825] hover:bg-[#f38ba8]/15 border border-[#f38ba8]/40 hover:border-[#f38ba8]/60 text-[#f38ba8] text-xs sm:text-sm font-semibold flex items-center justify-between gap-3 shadow-lg active:scale-[0.96] transition-all cursor-pointer"
           >
-            <span>ผ่าน</span>
+            <span>{t.swipePass}</span>
             <div className="w-6 h-6 rounded-full bg-[#f38ba8]/20 flex items-center justify-center text-xs group-hover:scale-105 transition-transform">
               ✕
             </div>
@@ -412,20 +405,20 @@ export function SwiperView({
           <button
             onClick={() => handleSwipe(topCard.id, false, true)}
             className="group h-12 px-4 rounded-full bg-[#181825] hover:bg-[#fab387]/15 border border-[#fab387]/40 hover:border-[#fab387]/60 text-[#fab387] text-xs sm:text-sm font-bold flex items-center gap-2 shadow-lg active:scale-[0.96] transition-all cursor-pointer"
-            title="ยับยั้ง (Veto สิทธิ์คัดค้านเด็ดขาด)"
+            title={t.vetoTooltip}
           >
-            <span className="text-[11px] font-mono uppercase tracking-wider">Veto</span>
+            <span className="text-[11px] font-mono uppercase tracking-wider">{t.swipeVeto}</span>
             <div className="w-5 h-5 rounded-full bg-[#fab387]/20 flex items-center justify-center text-[10px] group-hover:scale-105 transition-transform font-mono font-bold">
               !
             </div>
           </button>
 
-          {/* Like (Nested CTA Pill) */}
+          {/* Like */}
           <button
             onClick={() => handleSwipe(topCard.id, true, false)}
             className="group h-12 px-6 rounded-full bg-[#a6e3a1] hover:bg-[#94e2d5] text-[#11111b] text-xs sm:text-sm font-bold flex items-center justify-between gap-3 shadow-lg hover:shadow-[#a6e3a1]/25 active:scale-[0.96] transition-all cursor-pointer"
           >
-            <span className="tracking-tight">ถูกใจ</span>
+            <span className="tracking-tight">{t.swipeLike}</span>
             <div className="w-6 h-6 rounded-full bg-black/15 flex items-center justify-center group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
               <svg className="w-3.5 h-3.5 stroke-[3]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
@@ -438,7 +431,7 @@ export function SwiperView({
       {/* Team Reaction Tags */}
       {sendBroadcastEmoji && (
         <div className="flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-xl bg-[#181825] border border-[#313244]">
-          <span className="text-[10px] text-[#a6adc8] font-mono mr-1">ปฏิกิริยา:</span>
+          <span className="text-[10px] text-[#a6adc8] font-mono mr-1">{t.reactionLabel}</span>
           {reactionTags.map((tag) => (
             <button
               key={tag}
@@ -478,7 +471,7 @@ export function SwiperView({
               <p className="text-xs text-[#bac2de] leading-relaxed mb-4">{showTour.overview}</p>
 
               <h4 className="text-[10px] uppercase font-mono tracking-wider text-[#cba6f7] font-semibold mb-2">
-                สิ่งอำนวยความสะดวกสำหรับธุรกิจ &amp; สัมมนา (MICE)
+                {t.amenitiesHeading}
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mb-4">
                 {showTour.business_amenities.map((a, i) => (
@@ -489,13 +482,13 @@ export function SwiperView({
               </div>
 
               <h4 className="text-[10px] uppercase font-mono tracking-wider text-[#a6adc8] font-semibold mb-2">
-                กิจกรรมกระชับมิตร &amp; ท่องเที่ยวในพื้นที่
+                {t.highlightsHeading}
               </h4>
               <div className="space-y-1.5 mb-5">
-                {showTour.tourism_highlights.map((t, i) => (
+                {showTour.tourism_highlights.map((tHighlight, i) => (
                   <p key={i} className="text-xs text-[#bac2de] flex items-start gap-1.5">
                     <span className="text-[#cba6f7]">•</span>
-                    <span>{t}</span>
+                    <span>{tHighlight}</span>
                   </p>
                 ))}
               </div>
@@ -504,7 +497,7 @@ export function SwiperView({
                 onClick={() => setShowTour(null)}
                 className="w-full py-2.5 bg-[#313244] hover:bg-[#45475a] border border-[#45475a] text-[#cdd6f4] text-xs font-semibold rounded-xl transition-colors cursor-pointer active:scale-98"
               >
-                ปิดและกลับไปปัดเลือกต่อ
+                {t.closeTourBtn}
               </button>
             </div>
           </div>

@@ -1,9 +1,27 @@
-import type { TravelDestination } from './travelDestinations';
-import { CURATED_DESTINATIONS, getFallbackDestinations, findCongruentDestination } from './travelDestinations';
+import type { TravelDestination } from './travelDestinations.ts';
+import { CURATED_DESTINATIONS, getFallbackDestinations, findCongruentDestination } from './travelDestinations.ts';
+import { DESTINATION_LOCALIZATIONS } from './i18n.ts';
 
 // Fixed model per user requirement: DeepSeek: DeepSeek V4.1 Flash 1017 (no user selection allowed)
 export const FIXED_AI_MODEL = 'deepseek/deepseek-v4.1-flash:1017';
 export const FIXED_AI_MODEL_NAME = 'DeepSeek: DeepSeek V4.1 Flash 1017';
+
+function getOpenRouterApiKey(): string {
+  try {
+    const fromStorage = typeof localStorage !== 'undefined' ? localStorage.getItem('trippick_openrouter_api_key') : null;
+    if (fromStorage) return fromStorage;
+  } catch {
+    // Ignore storage errors in non-browser environments
+  }
+  try {
+    if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_OPENROUTER_API_KEY) {
+      return import.meta.env.VITE_OPENROUTER_API_KEY;
+    }
+  } catch {
+    // Ignore meta errors in non-Vite environments
+  }
+  return '';
+}
 
 export interface RoomContextInfo {
   roomCode: string;
@@ -47,7 +65,7 @@ export async function fetchAiRecommendations(
   minBudget?: number,
   maxBudget?: number
 ): Promise<TravelDestination[]> {
-  const openRouterKey = localStorage.getItem('trippick_openrouter_api_key') || import.meta.env.VITE_OPENROUTER_API_KEY || '';
+  const openRouterKey = getOpenRouterApiKey();
 
   // If key is missing, use verified curated destination catalog with intelligent ranking
   if (!openRouterKey || openRouterKey === 'your_openrouter_api_key_here') {
@@ -80,7 +98,7 @@ ${verifiedCatalogList}
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${openRouterKey}`,
-        'HTTP-Referer': window.location.origin,
+        'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173',
         'X-Title': 'TripPick',
       },
       body: JSON.stringify({
@@ -147,54 +165,142 @@ ${verifiedCatalogList}
   return getFallbackDestinations(vibe, minBudget, maxBudget);
 }
 
-// Local Fallback heuristic AI Chat response in 100% Thai
-function generateLocalConciergeResponse(userMessage: string, context: RoomContextInfo): string {
+// Local Fallback heuristic AI Chat response in 100% Thai or English
+function generateLocalConciergeResponse(
+  userMessage: string,
+  context: RoomContextInfo,
+  lang: 'th' | 'en' = 'th'
+): string {
   const msg = userMessage.toLowerCase();
   const dest = context.currentDestination || context.matchedDestination;
   const teamCount = context.users.length || 1;
+  const destLoc = dest ? DESTINATION_LOCALIZATIONS[dest.id] : null;
 
-  if (msg.includes('wifi') || msg.includes('เน็ต') || msg.includes('อินเทอร์เน็ต') || msg.includes('ความเร็ว') || msg.includes('speed')) {
+  const title = lang === 'en' && destLoc?.title ? destLoc.title : dest?.title;
+  const city = lang === 'en' && destLoc?.city ? destLoc.city : dest?.city;
+  const country = lang === 'en' && destLoc?.country ? destLoc.country : dest?.country;
+  const reason = lang === 'en' && destLoc?.ai_reason ? destLoc.ai_reason : dest?.ai_reason;
+
+  if (
+    msg.includes('wifi') ||
+    msg.includes('เน็ต') ||
+    msg.includes('อินเทอร์เน็ต') ||
+    msg.includes('ความเร็ว') ||
+    msg.includes('speed') ||
+    msg.includes('connectivity') ||
+    msg.includes('sla')
+  ) {
+    if (lang === 'en') {
+      if (dest) {
+        return `[WiFi & Connectivity SLA] At ${title}, enterprise-grade connectivity is installed with ${dest.wifi_speed_mbps} Mbps (supporting both Starlink Business and redundant fiber optics). Easily accommodates high-bandwidth Zoom video conferences and synchronized deep-work sessions for all ${teamCount} team members.`;
+      }
+      return `All TripPick curated venues undergo strict WiFi connectivity verification exceeding 300+ Mbps.`;
+    }
     if (dest) {
       return `[ข้อมูลความเร็วเน็ต] ที่ ${dest.title} ติดตั้งอินเทอร์เน็ตระดับองค์กรความเร็ว ${dest.wifi_speed_mbps} Mbps (รองรับทั้ง Starlink และไฟเบอร์ออปติกสำรอง) รองรับการประชุม Zoom และทำงานพร้อมกันของสมาชิก ${teamCount} คนได้อย่างลื่นไหลไร้สะดุดครับ`;
     }
     return `ทุกสถานที่บน TripPick ผ่านการตรวจสอบสัญญาณอินเทอร์เน็ตความเร็วสูง 300+ Mbps ขึ้นไปทั้งหมดครับ`;
   }
 
-  if (msg.includes('ราคา') || msg.includes('งบ') || msg.includes('เงิน') || msg.includes('เท่าไหร่') || msg.includes('budget') || msg.includes('cost')) {
+  if (
+    msg.includes('ราคา') ||
+    msg.includes('งบ') ||
+    msg.includes('เงิน') ||
+    msg.includes('เท่าไหร่') ||
+    msg.includes('budget') ||
+    msg.includes('cost') ||
+    msg.includes('pricing') ||
+    msg.includes('rate')
+  ) {
     if (dest) {
       const perNight = dest.price_per_night;
       const perHead = dest.price_per_person;
       const commission = Math.round(perNight * (dest.commission_percentage / 100));
+      if (lang === 'en') {
+        return `[Executive Budget Estimate]:
+- Average rate: ${perHead.toLocaleString()} THB/person/night (Private venue buyout: ${perNight.toLocaleString()} THB/night)
+- Estimated 3-night retreat for ${teamCount} attendees: ${(perHead * teamCount * 3).toLocaleString()} THB
+- B2B Commission generated: ${(commission * 3).toLocaleString()} THB (Make Me Money model)`;
+      }
       return `[สรุปประมาณการงบประมาณ]:
 - ค่าบริการเฉลี่ย: ${perHead.toLocaleString()} บาท/คน/คืน (เหมาวิลล่า ${perNight.toLocaleString()} บาท/คืน)
 - ประมาณการทริป 3 คืน สำหรับสมาชิก ${teamCount} คน: ${(perHead * teamCount * 3).toLocaleString()} บาท
 - รายได้คอมมิชชั่น B2B ที่สร้างได้: ${(commission * 3).toLocaleString()} บาท (โมเดล Make Me Money)`;
     }
+    if (lang === 'en') {
+      return `Rates typically range from 3,800 to 8,500 THB/person/night with an average 12% wholesale B2B partner take-rate.`;
+    }
     return `อัตราค่าบริการเริ่มต้นประมาณ 3,800 - 8,500 บาท/คน/คืน พร้อมค่าคอมมิชชั่นเฉลี่ย 12% ผ่านระบบพันธมิตร OTA ครับ`;
   }
 
-  if (msg.includes('ห้องประชุม') || msg.includes('ประชุม') || msg.includes('ทำงาน') || msg.includes('boardroom') || msg.includes('meeting')) {
+  if (
+    msg.includes('ห้องประชุม') ||
+    msg.includes('ประชุม') ||
+    msg.includes('ทำงาน') ||
+    msg.includes('boardroom') ||
+    msg.includes('meeting') ||
+    msg.includes('specs') ||
+    msg.includes('audio-visual')
+  ) {
     if (dest) {
+      if (lang === 'en') {
+        return `[Workplace & Meeting Readiness] ${title} features an executive boardroom equipped with 4K projection and premium AV audio systems, accommodating up to ${dest.max_capacity} attendees alongside private breakout brainstorm hubs.`;
+      }
       return `[ความพร้อมด้านพื้นที่ทำงาน] ที่ ${dest.title} มีห้องประชุมบอร์ดบริหารพร้อมจอโปรเจกเตอร์ 4K และระบบเสียงระดับพรีเมียม รองรับผู้เข้าร่วมประชุมได้สูงสุด ${dest.max_capacity} ท่าน พร้อมโซนระดมสมองส่วนตัวครับ`;
+    }
+    if (lang === 'en') {
+      return `All curated venues feature enterprise boardrooms and collaborative team workspaces.`;
     }
     return `ทุกสถานที่ในระบบได้รับการคัดเลือกให้มีห้องประชุมและพื้นที่ทำงานร่วมกันของทีมครบครันครับ`;
   }
 
-  if (msg.includes('ใคร') || msg.includes('คน') || msg.includes('ทีม') || msg.includes('สมาชิก') || msg.includes('who')) {
-    const names = context.users.map(u => u.user_name).join(', ') || 'มีคุณเพียงคนเดียวในขณะนี้';
+  if (
+    msg.includes('ใคร') ||
+    msg.includes('คน') ||
+    msg.includes('ทีม') ||
+    msg.includes('สมาชิก') ||
+    msg.includes('who') ||
+    msg.includes('member') ||
+    msg.includes('attendee')
+  ) {
+    if (lang === 'en') {
+      const names = context.users.map((u) => u.user_name).join(', ') || 'Only you are currently online';
+      return `Currently in war room ${context.roomCode}, active online members: ${names} (${teamCount} total) ready for consensus voting.`;
+    }
+    const names = context.users.map((u) => u.user_name).join(', ') || 'มีคุณเพียงคนเดียวในขณะนี้';
     return `ขณะนี้ในห้อง ${context.roomCode} มีสมาชิกออนไลน์: ${names} (รวม ${teamCount} ท่าน) พร้อมสำหรับการลงคะแนนเลือกสถานที่ครับ`;
   }
 
-  if (msg.includes('กิจกรรม') || msg.includes('เที่ยว') || msg.includes('สนุก') || msg.includes('ทะเล') || msg.includes('activity')) {
+  if (
+    msg.includes('กิจกรรม') ||
+    msg.includes('เที่ยว') ||
+    msg.includes('สนุก') ||
+    msg.includes('ทะเล') ||
+    msg.includes('activity') ||
+    msg.includes('activities') ||
+    msg.includes('bonding')
+  ) {
     if (dest) {
+      if (lang === 'en') {
+        return `[Team Synergy Activities in ${city}]:
+${dest.tourism_highlights.map((h) => `- ${h}`).join('\n')}
+Can be bundled into a consolidated corporate booking in 1 click.`;
+      }
       return `[กิจกรรมกระชับมิตรทีมที่ ${dest.city}]:
-${dest.tourism_highlights.map(h => `- ${h}`).join('\n')}
+${dest.tourism_highlights.map((h) => `- ${h}`).join('\n')}
 สามารถกดจองรวมเป็นแพ็กเกจองค์กรในขั้นตอนเดียวได้เลยครับ`;
     }
   }
 
   // Default intelligent assistant reply
   if (dest) {
+    if (lang === 'en') {
+      return `[Corporate Retreat Dossier for ${title}]:
+${reason}
+- Location: ${city}, ${country} (Rating: ${dest.rating} / 5)
+- Highlights: ${dest.business_amenities.slice(0, 3).join(', ')}
+Swipe right to approve, or ask any questions regarding flights, catering, or meeting equipment.`;
+    }
     return `[ข้อมูลสถานที่จัดทริปสำหรับ ${dest.title}]:
 ${dest.ai_reason}
 - ที่ตั้ง: ${dest.city}, ${dest.country} (คะแนนรีวิว ${dest.rating} / 5)
@@ -202,31 +308,57 @@ ${dest.ai_reason}
 ปัดขวาเพื่อโหวตถูกใจ หรือสอบถามเพิ่มเติมเรื่องตั๋วเครื่องบิน อาหาร หรือห้องประชุมได้ตลอดเวลาครับ`;
   }
 
+  if (lang === 'en') {
+    return `Hello! I am your TripPick AI Concierge (powered by DeepSeek V4.1 Flash 1017). I verify venue connectivity SLAs, calculate per-head procurement budgets, and ensure your retreat delivers maximum ROI. What can I assist you with?`;
+  }
   return `สวัสดีครับ ผมคือ TripPick AI Concierge (ประมวลผลด้วย DeepSeek V4.1 Flash 1017) ผมคอยตรวจสอบสเปกสถานที่ คำนวณงบประมาณรายบุคคล และดูแลให้ทริปของคุณคุ้มค่าสูงสุด ต้องการสอบถามข้อมูลด้านใดครับ?`;
 }
 
 export async function fetchAiChatResponse(
   userMessage: string,
   context: RoomContextInfo,
-  history: { sender: string; text: string }[] = []
+  history: { sender: string; text: string }[] = [],
+  lang: 'th' | 'en' = 'th'
 ): Promise<string> {
-  const openRouterKey = localStorage.getItem('trippick_openrouter_api_key') || import.meta.env.VITE_OPENROUTER_API_KEY || '';
+  const openRouterKey = getOpenRouterApiKey();
 
   if (!openRouterKey || openRouterKey === 'your_openrouter_api_key_here') {
-    return generateLocalConciergeResponse(userMessage, context);
+    return generateLocalConciergeResponse(userMessage, context, lang);
   }
 
   const dest = context.currentDestination || context.matchedDestination;
-  const systemPrompt = `คุณคือ TripPick AI Concierge ผู้ช่วยอัจฉริยะด้านการจัดทริปธุรกิจและการท่องเที่ยวสำหรับองค์กร (ประมวลผลด้วยโมเดล DeepSeek V4.1 Flash 1017)
+  const destLoc = dest ? DESTINATION_LOCALIZATIONS[dest.id] : null;
+  const title = lang === 'en' && destLoc?.title ? destLoc.title : dest?.title;
+  const city = lang === 'en' && destLoc?.city ? destLoc.city : dest?.city;
+  const country = lang === 'en' && destLoc?.country ? destLoc.country : dest?.country;
+
+  const systemPrompt =
+    lang === 'en'
+      ? `You are the TripPick AI Concierge, an intelligent corporate retreat architect and B2B travel assistant (powered by DeepSeek V4.1 Flash 1017).
+Respond in professional, concise, confident executive English (maximum 100 words, no emojis).
+Current screen context:
+- Room Code: ${context.roomCode}
+- Displayed Venue: ${
+          dest
+            ? `${title} in ${city}, ${country} (Rate: ~${dest.price_per_person} THB/person/night, WiFi: ${dest.wifi_speed_mbps} Mbps, Amenities: ${dest.business_amenities.join(', ')})`
+            : 'In Waiting Lobby'
+        }
+- Active Members: ${context.users.map((u) => u.user_name).join(', ')}
+Answer questions to help the leadership team make quick, confident retreat consensus decisions.`
+      : `คุณคือ TripPick AI Concierge ผู้ช่วยอัจฉริยะด้านการจัดทริปธุรกิจและการท่องเที่ยวสำหรับองค์กร (ประมวลผลด้วยโมเดล DeepSeek V4.1 Flash 1017)
 ตอบคำถามเป็นภาษาไทยที่สุภาพ กระชับ มั่นใจ และมีพลัง (ไม่เกิน 100 คำ ไม่ใช้อีโมจิ)
 ข้อมูลบริบทหน้าจอขณะนี้:
 - รหัสห้อง: ${context.roomCode}
-- สถานที่ที่ปรากฏบนหน้าจอ: ${dest ? `${dest.title} ณ ${dest.city}, ${dest.country} (ราคาประมาณ ${dest.price_per_person} บาท/คน/คืน, เน็ต ${dest.wifi_speed_mbps} Mbps, จุดเด่น: ${dest.business_amenities.join(', ')})` : 'อยู่ในหน้าล็อบบี้'}
-- รายชื่อสมาชิกในห้อง: ${context.users.map(u => u.user_name).join(', ')}
+- สถานที่ที่ปรากฏบนหน้าจอ: ${
+          dest
+            ? `${dest.title} ณ ${dest.city}, ${dest.country} (ราคาประมาณ ${dest.price_per_person} บาท/คน/คืน, เน็ต ${dest.wifi_speed_mbps} Mbps, จุดเด่น: ${dest.business_amenities.join(', ')})`
+            : 'อยู่ในหน้าล็อบบี้'
+        }
+- รายชื่อสมาชิกในห้อง: ${context.users.map((u) => u.user_name).join(', ')}
 ตอบคำถามเพื่อช่วยให้ทีมตัดสินใจเลือกสถานที่จัดทริปได้อย่างรวดเร็วและคุ้มค่าที่สุด`;
 
   try {
-    const chatHistoryMessages = history.slice(-4).map(h => ({
+    const chatHistoryMessages = history.slice(-4).map((h) => ({
       role: h.sender === 'user' ? ('user' as const) : ('assistant' as const),
       content: h.text,
     }));
@@ -236,7 +368,7 @@ export async function fetchAiChatResponse(
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${openRouterKey}`,
-        'HTTP-Referer': window.location.origin,
+        'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173',
         'X-Title': 'TripPick',
       },
       body: JSON.stringify({
@@ -252,14 +384,36 @@ export async function fetchAiChatResponse(
 
     if (!response.ok) throw new Error(`API error ${response.status}`);
     const data = await response.json();
-    return data?.choices?.[0]?.message?.content || generateLocalConciergeResponse(userMessage, context);
+    return data?.choices?.[0]?.message?.content || generateLocalConciergeResponse(userMessage, context, lang);
   } catch (err) {
-    console.warn('AI chat error, using local Thai concierge engine:', err);
-    return generateLocalConciergeResponse(userMessage, context);
+    console.warn(`AI chat error, using local ${lang === 'en' ? 'English' : 'Thai'} concierge engine:`, err);
+    return generateLocalConciergeResponse(userMessage, context, lang);
   }
 }
 
-export async function fetchAiCommentary(type: 'join' | 'match', entityName: string): Promise<string> {
+export async function fetchAiCommentary(
+  type: 'join' | 'match',
+  entityName: string,
+  lang: 'th' | 'en' = 'th'
+): Promise<string> {
+  if (lang === 'en') {
+    if (type === 'join') {
+      const joinQuotes = [
+        `${entityName} has stepped into the war room! Grab your coffee and let's get rolling.`,
+        `Boarding pass verified. Welcome ${entityName} to the executive retreat planning room.`,
+        `${entityName} has checked in! Let's see if beachfront luxury or mountain hackathons win out.`,
+      ];
+      return joinQuotes[Math.floor(Math.random() * joinQuotes.length)];
+    } else {
+      const matchQuotes = [
+        `Unanimous consensus reached! Your team selected ${entityName}. Pack your bags!`,
+        `Outstanding! Consensus locked in for ${entityName}. No more Slack debates.`,
+        `It's official! ${entityName} won the consensus vote. Ready to approve and book.`,
+      ];
+      return matchQuotes[Math.floor(Math.random() * matchQuotes.length)];
+    }
+  }
+
   if (type === 'join') {
     const joinQuotes = [
       `คุณ ${entityName} เดินทางเข้าสู่ห้องประชุมออนไลน์แล้ว เตรียมชงกาแฟแล้วลุยกันเลย`,
@@ -299,11 +453,116 @@ export interface AgendaDay {
 export function generateExecutiveAgenda(
   destination: TravelDestination,
   teamSize: number = 8,
-  vibe?: string
+  vibe?: string,
+  lang: 'th' | 'en' = 'th'
 ): AgendaDay[] {
+  const isEn = lang === 'en';
   const highlights = destination.tourism_highlights || [];
-  const primaryHighlight = highlights[0] || 'กิจกรรมกระชับมิตรเสริมสร้างความสามัคคี';
-  const secondaryHighlight = highlights[1] || 'ดินเนอร์มื้อค่ำชมทัศนียภาพธรรมชาติ';
+  const primaryHighlight = highlights[0] || (isEn ? 'Team Synergy & Outdoor Bonding' : 'กิจกรรมกระชับมิตรเสริมสร้างความสามัคคี');
+  const secondaryHighlight = highlights[1] || (isEn ? 'Sunset Leadership Dinner' : 'ดินเนอร์มื้อค่ำชมทัศนียภาพธรรมชาติ');
+
+  if (isEn) {
+    return [
+      {
+        day: 1,
+        title: 'Day 1: Arrival, Villa Check-in & Deep Work Sprint',
+        theme: vibe ? `Theme: ${vibe}` : 'Onboarding, Connectivity & Focus Sprints',
+        items: [
+          {
+            time: '13:30 - 15:00',
+            title: 'VIP Airport Shuttle & Private Villa Check-in',
+            description: `Private executive vans from airport to ${destination.title} in ${destination.city}. Suite allocation and venue orientation.`,
+            type: 'activity',
+            facilityBadge: 'VIP Transport & Reception',
+          },
+          {
+            time: '15:30 - 18:00',
+            title: `Starlink Deep Work Sprint (${destination.wifi_speed_mbps} Mbps)`,
+            description: `Connect to ${destination.wifi_speed_mbps} Mbps enterprise WiFi. Run focus engineering sprints and breakout group syncs (${Math.max(2, Math.ceil(teamSize / 3))} teams).`,
+            type: 'deep_work',
+            facilityBadge: `Starlink Business (${destination.wifi_speed_mbps} Mbps)`,
+          },
+          {
+            time: '18:30 - 21:00',
+            title: 'Welcome Leadership Dinner & Casual Icebreaking',
+            description: 'Curated welcome dinner with private chef catering, welcome refreshments, and relaxed executive roadmap sharing.',
+            type: 'dining',
+            facilityBadge: 'Private Chef Dining',
+          },
+        ],
+      },
+      {
+        day: 2,
+        title: 'Day 2: Boardroom Strategy Workshop & Team Synergy',
+        theme: 'Strategic Alignment, OKRs & Team Synergy',
+        items: [
+          {
+            time: '08:30 - 09:30',
+            title: 'Executive Breakfast & High-Performance Fuel',
+            description: 'Organic breakfast buffet with bespoke drip coffee bar to power a full day of strategic brainstorming.',
+            type: 'dining',
+            facilityBadge: 'Organic Catering',
+          },
+          {
+            time: '09:30 - 12:30',
+            title: 'All-Hands Strategy & Roadmap Workshop',
+            description: `Executive session in the Boardroom (up to ${destination.max_capacity} seats) with 4K displays and full AV sound system. Lock in quarterly OKRs.`,
+            type: 'strategy',
+            facilityBadge: `MICE Boardroom (${destination.max_capacity} Pax)`,
+          },
+          {
+            time: '12:30 - 14:00',
+            title: 'Networking Lunch & Breakout Discussion',
+            description: 'Networking lunch and breakout brainstorm discussions across nature-view coworking terraces.',
+            type: 'dining',
+            facilityBadge: 'Coworking Terrace',
+          },
+          {
+            time: '14:30 - 18:00',
+            title: `Team Synergy Excursion: ${primaryHighlight}`,
+            description: `Curated outdoor bonding experience: ${primaryHighlight}. Deepens mutual trust and cross-functional synergy.`,
+            type: 'activity',
+            facilityBadge: 'Curated Local Experience',
+          },
+          {
+            time: '19:00 - 22:00',
+            title: `Celebration Gala Dinner: ${secondaryHighlight}`,
+            description: `Gala dinner celebrating team milestones, acoustic ambient music, and fireside executive retrospectives.`,
+            type: 'dining',
+            facilityBadge: 'Executive Gala Area',
+          },
+        ],
+      },
+      {
+        day: 3,
+        title: 'Day 3: Sprint Retrospective & VIP Departure',
+        theme: 'Action Plan Lock-in & Team Rejuvenation',
+        items: [
+          {
+            time: '09:00 - 11:00',
+            title: 'Sprint Retrospective & Action Items Lock-in',
+            description: 'Review workshop takeaways, commit individual action items, and export executive summary into enterprise ERP/Docs.',
+            type: 'retrospective',
+            facilityBadge: 'Brainstorm Hub',
+          },
+          {
+            time: '11:30 - 12:30',
+            title: 'Villa Buyout Check-out & Team Photo Session',
+            description: 'Commemorative group photography session and private suite check-out.',
+            type: 'activity',
+            facilityBadge: 'Scenic Photo Spot',
+          },
+          {
+            time: '12:30 - 14:00',
+            title: 'Farewell Lunch & VIP Airport Transfer',
+            description: 'Closing lunch and chartered VIP vans back to the airport for safe departure.',
+            type: 'activity',
+            facilityBadge: 'VIP Airport Express',
+          },
+        ],
+      },
+    ];
+  }
 
   return [
     {

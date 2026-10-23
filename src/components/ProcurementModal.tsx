@@ -5,6 +5,7 @@ import type { RoomUser } from '../hooks/useTripPick';
 import { useProcurement } from '../hooks/useProcurement';
 import { generatePromptPayPayload, generateQrSvgPath } from '../lib/promptpay';
 import type { DepositReceipt } from '../hooks/useTripPick';
+import { useLanguage } from '../lib/i18n';
 
 export interface ProcurementModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
   depositReceipt = null,
   onConfirmDeposit,
 }) => {
+  const { language, t } = useLanguage();
   const {
     headcount,
     setHeadcount,
@@ -86,7 +88,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
   const destinationCity = matchedDestination?.city || 'Thailand';
   const destinationCountry = matchedDestination?.country || '';
 
-  const issueDateFormatted = new Date().toLocaleDateString('th-TH', {
+  const issueDateFormatted = new Date().toLocaleDateString(language === 'en' ? 'en-US' : 'th-TH', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -94,7 +96,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 overflow-y-auto">
         <motion.div
           initial={{ opacity: 0, scale: 0.96, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -113,14 +115,14 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-sm sm:text-base font-bold text-[#cdd6f4]">
-                    เอกสารจัดซื้อจัดจ้างระดับองค์กร &amp; ระบบมัดจำ Escrow
+                    {t.procurementModalTitle}
                   </h2>
                   <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-[#a6e3a1]/15 text-[#a6e3a1] border border-[#a6e3a1]/30">
                     B2B PROCUREMENT ENGINE
                   </span>
                 </div>
                 <p className="text-[11px] text-[#a6adc8]">
-                  คำนวณภาษีตามระเบียบกรมสรรพากร (ท.ป. 4/2528) • มัดจำ Escrow คุ้มครองสิทธิ์ 100%
+                  {t.procurementModalSubtitle}
                 </p>
               </div>
             </div>
@@ -129,7 +131,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
               <button
                 onClick={onClose}
                 className="w-8 h-8 rounded-lg bg-[#11111b] border border-[#313244] text-[#a6adc8] hover:text-[#f38ba8] flex items-center justify-center text-sm font-semibold cursor-pointer transition-colors"
-                title="ปิดหน้าต่าง"
+                title={t.closeBtn}
               >
                 ✕
               </button>
@@ -156,10 +158,10 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                 <span className="text-xl">⚡</span>
                 <div>
                   <span className="text-xs font-bold text-[#89b4fa] block">
-                    Demo Failsafe: 1-Click Fast Fill สำหรับพรีเซนต์บนเวที
+                    {language === 'en' ? 'Demo Failsafe: 1-Click Fast Fill for Stage Presentations' : 'Demo Failsafe: 1-Click Fast Fill สำหรับพรีเซนต์บนเวที'}
                   </span>
                   <span className="text-[11px] text-[#a6adc8]">
-                    คลิกเพื่อกรอกชื่อบริษัท, เลขประจำตัวผู้เสียภาษี 13 หลัก, และอีเมลผู้อนุมัติอัตโนมัติใน 1 วินาที
+                    {language === 'en' ? 'Click to auto-populate company name, 13-digit Tax ID, and CFO approver email in 1 second' : 'คลิกเพื่อกรอกชื่อบริษัท, เลขประจำตัวผู้เสียภาษี 13 หลัก, และอีเมลผู้อนุมัติอัตโนมัติใน 1 วินาที'}
                   </span>
                 </div>
               </div>
@@ -168,7 +170,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                 onClick={() => applyDemoPreset()}
                 className="w-full sm:w-auto py-1.5 px-3.5 bg-gradient-to-r from-[#89b4fa] to-[#b4befe] hover:opacity-95 text-[#11111b] text-xs font-extrabold rounded-lg transition-all cursor-pointer shadow active:scale-95 flex items-center justify-center gap-1.5 shrink-0"
               >
-                <span>⚡ จำลองข้อมูลบริษัท Tech Startup (Demo Fast-Fill)</span>
+                <span>{language === 'en' ? '⚡ Populate Tech Startup Data (Demo Fast-Fill)' : '⚡ จำลองข้อมูลบริษัท Tech Startup (Demo Fast-Fill)'}</span>
               </button>
             </div>
 
@@ -186,10 +188,12 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                   </span>
                   <div>
                     <span className="text-xs font-mono font-bold text-[#a6e3a1] uppercase tracking-wider block">
-                      ESCROW SECURED &amp; LOCKED // ล็อกสิทธิ์เรียบร้อยแล้ว
+                      {language === 'en' ? 'ESCROW SECURED & LOCKED // Rights Reserved' : 'ESCROW SECURED & LOCKED // ล็อกสิทธิ์เรียบร้อยแล้ว'}
                     </span>
                     <span className="text-xs text-[#cdd6f4]">
-                      เงินมัดจำ ฿5,000.00 THB ได้รับการคุ้มครองในระบบ Escrow (ใบเสร็จ: {escrowDeposit.receiptNo})
+                      {language === 'en'
+                        ? `฿5,000.00 THB deposit secured in Escrow (Receipt: ${escrowDeposit.receiptNo})`
+                        : `เงินมัดจำ ฿5,000.00 THB ได้รับการคุ้มครองในระบบ Escrow (ใบเสร็จ: ${escrowDeposit.receiptNo})`}
                     </span>
                   </div>
                 </div>
@@ -205,8 +209,8 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
               {/* Stepper: Headcount */}
               <div className="p-3.5 rounded-xl bg-[#11111b] border border-[#313244]">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-[10px] font-mono uppercase text-[#a6adc8]">จำนวนผู้เข้าร่วม (Headcount)</span>
-                  <span className="text-xs font-bold text-[#cba6f7] font-mono">{headcount} ท่าน</span>
+                  <span className="text-[10px] font-mono uppercase text-[#a6adc8]">{language === 'en' ? 'Headcount' : 'จำนวนผู้เข้าร่วม (Headcount)'}</span>
+                  <span className="text-xs font-bold text-[#cba6f7] font-mono">{headcount} {language === 'en' ? 'Guests' : 'ท่าน'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -235,8 +239,8 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
               {/* Stepper: Duration */}
               <div className="p-3.5 rounded-xl bg-[#11111b] border border-[#313244]">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-[10px] font-mono uppercase text-[#a6adc8]">ระยะเวลาสัมมนา (Nights)</span>
-                  <span className="text-xs font-bold text-[#89dceb] font-mono">{nights} คืน</span>
+                  <span className="text-[10px] font-mono uppercase text-[#a6adc8]">{language === 'en' ? 'Duration (Nights)' : 'ระยะเวลาสัมมนา (Nights)'}</span>
+                  <span className="text-xs font-bold text-[#89dceb] font-mono">{nights} {language === 'en' ? 'Nights' : 'คืน'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -277,7 +281,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                     ฿{pricing.tripPickRevenue.toLocaleString()} THB
                   </div>
                   <div className="text-[10px] text-[#a6adc8]">
-                    จาก Gross Booking Value: ฿{pricing.grossBookingValue.toLocaleString()}
+                    {language === 'en' ? 'From Gross Booking Value: ฿' : 'จาก Gross Booking Value: ฿'}{pricing.grossBookingValue.toLocaleString()}
                   </div>
                 </div>
               </div>
@@ -306,16 +310,16 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                       ⚡ Starlink {matchedDestination?.wifi_speed_mbps || 350} Mbps SLA
                     </span>
                     <span className="px-1.5 py-0.5 rounded bg-[#1e1e2e] border border-[#313244]">
-                      👥 รองรับสูงสุด {matchedDestination?.max_capacity || 20} ท่าน
+                      👥 {language === 'en' ? `Capacity: ${matchedDestination?.max_capacity || 20} guests` : `รองรับสูงสุด ${matchedDestination?.max_capacity || 20} ท่าน`}
                     </span>
                   </div>
                 </div>
               </div>
 
               <div className="text-right sm:self-center">
-                <span className="text-[10px] text-[#a6adc8] block">อัตราค่าบริการต่อท่าน:</span>
+                <span className="text-[10px] text-[#a6adc8] block">{language === 'en' ? 'Rate per guest:' : 'อัตราค่าบริการต่อท่าน:'}</span>
                 <span className="font-mono font-bold text-[#cba6f7] text-sm">
-                  ฿{pricing.ratePerHeadPerNight.toLocaleString()} / คืน
+                  ฿{pricing.ratePerHeadPerNight.toLocaleString()} / {language === 'en' ? 'night' : 'คืน'}
                 </span>
               </div>
             </div>
@@ -330,7 +334,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                     : 'text-[#a6adc8] hover:text-[#cdd6f4]'
                 }`}
               >
-                <span>📊 รายละเอียดภาษีและใบแจ้งหนี้ (B2B Tax Breakdown)</span>
+                <span>📊 {t.tabInvoice}</span>
               </button>
 
               <button
@@ -341,7 +345,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                     : 'text-[#a6adc8] hover:text-[#cdd6f4]'
                 }`}
               >
-                <span>🔒 ระบบเงินมัดจำ Escrow (฿5,000 Deposit Lock)</span>
+                <span>🔒 {t.tabEscrow}</span>
                 {isEscrowLocked && (
                   <span className="w-2 h-2 rounded-full bg-[#11111b]" />
                 )}
@@ -361,7 +365,9 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                   <div className="flex items-center gap-2">
                     <span className="text-[#a6e3a1] text-base">⚖️</span>
                     <span>
-                      คำนวณภาษีตามระเบียบกรมสรรพากร: <strong>ภาษีหัก ณ ที่จ่าย 3% (หมวดบริการ ท.ป. 4/2528) คำนวณจากยอดก่อน VAT เท่านั้น</strong>
+                      {language === 'en'
+                        ? <>Tax calculation per Thai Revenue Dept: <strong>3% Withholding Tax (Services, Tor.Por. 4/2528) applies to Subtotal before VAT only</strong></>
+                        : <>คำนวณภาษีตามระเบียบกรมสรรพากร: <strong>ภาษีหัก ณ ที่จ่าย 3% (หมวดบริการ ท.ป. 4/2528) คำนวณจากยอดก่อน VAT เท่านั้น</strong></>}
                     </span>
                   </div>
                   <span className="font-mono text-[10px] text-[#a6e3a1] uppercase font-bold tracking-wider hidden sm:inline">
@@ -374,18 +380,18 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                   <table className="w-full text-xs text-left">
                     <thead className="bg-[#1e1e2e] text-[#a6adc8] uppercase font-mono text-[10px] border-b border-[#313244]">
                       <tr>
-                        <th className="py-2.5 px-4">รายการการเงิน (Financial Line Items)</th>
-                        <th className="py-2.5 px-4 text-center">สูตรการคำนวณ</th>
-                        <th className="py-2.5 px-4 text-right">จำนวนเงิน (THB)</th>
+                        <th className="py-2.5 px-4">{language === 'en' ? 'Financial Line Items' : 'รายการการเงิน (Financial Line Items)'}</th>
+                        <th className="py-2.5 px-4 text-center">{language === 'en' ? 'Formula' : 'สูตรการคำนวณ'}</th>
+                        <th className="py-2.5 px-4 text-right">{language === 'en' ? 'Amount (THB)' : 'จำนวนเงิน (THB)'}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#313244]/60 font-mono">
                       {/* Subtotal before VAT */}
                       <tr className="hover:bg-[#181825]/50 transition-colors">
                         <td className="py-3 px-4 font-sans text-[#cdd6f4]">
-                          <strong>1. มูลค่าบริการก่อนภาษี (Net Subtotal / GBV)</strong>
+                          <strong>{language === 'en' ? '1. Net Subtotal (GBV)' : '1. มูลค่าบริการก่อนภาษี (Net Subtotal / GBV)'}</strong>
                           <span className="block text-[11px] text-[#a6adc8] font-sans">
-                            {pricing.headcount} ท่าน × {pricing.nights} คืน × ฿{pricing.ratePerHeadPerNight.toLocaleString()}/คน/คืน
+                            {pricing.headcount} {language === 'en' ? 'guests' : 'ท่าน'} × {pricing.nights} {language === 'en' ? 'nights' : 'คืน'} × ฿{pricing.ratePerHeadPerNight.toLocaleString()}/{language === 'en' ? 'person/night' : 'คน/คืน'}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-center text-[#a6adc8] text-[11px]">
@@ -399,9 +405,9 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                       {/* VAT 7% */}
                       <tr className="hover:bg-[#181825]/50 transition-colors">
                         <td className="py-3 px-4 font-sans text-[#cdd6f4]">
-                          <strong>2. ภาษีมูลค่าเพิ่ม 7% (VAT 7%)</strong>
+                          <strong>{language === 'en' ? '2. Value Added Tax 7% (VAT 7%)' : '2. ภาษีมูลค่าเพิ่ม 7% (VAT 7%)'}</strong>
                           <span className="block text-[11px] text-[#a6adc8] font-sans">
-                            คำนวณจากฐานภาษีมูลค่ารวมก่อนภาษี (Net Subtotal)
+                            {language === 'en' ? 'Calculated on Net Subtotal base before tax' : 'คำนวณจากฐานภาษีมูลค่ารวมก่อนภาษี (Net Subtotal)'}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-center text-[#a6adc8] text-[11px]">
@@ -415,7 +421,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                       {/* Gross Total */}
                       <tr className="bg-[#181825] border-y border-[#313244]">
                         <td className="py-3 px-4 font-sans text-[#cdd6f4]">
-                          <strong>3. ยอดรวมทั้งสิ้นรวมภาษี (Gross Invoice Total)</strong>
+                          <strong>{language === 'en' ? '3. Gross Invoice Total' : '3. ยอดรวมทั้งสิ้นรวมภาษี (Gross Invoice Total)'}</strong>
                         </td>
                         <td className="py-3 px-4 text-center text-[#a6adc8] text-[11px]">
                           Subtotal + VAT 7%
@@ -428,9 +434,11 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                       {/* WHT 3% */}
                       <tr className="hover:bg-[#181825]/50 transition-colors">
                         <td className="py-3 px-4 font-sans text-[#cdd6f4]">
-                          <strong className="text-[#f38ba8]">4. ภาษีหัก ณ ที่จ่าย 3% (Withholding Tax 3%)</strong>
+                          <strong className="text-[#f38ba8]">{language === 'en' ? '4. Withholding Tax 3% (WHT 3%)' : '4. ภาษีหัก ณ ที่จ่าย 3% (Withholding Tax 3%)'}</strong>
                           <span className="block text-[11px] text-[#f38ba8]/90 font-sans">
-                            * กรมสรรพากรระบุ: ต้องคิดจากยอดก่อน VAT (฿{pricing.subtotalBeforeVat.toLocaleString()}) ห้ามคิดจาก Gross!
+                            {language === 'en'
+                              ? `* Revenue Dept: Must be calculated from Subtotal before VAT (฿${pricing.subtotalBeforeVat.toLocaleString()}), never Gross!`
+                              : `* กรมสรรพากรระบุ: ต้องคิดจากยอดก่อน VAT (฿${pricing.subtotalBeforeVat.toLocaleString()}) ห้ามคิดจาก Gross!`}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-center text-[#f38ba8] text-[11px]">
@@ -445,10 +453,10 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                       <tr className="bg-[#1e2a3a]/40 border-t-2 border-[#a6e3a1]">
                         <td className="py-3.5 px-4 font-sans text-[#cdd6f4]">
                           <strong className="text-sm text-[#a6e3a1]">
-                            5. ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable to Vendor)
+                            {language === 'en' ? '5. Net Payable to Vendor' : '5. ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable to Vendor)'}
                           </strong>
                           <span className="block text-[11px] text-[#a6adc8] font-sans">
-                            ยอดหลังหัก ณ ที่จ่ายตามกฎหมาย (Subtotal × 1.04)
+                            {language === 'en' ? 'Net statutory amount after withholding tax (Subtotal × 1.04)' : 'ยอดหลังหัก ณ ที่จ่ายตามกฎหมาย (Subtotal × 1.04)'}
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-center text-[#a6e3a1] text-[11px]">
@@ -476,7 +484,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                 <div className="p-4 rounded-xl bg-[#11111b] border border-[#313244] space-y-3">
                   <div className="flex items-center justify-between pb-2 border-b border-[#313244]">
                     <span className="text-[10px] font-mono uppercase text-[#a6adc8] font-bold">
-                      ข้อมูลนิติบุคคลสำหรับการออกเอกสารจัดซื้อ &amp; สัญญา Escrow
+                      {language === 'en' ? 'Corporate Credentials for Procurement & Escrow Agreement' : 'ข้อมูลนิติบุคคลสำหรับการออกเอกสารจัดซื้อ & สัญญา Escrow'}
                     </span>
                     {hasAppliedDemoPreset && (
                       <span className="text-[10px] font-mono text-[#a6e3a1] bg-[#a6e3a1]/15 px-2 py-0.5 rounded border border-[#a6e3a1]/30">
@@ -487,18 +495,18 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="text-[10px] text-[#a6adc8] block mb-1 font-mono">ชื่อบริษัท / นิติบุคคล:</label>
+                      <label className="text-[10px] text-[#a6adc8] block mb-1 font-mono">{language === 'en' ? 'Company / Legal Entity Name:' : 'ชื่อบริษัท / นิติบุคคล:'}</label>
                       <input
                         type="text"
                         value={companyName}
                         onChange={(e) => setCompanyName(e.target.value)}
-                        placeholder="เช่น บริษัท บีทูบี เทคเวนเจอร์ จำกัด"
+                        placeholder={language === 'en' ? 'e.g. Acme Innovations Co., Ltd.' : 'เช่น บริษัท บีทูบี เทคเวนเจอร์ จำกัด'}
                         className="w-full py-2 px-3 rounded-xl bg-[#1e1e2e] border border-[#313244] text-xs text-[#cdd6f4] placeholder-[#585b70] focus:outline-none focus:border-[#cba6f7]"
                       />
                     </div>
 
                     <div>
-                      <label className="text-[10px] text-[#a6adc8] block mb-1 font-mono">เลขผู้เสียภาษี (Tax ID 13 หลัก):</label>
+                      <label className="text-[10px] text-[#a6adc8] block mb-1 font-mono">{language === 'en' ? 'Tax ID (13 Digits):' : 'เลขผู้เสียภาษี (Tax ID 13 หลัก):'}</label>
                       <input
                         type="text"
                         value={companyTaxId}
@@ -510,7 +518,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="text-[10px] text-[#a6adc8] block mb-1 font-mono">อีเมลผู้อนุมัติ (CFO / Approver):</label>
+                      <label className="text-[10px] text-[#a6adc8] block mb-1 font-mono">{language === 'en' ? 'Approver Email (CFO / Approver):' : 'อีเมลผู้อนุมัติ (CFO / Approver):'}</label>
                       <input
                         type="email"
                         value={approverEmail}
@@ -525,7 +533,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                 {/* Payment Method Selector */}
                 <div>
                   <label className="text-[10px] font-bold text-[#a6adc8] uppercase block mb-1.5 font-mono">
-                    เลือกวิธีการชำระเงินมัดจำ Escrow (฿5,000 THB):
+                    {language === 'en' ? 'Select Escrow Deposit Payment Method (฿5,000 THB):' : 'เลือกวิธีการชำระเงินมัดจำ Escrow (฿5,000 THB):'}
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                     <button
@@ -546,7 +554,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                           : 'bg-[#1e1e2e] border-[#313244] text-[#a6adc8]'
                       }`}
                     >
-                      บัตรเครดิตองค์กร (Visa MICE)
+                      {language === 'en' ? 'Corporate Card (Visa MICE)' : 'บัตรเครดิตองค์กร (Visa MICE)'}
                     </button>
                     <button
                       onClick={() => setPaymentMethod('NET_30_PO')}
@@ -556,7 +564,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                           : 'bg-[#1e1e2e] border-[#313244] text-[#a6adc8]'
                       }`}
                     >
-                      วางบิลเครดิตเทอม (Net 30)
+                      {language === 'en' ? 'Corporate Billing (Net 30)' : 'วางบิลเครดิตเทอม (Net 30)'}
                     </button>
                   </div>
                 </div>
@@ -583,16 +591,16 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
 
                     <div className="text-center font-mono">
                       <p className="text-xs font-bold text-slate-800">
-                        บริษัท ทริปพิก บิสซิเนส ทราเวล โซลูชั่นส์ จำกัด (สำนักงานใหญ่)
+                        {language === 'en' ? 'TripPick Business Travel Solutions Co., Ltd. (Headquarters)' : 'บริษัท ทริปพิก บิสซิเนส ทราเวล โซลูชั่นส์ จำกัด (สำนักงานใหญ่)'}
                       </p>
                       <p className="text-[11px] text-slate-500">
-                        เลขประจำตัวผู้เสียภาษี: 0-1055-69018-92-4
+                        {language === 'en' ? 'Tax ID: 0-1055-69018-92-4' : 'เลขประจำตัวผู้เสียภาษี: 0-1055-69018-92-4'}
                       </p>
                       <p className="text-base font-extrabold text-[#003d79] mt-1">
                         ฿5,000.00 THB
                       </p>
                       <p className="text-[10px] text-slate-400 mt-0.5">
-                        Ref: {escrowDeposit.receiptNo || depositCode} (ห้อง #{roomId})
+                        Ref: {escrowDeposit.receiptNo || depositCode} ({language === 'en' ? 'Room' : 'ห้อง'} #{roomId})
                       </p>
                       <div className="mt-1 text-[9px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded inline-block">
                         🛡️ Zero-Dependency Local EMVCo Standard (Offline Ready)
@@ -621,9 +629,11 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                 {/* Net-30 PO Mock */}
                 {paymentMethod === 'NET_30_PO' && (
                   <div className="p-4 rounded-xl bg-[#11111b] border border-[#313244] text-xs text-[#a6adc8] space-y-1">
-                    <div className="font-bold text-[#cdd6f4]">ใบสั่งซื้อระดับองค์กร (Corporate Purchase Order)</div>
+                    <div className="font-bold text-[#cdd6f4]">{language === 'en' ? 'Corporate Purchase Order (Net 30 PO)' : 'ใบสั่งซื้อระดับองค์กร (Corporate Purchase Order)'}</div>
                     <p className="text-[11px]">
-                      เงื่อนไขการวางบิลระยะเวลา 30 วัน (Net 30) จะออกเอกสารแจ้งหนี้ไปยัง <strong>{approverEmail}</strong> โดยอัตโนมัติ
+                      {language === 'en'
+                        ? `30-Day Credit terms (Net 30) will dispatch billing invoice directly to ${approverEmail} automatically`
+                        : `เงื่อนไขการวางบิลระยะเวลา 30 วัน (Net 30) จะออกเอกสารแจ้งหนี้ไปยัง ${approverEmail} โดยอัตโนมัติ`}
                     </p>
                   </div>
                 )}
@@ -637,19 +647,21 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
                     </svg>
-                    <span>ยืนยันมัดจำล็อกสิทธิ์ (฿5,000 Escrow Deposit)</span>
+                    <span>{language === 'en' ? 'Confirm ฿5,000 Escrow Deposit & Lock' : 'ยืนยันมัดจำล็อกสิทธิ์ (฿5,000 Escrow Deposit)'}</span>
                   </button>
                 ) : (
                   <div className="p-4 rounded-xl bg-[#1e2a3a] border border-[#a6e3a1] text-center space-y-2">
                     <div className="text-sm font-bold text-[#a6e3a1] flex items-center justify-center gap-1.5">
                       <span>✓</span>
-                      <span>ล็อกสิทธิ์และชำระเงินมัดจำ Escrow เรียบร้อยแล้ว</span>
+                      <span>{language === 'en' ? 'Escrow Deposit Secured & Inventory Locked' : 'ล็อกสิทธิ์และชำระเงินมัดจำ Escrow เรียบร้อยแล้ว'}</span>
                     </div>
                     <div className="text-xs font-mono text-[#cdd6f4]">
-                      รหัสรับรองสิทธิ์: {escrowDeposit.receiptNo}
+                      {language === 'en' ? 'Confirmation Ref:' : 'รหัสรับรองสิทธิ์:'} {escrowDeposit.receiptNo}
                     </div>
                     <p className="text-[11px] text-[#a6adc8]">
-                      ระบบทำการปิดปุ่มชำระเงินซ้ำซ้อน และซิงค์สถานะไปยังทุกอุปกรณ์ในห้องแล้ว
+                      {language === 'en'
+                        ? 'System has disabled duplicate payment requests and synchronized real-time status across all devices.'
+                        : 'ระบบทำการปิดปุ่มชำระเงินซ้ำซ้อน และซิงค์สถานะไปยังทุกอุปกรณ์ในห้องแล้ว'}
                     </p>
                   </div>
                 )}
@@ -660,32 +672,32 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
           {/* Modal Footer / Action Toolbar */}
           <div className="no-print p-4 sm:px-6 bg-[#1e1e2e] border-t border-[#313244] flex flex-wrap items-center justify-between gap-2 shrink-0">
             <div className="text-[11px] font-mono text-[#a6adc8]">
-              Ref: <strong className="text-[#cdd6f4]">{proposalRef}</strong> | Room: <strong className="text-[#cba6f7]">#{roomId}</strong> | <span className="hidden sm:inline">วันที่: {issueDateFormatted}</span>
+              Ref: <strong className="text-[#cdd6f4]">{proposalRef}</strong> | Room: <strong className="text-[#cba6f7]">#{roomId}</strong> | <span className="hidden sm:inline">{language === 'th' ? `วันที่: ${issueDateFormatted}` : `Date: ${issueDateFormatted}`}</span>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={exportToCsv}
                 className="py-1.5 px-3 bg-[#313244] hover:bg-[#45475a] text-[#cdd6f4] rounded-lg text-xs font-medium cursor-pointer transition-colors flex items-center gap-1.5"
-                title="ดาวน์โหลดไฟล์ .CSV พร้อม UTF-8 BOM สำหรับ Google Sheets และ Microsoft Excel"
+                title="CSV Export"
               >
-                <span>📥 ดาวน์โหลด .CSV</span>
+                <span>{t.exportCsvBtn}</span>
               </button>
 
               <button
                 onClick={exportToGoogleSheetsTsv}
                 className="py-1.5 px-3 bg-[#1e3a2f] hover:bg-[#254b3c] border border-[#a6e3a1]/40 text-[#a6e3a1] rounded-lg text-xs font-medium cursor-pointer transition-colors flex items-center gap-1.5"
-                title="คัดลอกตาราง TSV และเปิด Google Sheets"
+                title="Google Sheets"
               >
-                <span>เปิดใน Google Sheets ↗</span>
+                <span>{t.exportSheetsBtn} ↗</span>
               </button>
 
               <button
                 onClick={generateGoogleDocsMarkdown}
                 className="py-1.5 px-3 bg-[#1e2a3a] hover:bg-[#25354b] border border-[#89b4fa]/40 text-[#89b4fa] rounded-lg text-xs font-medium cursor-pointer transition-colors flex items-center gap-1.5"
-                title="คัดลอก Markdown และเปิด Google Docs"
+                title="Google Docs"
               >
-                <span>เปิดใน Google Docs ↗</span>
+                <span>{t.exportDocsBtn} ↗</span>
               </button>
 
               <button
@@ -695,7 +707,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24-1.255.438-2.54 1.62-3.042l10.87-4.606c1.196-.507 2.533.15 2.822 1.417l2.673 11.666c.29 1.266-.462 2.54-1.728 2.83l-10.87 2.49c-1.266.29-2.533-.46-2.823-1.727L6.72 13.83z" />
                 </svg>
-                <span>พิมพ์เอกสาร (Print / PDF)</span>
+                <span>{t.printRfpBtn}</span>
               </button>
             </div>
           </div>
