@@ -82,45 +82,45 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
 
   return (
     <>
-      {/* Floating Toggle Pill Button */}
+      {/* Floating Toggle Pill Button (Catppuccin Mocha Mauve-Sapphire Gradient) */}
       <motion.button
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
+        whileHover={{ scale: 1.03 }}
+        whileTap={{ scale: 0.96 }}
         onClick={onToggle}
-        className="fixed bottom-6 right-6 z-40 py-2.5 px-4 rounded-full bg-[#10b981] hover:bg-[#059669] text-white text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors duration-150"
+        className="fixed bottom-6 right-6 z-40 py-2.5 px-4 sm:px-5 rounded-full bg-gradient-to-r from-[#cba6f7] via-[#b4befe] to-[#89b4fa] hover:from-[#d5b8ff] hover:to-[#9ac2ff] text-[#11111b] text-xs font-bold flex items-center gap-2.5 cursor-pointer shadow-[0_4px_24px_rgba(203,166,247,0.45)] transition-all duration-300 ease-spring"
       >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        <svg className="w-4 h-4 text-[#11111b]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
         </svg>
-        <span>ผู้ช่วย AI</span>
-        <span className="inline-block h-2 w-2 rounded-full bg-white opacity-80" />
+        <span>AI Concierge</span>
+        <span className="w-2 h-2 rounded-full bg-[#11111b] animate-pulse" />
       </motion.button>
 
       {/* Drawer Overlay */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, x: 360 }}
+            initial={{ opacity: 0, x: 380 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 360 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 bottom-0 w-full sm:w-96 bg-[#131822] z-50 flex flex-col"
+            exit={{ opacity: 0, x: 380 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 220 }}
+            className="fixed top-0 right-0 bottom-0 w-full sm:w-[420px] bg-[#181825]/98 border-l border-[#313244] backdrop-blur-2xl z-50 flex flex-col shadow-[-20px_0_60px_rgba(17,17,27,0.9)]"
           >
             {/* Header */}
-            <div className="p-4 bg-[#0e121a] flex items-center justify-between">
+            <div className="p-4 sm:p-5 bg-[#11111b]/80 border-b border-[#313244] flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#1a2230] text-[#10b981] flex items-center justify-center">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                <div className="w-9 h-9 rounded-full bg-[#cba6f7]/20 border border-[#cba6f7]/40 text-[#cba6f7] flex items-center justify-center font-bold">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-[#f8fafc]">
+                  <h3 className="text-sm font-bold text-[#cdd6f4] tracking-tight">
                     TripPick AI Concierge
                   </h3>
-                  <span className="text-xs text-[#10b981] flex items-center gap-1.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
-                    พร้อมให้บริการ
+                  <span className="text-[11px] text-[#a6e3a1] font-mono flex items-center gap-1.5 font-medium">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#a6e3a1] animate-pulse" />
+                    LIVE ASSISTANT READY
                   </span>
                 </div>
               </div>
@@ -128,58 +128,58 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
               <button
                 onClick={onToggle}
                 aria-label="ปิดแชท"
-                className="text-[#94a3b8] hover:text-white p-1 transition-colors duration-150 cursor-pointer"
+                className="w-8 h-8 rounded-full bg-[#313244] hover:bg-[#45475a] border border-[#45475a] text-[#cdd6f4] flex items-center justify-center cursor-pointer transition-all duration-200"
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
             {/* Live Context Telemetry Banner */}
-            <div className="px-4 py-2.5 bg-[#1a2230] text-xs text-[#94a3b8] flex items-center justify-between">
-              <span className="text-[#10b981] font-medium">สถานที่บนจอ:</span>
-              <span className="text-[#f8fafc] truncate max-w-[200px]">
+            <div className="px-4 py-2 bg-[#11111b]/50 border-b border-[#313244] text-[11px] text-[#a6adc8] flex items-center justify-between font-mono">
+              <span className="text-[#cba6f7] font-semibold uppercase tracking-wider">FOCUS TARGET:</span>
+              <span className="text-[#cdd6f4] truncate max-w-[220px]">
                 {roomContext.current?.currentDestination?.title || 'อยู่ในหน้าล็อบบี้'}
               </span>
             </div>
 
             {/* Messages Chat List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#131822]">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-[#181825]">
               {messages.map((m) => (
                 <div
                   key={m.id}
                   className={`flex flex-col ${m.sender === 'user' ? 'items-end' : 'items-start'}`}
                 >
                   <div
-                    className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed whitespace-pre-wrap ${
+                    className={`max-w-[85%] px-4 py-3 rounded-2xl text-xs leading-relaxed whitespace-pre-wrap ${
                       m.sender === 'user'
-                        ? 'bg-[#10b981] text-white rounded-tr-sm'
-                        : 'bg-[#0e121a] text-[#f8fafc] rounded-tl-sm'
+                        ? 'bg-gradient-to-r from-[#cba6f7] to-[#b4befe] text-[#11111b] font-medium rounded-tr-xs shadow-[0_2px_12px_rgba(203,166,247,0.3)]'
+                        : 'bg-[#1e1e2e] border border-[#313244] text-[#cdd6f4] rounded-tl-xs'
                     }`}
                   >
                     {m.text}
                   </div>
-                  <span className="text-[11px] text-[#64748b] mt-1 px-1 tabular-nums">{m.time}</span>
+                  <span className="text-[10px] font-mono text-[#6c7086] mt-1 px-1 tabular-nums">{m.time}</span>
                 </div>
               ))}
 
               {isTyping && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#0e121a] w-fit text-xs text-[#94a3b8]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
-                  <span>กำลังวิเคราะห์และเรียบเรียงคำตอบ...</span>
+                <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-[#1e1e2e] border border-[#313244] w-fit text-xs text-[#a6adc8]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#cba6f7] animate-ping" />
+                  <span className="text-[11px]">กำลังวิเคราะห์และเรียบเรียงคำตอบ...</span>
                 </div>
               )}
               <div ref={messagesEndRef} />
             </div>
 
             {/* Quick Prompts */}
-            <div className="p-3 bg-[#0e121a] flex flex-wrap gap-1.5">
+            <div className="p-3 bg-[#11111b]/60 border-t border-[#313244] flex flex-wrap gap-1.5">
               {QUICK_PROMPTS.map((prompt) => (
                 <button
                   key={prompt}
                   onClick={() => handleSendMessage(prompt)}
-                  className="text-xs px-2.5 py-1.5 rounded-md bg-[#1a2230] hover:bg-[#242f42] text-[#f8fafc] transition-colors duration-150 text-left cursor-pointer"
+                  className="text-[11px] px-3 py-1.5 rounded-full bg-[#1e1e2e] hover:bg-[#313244] border border-[#45475a] hover:border-[#cba6f7]/50 text-[#bac2de] hover:text-[#cdd6f4] transition-all duration-200 text-left cursor-pointer active:scale-95"
                 >
                   {prompt}
                 </button>
@@ -187,28 +187,29 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
             </div>
 
             {/* Input Footer */}
-            <div className="p-3 bg-[#0b0e14]">
+            <div className="p-3 bg-[#11111b] border-t border-[#313244]">
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   handleSendMessage();
                 }}
-                className="flex gap-2"
+                className="flex items-center gap-2"
               >
                 <input
                   type="text"
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
-                  placeholder="สอบถามอินเทอร์เน็ต ห้องประชุม ค่าน้ำมัน หรืองบ..."
-                  className="flex-1 py-2 px-3 bg-[#1a2230] rounded-lg text-white text-xs placeholder:text-[#64748b] focus:outline-none focus:ring-1 focus:ring-[#10b981]"
-                >
-                </input>
+                  placeholder="ถามสเปกเน็ต ห้องประชุม งบประมาณ หรือกิจกรรม..."
+                  className="flex-1 py-2.5 px-4 bg-[#181825] border border-[#45475a] rounded-full text-[#cdd6f4] text-xs placeholder:text-[#6c7086] focus:outline-none focus:border-[#cba6f7]/70 focus:bg-[#181825] transition-all duration-200"
+                />
                 <button
                   type="submit"
                   disabled={!inputText.trim() || isTyping}
-                  className="py-2 px-4 bg-[#10b981] hover:bg-[#059669] text-white rounded-lg text-xs font-semibold transition-colors duration-150 disabled:opacity-40 cursor-pointer"
+                  className="w-9 h-9 rounded-full bg-gradient-to-r from-[#cba6f7] to-[#b4befe] hover:from-[#d5b8ff] hover:to-[#c6cfff] text-[#11111b] flex items-center justify-center shrink-0 transition-all duration-200 disabled:opacity-40 cursor-pointer shadow-md active:scale-95"
                 >
-                  ส่ง
+                  <svg className="w-4 h-4 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                  </svg>
                 </button>
               </form>
             </div>
