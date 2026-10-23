@@ -124,16 +124,9 @@ function App() {
   };
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col bg-[#070c18] overflow-x-hidden">
-      {/* Ambient glowing fluid background blobs */}
-      <div className="ambient-blobs-container">
-        <div className="ambient-blob-1" />
-        <div className="ambient-blob-2" />
-        <div className="ambient-blob-3" />
-      </div>
-
-      {/* Main App Content */}
-      <main className="flex-1 w-full flex flex-col justify-center relative z-10">
+    <div className="relative min-h-dvh w-full flex flex-col bg-[#0b0e14] text-slate-100 antialiased">
+      {/* Main Viewport Container */}
+      <main className="flex-1 w-full flex flex-col justify-center relative">
         <AnimatePresence mode="wait">
           {renderView()}
         </AnimatePresence>
@@ -146,7 +139,7 @@ function App() {
         onToggle={() => setIsConciergeOpen((prev) => !prev)}
       />
 
-      {/* "Make Me Money" Business Model / Pitch Dossier Modal */}
+      {/* Business Model / Pitch Dossier Modal */}
       <BusinessModelModal
         isOpen={isBusinessModalOpen}
         onClose={() => setIsBusinessModalOpen(false)}

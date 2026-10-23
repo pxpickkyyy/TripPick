@@ -31,14 +31,14 @@ export interface TravelDestination {
 }
 
 export const ALL_AMENITIES: BusinessAmenity[] = [
-  { id: 'wifi', name: 'อินเทอร์เน็ต Starlink / Fiber 500+ Mbps', icon: '📶', category: 'connectivity' },
-  { id: 'boardroom', name: 'ห้องประชุมผู้บริหาร & ระบบ AV ครบครัน', icon: '🖥️', category: 'workspace' },
-  { id: 'private_pool', name: 'สระว่ายน้ำส่วนตัวริมผา/ติดหาด', icon: '🏊‍♂️', category: 'leisure' },
-  { id: 'team_dining', name: 'เชฟส่วนตัว & จัดเลี้ยงอาหารสำหรับทีม', icon: '🍽️', category: 'hospitality' },
-  { id: 'airport_shuttle', name: 'รถตู้ VIP รับ-ส่งสนามบินส่วนตัว', icon: '🚐', category: 'hospitality' },
-  { id: 'coworking', name: 'โซนทำงาน Coworking พร้อมวิวธรรมชาติ', icon: '💼', category: 'workspace' },
-  { id: 'wellness', name: 'สปา นวดแผนไทย & คลาสโยคะผ่อนคลาย', icon: '🧘‍♀️', category: 'leisure' },
-  { id: 'adventure', name: 'ล่องเรือยอชต์ส่วนตัว & กิจกรรมกระชับมิตร', icon: '⛵', category: 'leisure' },
+  { id: 'wifi', name: 'อินเทอร์เน็ต Starlink / Fiber 500+ Mbps', icon: 'เน็ต', category: 'connectivity' },
+  { id: 'boardroom', name: 'ห้องประชุมผู้บริหาร & ระบบ AV ครบครัน', icon: 'ประชุม', category: 'workspace' },
+  { id: 'private_pool', name: 'สระว่ายน้ำส่วนตัวริมผา/ติดหาด', icon: 'สระว่ายน้ำ', category: 'leisure' },
+  { id: 'team_dining', name: 'เชฟส่วนตัว & จัดเลี้ยงอาหารสำหรับทีม', icon: 'อาหาร', category: 'hospitality' },
+  { id: 'airport_shuttle', name: 'รถตู้ VIP รับ-ส่งสนามบินส่วนตัว', icon: 'รถตู้ VIP', category: 'hospitality' },
+  { id: 'coworking', name: 'โซนทำงาน Coworking พร้อมวิวธรรมชาติ', icon: 'ทำงาน', category: 'workspace' },
+  { id: 'wellness', name: 'สปา นวดแผนไทย & คลาสโยคะผ่อนคลาย', icon: 'สปา', category: 'leisure' },
+  { id: 'adventure', name: 'ล่องเรือยอชต์ส่วนตัว & กิจกรรมกระชับมิตร', icon: 'กิจกรรม', category: 'leisure' },
 ];
 
 export const CURATED_DESTINATIONS: TravelDestination[] = [

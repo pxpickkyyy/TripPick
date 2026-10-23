@@ -17,18 +17,28 @@ interface Message {
 }
 
 const QUICK_PROMPTS = [
-  '📶 ตรวจสอบความเร็วเน็ตและห้องประชุม',
-  '💰 คำนวณงบประมาณสำหรับ 12 คน',
-  '🌴 แนะนำกิจกรรมกระชับมิตรในพื้นที่',
-  '👥 ใครอยู่ในห้องนี้บ้างในขณะนี้?'
+  'ตรวจสอบความเร็วเน็ตและห้องประชุม',
+  'คำนวณงบประมาณสำหรับ 12 ท่าน',
+  'แนะนำกิจกรรมเชื่อมความสัมพันธ์ในทีม',
+  'สรุปสมาชิกที่อยู่ในห้องขณะนี้'
 ];
+
+function createChatMessage(sender: 'user' | 'concierge', text: string): Message {
+  const timestamp = new Date();
+  return {
+    id: `${sender}_${timestamp.getTime()}_${Math.random().toString(36).slice(2, 7)}`,
+    sender,
+    text,
+    time: timestamp.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+  };
+}
 
 export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDrawerProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'init_1',
       sender: 'concierge',
-      text: "👋 สวัสดีครับ! ผมคือ **TripPick AI Concierge** (ประมวลผลด้วยโมเดล DeepSeek V4.1 Flash 1017) ผมคอยอ่านข้อมูลสถานที่บนหน้าจอ คำนวณงบประมาณรายบุคคล และดูแลให้ทริปทีมของคุณคุ้มค่าสูงสุด มีอะไรให้ผมช่วยแนะนำไหมครับ?",
+      text: "สวัสดีครับ ผมคือ TripPick AI Concierge ขับเคลื่อนด้วย DeepSeek V4.1 Flash 1017 พร้อมช่วยคำนวณงบประมาณ วิเคราะห์สเปกสถานที่ และสนับสนุนการตัดสินใจของทีม มีเรื่องใดให้ช่วยแนะนำได้เลยครับ",
       time: 'เมื่อสักครู่'
     }
   ]);
@@ -44,12 +54,7 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
     const text = textToSend || inputText;
     if (!text.trim() || isTyping) return;
 
-    const userMsg: Message = {
-      id: 'usr_' + Date.now(),
-      sender: 'user',
-      text: text.trim(),
-      time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
-    };
+    const userMsg = createChatMessage('user', text.trim());
 
     setMessages(prev => [...prev, userMsg]);
     if (!textToSend) setInputText('');
@@ -66,12 +71,7 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
       const history = messages.map(m => ({ sender: m.sender, text: m.text }));
       const response = await fetchAiChatResponse(text, ctx, history);
 
-      const aiMsg: Message = {
-        id: 'ai_' + Date.now(),
-        sender: 'concierge',
-        text: response,
-        time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
-      };
+      const aiMsg = createChatMessage('concierge', response);
       setMessages(prev => [...prev, aiMsg]);
     } catch (err) {
       console.error('Concierge response error:', err);
@@ -84,96 +84,102 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
     <>
       {/* Floating Toggle Pill Button */}
       <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
         onClick={onToggle}
-        className="fixed bottom-6 right-6 z-40 py-2.5 px-4 rounded-full bg-gradient-to-r from-cyan-600 to-emerald-600 text-white font-mono text-xs font-bold shadow-xl shadow-cyan-500/25 flex items-center gap-2 cursor-pointer border border-cyan-400/30"
+        className="fixed bottom-6 right-6 z-40 py-2.5 px-4 rounded-full bg-[#10b981] hover:bg-[#059669] text-white text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors duration-150"
       >
-        <span className="text-base">🛎️</span>
-        <span>AI ผู้ช่วยจัดทริป</span>
-        <span className="flex h-2 w-2 relative">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-        </span>
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+        <span>ผู้ช่วย AI</span>
+        <span className="inline-block h-2 w-2 rounded-full bg-white opacity-80" />
       </motion.button>
 
       {/* Drawer Overlay */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, x: 340 }}
+            initial={{ opacity: 0, x: 360 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 340 }}
+            exit={{ opacity: 0, x: 360 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 bottom-0 w-full sm:w-96 glass-panel-glow border-l border-slate-700/80 z-50 flex flex-col shadow-2xl"
+            className="fixed top-0 right-0 bottom-0 w-full sm:w-96 bg-[#131822] z-50 flex flex-col"
           >
             {/* Header */}
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center text-sm shadow">
-                  🛎️
+            <div className="p-4 bg-[#0e121a] flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-[#1a2230] text-[#10b981] flex items-center justify-center">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider">
+                  <h3 className="text-sm font-semibold text-[#f8fafc]">
                     TripPick AI Concierge
                   </h3>
-                  <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> {FIXED_AI_MODEL_NAME}
+                  <span className="text-xs text-[#10b981] flex items-center gap-1.5 tabular-nums">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
+                    {FIXED_AI_MODEL_NAME}
                   </span>
                 </div>
               </div>
 
               <button
                 onClick={onToggle}
-                className="text-slate-400 hover:text-white text-base font-mono cursor-pointer"
+                aria-label="ปิดแชท"
+                className="text-[#94a3b8] hover:text-white p-1 transition-colors duration-150 cursor-pointer"
               >
-                ✕
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
             {/* Live Context Telemetry Banner */}
-            <div className="p-2.5 bg-slate-900/90 border-b border-slate-800 text-[10px] font-mono text-slate-300">
-              <span className="text-cyan-400 font-bold">สถานที่บนหน้าจอ: </span>
-              {roomContext.current?.currentDestination?.title || 'อยู่ในหน้าล็อบบี้'}
+            <div className="px-4 py-2.5 bg-[#1a2230] text-xs text-[#94a3b8] flex items-center justify-between">
+              <span className="text-[#10b981] font-medium">สถานที่บนจอ:</span>
+              <span className="text-[#f8fafc] truncate max-w-[200px]">
+                {roomContext.current?.currentDestination?.title || 'อยู่ในหน้าล็อบบี้'}
+              </span>
             </div>
 
             {/* Messages Chat List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#131822]">
               {messages.map((m) => (
                 <div
                   key={m.id}
                   className={`flex flex-col ${m.sender === 'user' ? 'items-end' : 'items-start'}`}
                 >
                   <div
-                    className={`max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed whitespace-pre-wrap ${
+                    className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed whitespace-pre-wrap ${
                       m.sender === 'user'
-                        ? 'bg-cyan-600 text-white rounded-tr-none'
-                        : 'bg-slate-900/90 border border-slate-700 text-slate-200 rounded-tl-none font-sans'
+                        ? 'bg-[#10b981] text-white rounded-tr-sm'
+                        : 'bg-[#0e121a] text-[#f8fafc] rounded-tl-sm'
                     }`}
                   >
                     {m.text}
                   </div>
-                  <span className="text-[9px] font-mono text-slate-500 mt-1 px-1">{m.time}</span>
+                  <span className="text-[11px] text-[#64748b] mt-1 px-1 tabular-nums">{m.time}</span>
                 </div>
               ))}
 
               {isTyping && (
-                <div className="flex items-center gap-1 p-2 rounded-xl bg-slate-900/60 border border-slate-800 w-fit">
-                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-bounce"></span>
-                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-bounce [animation-delay:0.2s]"></span>
-                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-bounce [animation-delay:0.4s]"></span>
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#0e121a] w-fit text-xs text-[#94a3b8]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
+                  <span>กำลังวิเคราะห์และเรียบเรียงคำตอบ...</span>
                 </div>
               )}
               <div ref={messagesEndRef} />
             </div>
 
             {/* Quick Prompts */}
-            <div className="p-2 border-t border-slate-800 flex flex-wrap gap-1 bg-black/40">
+            <div className="p-3 bg-[#0e121a] flex flex-wrap gap-1.5">
               {QUICK_PROMPTS.map((prompt) => (
                 <button
                   key={prompt}
                   onClick={() => handleSendMessage(prompt)}
-                  className="text-[10px] font-mono px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-300 transition-colors text-left"
+                  className="text-xs px-2.5 py-1.5 rounded-md bg-[#1a2230] hover:bg-[#242f42] text-[#f8fafc] transition-colors duration-150 text-left cursor-pointer"
                 >
                   {prompt}
                 </button>
@@ -181,7 +187,7 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
             </div>
 
             {/* Input Footer */}
-            <div className="p-3 border-t border-slate-800 bg-slate-950">
+            <div className="p-3 bg-[#0b0e14]">
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -193,13 +199,14 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
                   type="text"
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
-                  placeholder="ถามเรื่องเน็ต ห้องประชุม งบประมาณ..."
-                  className="flex-1 py-2 px-3 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-cyan-500"
-                />
+                  placeholder="สอบถามอินเทอร์เน็ต ห้องประชุม ค่าน้ำมัน หรืองบ..."
+                  className="flex-1 py-2 px-3 bg-[#1a2230] rounded-lg text-white text-xs placeholder:text-[#64748b] focus:outline-none focus:ring-1 focus:ring-[#10b981]"
+                >
+                </input>
                 <button
                   type="submit"
                   disabled={!inputText.trim() || isTyping}
-                  className="py-2 px-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-40"
+                  className="py-2 px-4 bg-[#10b981] hover:bg-[#059669] text-white rounded-lg text-xs font-semibold transition-colors duration-150 disabled:opacity-40 cursor-pointer"
                 >
                   ส่ง
                 </button>
