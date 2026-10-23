@@ -27,7 +27,7 @@ export function SwiperView({
   isHost = false,
   onRestartSession,
 }: SwiperViewProps) {
-  const [activePhotoIdx] = useState<{ [key: number]: number }>({});
+  const [activePhotoIdx, setActivePhotoIdx] = useState<{ [key: number]: number }>({});
   const [showTour, setShowTour] = useState<TravelDestination | null>(null);
 
   // Motion values for swipe drag physics
@@ -102,7 +102,7 @@ export function SwiperView({
       </div>
 
       {/* Main Swiper Deck Area */}
-      <div className="relative w-full max-w-md h-[560px] flex items-center justify-center">
+      <div className="relative w-full max-w-md h-[580px] flex items-center justify-center">
         {isWaitingForOthers ? (
           <motion.div
             initial={{ opacity: 0 }}
@@ -134,10 +134,10 @@ export function SwiperView({
                 handleSwipe(topCard.id, false, false);
               }
             }}
-            className="absolute inset-0 rounded-3xl overflow-hidden bg-[#131822] cursor-grab active:cursor-grabbing flex flex-col justify-between"
+            className="absolute inset-0 rounded-3xl overflow-hidden bg-[#131822] cursor-grab active:cursor-grabbing flex flex-col"
           >
-            {/* Background Image with Scrim */}
-            <div className="absolute inset-0 -z-10">
+            {/* Top Photo Viewport */}
+            <div className="relative w-full h-[245px] bg-[#0e121a] overflow-hidden shrink-0">
               <img
                 src={
                   topCard.gallery && topCard.gallery.length > 0
@@ -145,37 +145,91 @@ export function SwiperView({
                     : topCard.hero_image
                 }
                 alt={topCard.title}
-                className="w-full h-full object-cover brightness-[0.8]"
+                className="w-full h-full object-cover select-none pointer-events-none"
+                loading="eager"
               />
-              <div className="absolute inset-0 bg-[#070c18] opacity-60" />
+
+              {/* Location & Rating Overlaid on Photo */}
+              <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-2 z-10 pointer-events-none">
+                <span className="px-3 py-1 rounded-full bg-[#0b0e14]/85 text-white text-xs font-medium">
+                  {topCard.city}, {topCard.country}
+                </span>
+                <span className="px-3 py-1 rounded-full bg-[#14231e]/90 text-emerald-300 text-xs font-semibold tabular-data">
+                  คะแนน {topCard.rating} ({topCard.reviews_count} รีวิว)
+                </span>
+              </div>
+
+              {/* Photo Gallery Navigation Controls */}
+              {topCard.gallery && topCard.gallery.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="ภาพก่อนหน้า"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const current = activePhotoIdx[topCard.id] || 0;
+                      const next = (current - 1 + topCard.gallery.length) % topCard.gallery.length;
+                      setActivePhotoIdx((prev) => ({ ...prev, [topCard.id]: next }));
+                    }}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[#0b0e14]/75 hover:bg-[#0b0e14] text-white flex items-center justify-center cursor-pointer z-10 transition-colors duration-150"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+
+                  <button
+                    type="button"
+                    aria-label="ภาพถัดไป"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const current = activePhotoIdx[topCard.id] || 0;
+                      const next = (current + 1) % topCard.gallery.length;
+                      setActivePhotoIdx((prev) => ({ ...prev, [topCard.id]: next }));
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[#0b0e14]/75 hover:bg-[#0b0e14] text-white flex items-center justify-center cursor-pointer z-10 transition-colors duration-150"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-10 px-2.5 py-1 rounded-full bg-[#0b0e14]/75">
+                    {topCard.gallery.map((_, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        aria-label={`ภาพลำดับที่ ${idx + 1}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActivePhotoIdx((prev) => ({ ...prev, [topCard.id]: idx }));
+                        }}
+                        className={`h-1.5 rounded-full transition-colors duration-150 cursor-pointer ${
+                          (activePhotoIdx[topCard.id] || 0) === idx ? 'bg-white w-3' : 'bg-white/40 w-1.5'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Like / Reject Badges on Drag */}
             <motion.div
               style={{ opacity: likeBadgeOpacity }}
-              className="absolute top-6 right-6 px-4 py-1.5 rounded-lg bg-[#059669] text-white font-bold text-base uppercase rotate-6"
+              className="absolute top-6 right-6 px-4 py-1.5 rounded-lg bg-[#059669] text-white font-bold text-base uppercase rotate-6 pointer-events-none z-20"
             >
               ถูกใจ
             </motion.div>
             <motion.div
               style={{ opacity: rejectBadgeOpacity }}
-              className="absolute top-6 left-6 px-4 py-1.5 rounded-lg bg-[#e11d48] text-white font-bold text-base uppercase -rotate-6"
+              className="absolute top-6 left-6 px-4 py-1.5 rounded-lg bg-[#e11d48] text-white font-bold text-base uppercase -rotate-6 pointer-events-none z-20"
             >
               ผ่าน
             </motion.div>
 
-            {/* Top Card Badges */}
-            <div className="p-5 flex items-center justify-between gap-2 z-10">
-              <span className="px-3 py-1 rounded-full bg-[#0b0e14] text-slate-200 text-xs font-medium">
-                {topCard.city}, {topCard.country}
-              </span>
-              <span className="px-3 py-1 rounded-full bg-[#14231e] text-emerald-300 text-xs font-semibold tabular-data">
-                คะแนน {topCard.rating} ({topCard.reviews_count} รีวิว)
-              </span>
-            </div>
-
             {/* Bottom Content Info */}
-            <div className="p-6 text-left z-10 space-y-3 bg-[#0d121aa6]">
+            <div className="p-4 sm:p-5 text-left flex-1 flex flex-col justify-between space-y-2.5 bg-[#131822]">
               {/* Category & Verified WiFi */}
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-200 font-medium px-2.5 py-1 rounded bg-[#1c2432]">
@@ -187,12 +241,12 @@ export function SwiperView({
               </div>
 
               {/* Title */}
-              <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight">
+              <h2 className="text-lg sm:text-xl font-bold text-white leading-snug">
                 {topCard.title}
               </h2>
 
               {/* AI Rationale */}
-              <div className="p-3 rounded-xl bg-[#131924] text-slate-200 text-xs leading-relaxed">
+              <div className="p-2.5 rounded-xl bg-[#0e121a] text-slate-200 text-xs leading-relaxed">
                 <span className="text-emerald-400 font-semibold">เหตุผลจาก AI: </span>
                 {topCard.ai_reason}
               </div>
@@ -202,7 +256,7 @@ export function SwiperView({
                 {topCard.business_amenities.slice(0, 3).map((a, i) => (
                   <span
                     key={i}
-                    className="text-xs px-2.5 py-1 rounded-md bg-[#10151e] text-slate-300"
+                    className="text-xs px-2.5 py-1 rounded-md bg-[#0e121a] text-slate-300"
                   >
                     {a}
                   </span>
@@ -210,9 +264,9 @@ export function SwiperView({
               </div>
 
               {/* Pricing & Virtual Tour Button */}
-              <div className="flex items-center justify-between pt-2">
+              <div className="flex items-center justify-between pt-1">
                 <div>
-                  <span className="text-xl font-bold text-white tabular-data">
+                  <span className="text-lg font-bold text-white tabular-data">
                     {topCard.price_per_person.toLocaleString()}
                   </span>
                   <span className="text-xs text-slate-400"> บาท/คน/คืน</span>
@@ -222,6 +276,7 @@ export function SwiperView({
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => setShowTour(topCard)}
                   className="py-2 px-3 rounded-xl bg-[#202937] hover:bg-[#2a3649] text-slate-200 text-xs font-medium cursor-pointer transition-colors duration-150"
                 >

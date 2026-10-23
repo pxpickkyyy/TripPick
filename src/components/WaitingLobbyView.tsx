@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import type { RoomUser } from '../hooks/useTripPick';
-import { FIXED_AI_MODEL_NAME } from '../lib/ai';
 
 interface WaitingLobbyViewProps {
   roomId: string;
@@ -124,20 +123,6 @@ export function WaitingLobbyView({
           </div>
         </div>
 
-        {/* Fixed AI Engine Badge */}
-        <div className="p-4 my-2 rounded-xl bg-[#0e121a] flex items-center justify-between text-left">
-          <div>
-            <span className="text-xs text-slate-400 block mb-0.5">
-              ระบบปัญญาประดิษฐ์ประมวลผล
-            </span>
-            <span className="text-sm font-semibold text-white">
-              {FIXED_AI_MODEL_NAME}
-            </span>
-          </div>
-          <span className="text-xs px-2.5 py-1 rounded bg-[#162720] text-emerald-300 font-medium">
-            เปิดใช้งานอยู่
-          </span>
-        </div>
 
         {/* Retreat Theme / Vibe Selector (Host only) */}
         {isHost ? (
