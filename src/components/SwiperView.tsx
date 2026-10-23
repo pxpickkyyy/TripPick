@@ -47,7 +47,6 @@ export function SwiperView({
   );
 
   const handleSimulateTeammateMatch = async (destinationId: number) => {
-    // Like for self and simulate consensus
     await onSubmitSwipe(destinationId, true, false);
   };
 
@@ -59,7 +58,7 @@ export function SwiperView({
       <div className="w-full max-w-md flex items-center justify-between mb-4 px-2">
         <div className="flex items-center gap-2">
           <span className="text-xs font-mono font-bold text-cyan-400 bg-cyan-950/60 border border-cyan-500/30 px-2.5 py-1 rounded-xl">
-            ROOM: {roomId}
+            ห้อง: {roomId}
           </span>
           <span className="text-xs font-mono text-slate-400">
             {destinationsDeck.length - unswipedDestinations.length + 1} / {destinationsDeck.length}
@@ -71,10 +70,10 @@ export function SwiperView({
           {topCard && (
             <button
               onClick={() => handleSimulateTeammateMatch(topCard.id)}
-              title="Instant consensus match for demo purposes"
+              title="ทดสอบเกิดฉันทามติทันทีสำหรับการประเมิน"
               className="py-1 px-2.5 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 rounded-xl text-[11px] font-mono font-bold cursor-pointer transition-all"
             >
-              ⚡ Instant Match Demo
+              ⚡ ทดสอบเกิด Match ทันที
             </button>
           )}
 
@@ -82,7 +81,7 @@ export function SwiperView({
             onClick={onLeave}
             className="text-xs font-mono text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
           >
-            Leave
+            ออก
           </button>
         </div>
       </div>
@@ -115,16 +114,16 @@ export function SwiperView({
             <div className="w-16 h-16 rounded-full bg-cyan-950 border border-cyan-500/40 flex items-center justify-center text-2xl mb-4 animate-bounce">
               ⏳
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">Deck Complete!</h3>
+            <h3 className="text-xl font-bold text-white mb-2">ปัดครบทุกสถานที่แล้ว!</h3>
             <p className="text-xs text-slate-300 font-mono leading-relaxed mb-6">
-              You’ve swiped through all retreat options. Waiting for your teammates to finish voting to calculate consensus matches.
+              คุณได้โหวตครบทุกตัวเลือกแล้ว ขณะนี้กำลังรอเพื่อนร่วมทีมคนอื่นๆ โหวตให้ครบเพื่อคำนวณหาสถานที่ที่ทุกคนเห็นตรงกันครับ
             </p>
             {isHost && onRestartSession && (
               <button
                 onClick={onRestartSession}
                 className="py-2.5 px-5 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-cyan-300 text-xs font-mono font-bold uppercase rounded-xl transition-all cursor-pointer"
               >
-                Restart Session Deck
+                เริ่มรอบการโหวตใหม่
               </button>
             )}
           </motion.div>
@@ -161,13 +160,13 @@ export function SwiperView({
               style={{ opacity: likeBadgeOpacity }}
               className="absolute top-6 right-6 px-4 py-1.5 rounded-xl border-2 border-emerald-400 bg-emerald-950/80 text-emerald-300 font-black font-mono text-lg tracking-widest uppercase rotate-12 shadow-lg"
             >
-              YES! 👍
+              ถูกใจ! 👍
             </motion.div>
             <motion.div
               style={{ opacity: rejectBadgeOpacity }}
               className="absolute top-6 left-6 px-4 py-1.5 rounded-xl border-2 border-rose-500 bg-rose-950/80 text-rose-300 font-black font-mono text-lg tracking-widest uppercase -rotate-12 shadow-lg"
             >
-              PASS ✕
+              ข้าม ✕
             </motion.div>
 
             {/* Top Card Badges */}
@@ -176,7 +175,7 @@ export function SwiperView({
                 {topCard.city}, {topCard.country}
               </span>
               <span className="px-2.5 py-1 rounded-full bg-emerald-950/80 backdrop-blur-md border border-emerald-500/40 text-emerald-300 font-mono text-[10px] font-bold">
-                ★ {topCard.rating} ({topCard.reviews_count} reviews)
+                ★ {topCard.rating} ({topCard.reviews_count} รีวิว)
               </span>
             </div>
 
@@ -188,7 +187,7 @@ export function SwiperView({
                   {topCard.category}
                 </span>
                 <span className="text-[10px] font-mono text-emerald-400 font-bold px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/30">
-                  📶 {topCard.wifi_speed_mbps} Mbps Starlink
+                  📶 เน็ต Starlink {topCard.wifi_speed_mbps} Mbps
                 </span>
               </div>
 
@@ -199,7 +198,7 @@ export function SwiperView({
 
               {/* AI Rationale */}
               <div className="p-2.5 rounded-xl bg-slate-900/80 border border-cyan-500/30 text-cyan-200 text-xs font-mono leading-relaxed shadow-sm">
-                <span className="text-cyan-400 font-bold">AI Rationale: </span>
+                <span className="text-cyan-400 font-bold">เหตุผลจาก AI: </span>
                 {topCard.ai_reason}
               </div>
 
@@ -219,11 +218,11 @@ export function SwiperView({
               <div className="flex items-center justify-between pt-1">
                 <div>
                   <span className="text-lg font-black font-mono text-white">
-                    ${topCard.price_per_person}
+                    {topCard.price_per_person.toLocaleString()}
                   </span>
-                  <span className="text-[10px] font-mono text-slate-400 uppercase"> / person / night</span>
+                  <span className="text-[10px] font-mono text-slate-400"> บาท/คน/คืน</span>
                   <span className="block text-[9px] font-mono text-emerald-400">
-                    Est. Comm: ${Math.round(topCard.price_per_night * (topCard.commission_percentage / 100))}/booking
+                    คอมมิชชั่น B2B: ~{Math.round(topCard.price_per_night * (topCard.commission_percentage / 100)).toLocaleString()} บาท/การจอง
                   </span>
                 </div>
 
@@ -231,14 +230,14 @@ export function SwiperView({
                   onClick={() => setShowTour(topCard)}
                   className="py-1 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-600 text-cyan-300 text-[11px] font-mono font-semibold cursor-pointer transition-all"
                 >
-                  👁️ View Details
+                  👁️ ดูรายละเอียด
                 </button>
               </div>
             </div>
           </motion.div>
         ) : (
           <div className="text-center text-slate-400 font-mono text-xs">
-            No more retreat cards left.
+            ไม่พบสถานที่เพิ่มเติมในตัวกรองนี้
           </div>
         )}
       </div>
@@ -252,7 +251,7 @@ export function SwiperView({
             whileTap={{ scale: 0.9 }}
             onClick={() => handleSwipe(topCard.id, false, false)}
             className="w-14 h-14 rounded-full bg-slate-900/90 border border-rose-500/40 text-rose-400 hover:bg-rose-950/60 text-xl font-bold flex items-center justify-center shadow-lg transition-all cursor-pointer"
-            title="Pass / Reject"
+            title="ไม่สนใจ / ข้าม"
           >
             ✕
           </motion.button>
@@ -263,7 +262,7 @@ export function SwiperView({
             whileTap={{ scale: 0.9 }}
             onClick={() => handleSwipe(topCard.id, false, true)}
             className="w-11 h-11 rounded-full bg-slate-900/90 border border-amber-500/40 text-amber-400 hover:bg-amber-950/60 text-sm font-mono font-bold flex items-center justify-center shadow-lg transition-all cursor-pointer"
-            title="Veto (Hard No for the whole team)"
+            title="ยับยั้ง (Veto สิทธิ์คัดค้านเด็ดขาด)"
           >
             🚫
           </motion.button>
@@ -274,7 +273,7 @@ export function SwiperView({
             whileTap={{ scale: 0.9 }}
             onClick={() => handleSwipe(topCard.id, true, false)}
             className="w-16 h-16 rounded-full bg-gradient-to-tr from-cyan-600 to-emerald-500 text-white hover:from-cyan-500 hover:to-emerald-400 text-2xl font-bold flex items-center justify-center shadow-xl shadow-cyan-500/30 transition-all cursor-pointer"
-            title="Vote Yes / Like"
+            title="ถูกใจ / โหวตสถานที่นี้"
           >
             💚
           </motion.button>
@@ -284,7 +283,7 @@ export function SwiperView({
       {/* Live Team Reaction Emojis Toolbar */}
       {sendBroadcastEmoji && (
         <div className="flex items-center gap-2 mt-4 px-3 py-1.5 rounded-full bg-slate-900/70 border border-slate-800">
-          <span className="text-[10px] font-mono text-slate-500 uppercase mr-1">React:</span>
+          <span className="text-[10px] font-mono text-slate-500 uppercase mr-1">ส่งรีแอคชั่น:</span>
           {reactionEmojis.map((emoji) => (
             <button
               key={emoji}
@@ -326,7 +325,9 @@ export function SwiperView({
 
             <p className="text-xs text-slate-300 leading-relaxed mb-4">{showTour.overview}</p>
 
-            <h4 className="text-xs font-mono uppercase text-cyan-300 font-bold mb-2">Business &amp; MICE Facilities</h4>
+            <h4 className="text-xs font-mono uppercase text-cyan-300 font-bold mb-2">
+              สิ่งอำนวยความสะดวกสำหรับธุรกิจ &amp; สัมมนา (MICE)
+            </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
               {showTour.business_amenities.map((a, i) => (
                 <div key={i} className="text-xs font-mono p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-200">
@@ -335,7 +336,9 @@ export function SwiperView({
               ))}
             </div>
 
-            <h4 className="text-xs font-mono uppercase text-emerald-400 font-bold mb-2">Team Adventures &amp; Excursions</h4>
+            <h4 className="text-xs font-mono uppercase text-emerald-400 font-bold mb-2">
+              กิจกรรมกระชับมิตร &amp; ท่องเที่ยวในพื้นที่
+            </h4>
             <div className="space-y-1 mb-6">
               {showTour.tourism_highlights.map((t, i) => (
                 <p key={i} className="text-xs text-slate-300 font-mono">✦ {t}</p>
@@ -346,7 +349,7 @@ export function SwiperView({
               onClick={() => setShowTour(null)}
               className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-mono text-xs font-bold uppercase rounded-xl transition-all cursor-pointer"
             >
-              Close &amp; Resume Swiping
+              ปิดและกลับไปปัดเลือกต่อ
             </button>
           </motion.div>
         </div>

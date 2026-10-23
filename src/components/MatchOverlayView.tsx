@@ -49,13 +49,13 @@ export function MatchOverlayView({
         className="mb-4"
       >
         <span className="inline-block px-4 py-1.5 rounded-full bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 font-mono text-xs uppercase tracking-widest font-bold shadow-[0_0_20px_rgba(16,185,129,0.3)] mb-2">
-          🎉 Group Consensus Reached!
+          🎉 สรุปผลสำเร็จ: เกิดฉันทามติของทีมแล้ว!
         </span>
         <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight uppercase">
-          It’s an Offsite <span className="bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent">Match!</span>
+          ทริปออฟไซต์นี้... <span className="bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent">แมตช์แล้ว!</span>
         </h1>
         <p className="text-xs md:text-sm font-mono text-slate-300 mt-1">
-          Your team agreed on the perfect corporate retreat. Zero debates, 100% excitement.
+          ทุกคนในทีมโหวตเห็นชอบตรงกัน 100% ไร้ข้อโต้แย้ง พร้อมเริ่มต้นทริปได้ทันที
         </p>
       </motion.div>
 
@@ -90,7 +90,7 @@ export function MatchOverlayView({
         </p>
 
         {/* Business Perks Grid */}
-        <div className="grid grid-cols-2 gap-2 mb-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5">
           {matchedDestination.business_amenities.slice(0, 4).map((a, i) => (
             <div key={i} className="text-[11px] font-mono p-2 rounded-xl bg-slate-900/80 border border-slate-700/80 text-cyan-200 flex items-center gap-1.5">
               <span className="text-emerald-400 font-bold">✓</span>
@@ -103,17 +103,17 @@ export function MatchOverlayView({
         <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900/90 to-cyan-950/40 border border-emerald-500/30 mb-6">
           <div className="flex items-center justify-between pb-2 border-b border-slate-800">
             <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 font-bold flex items-center gap-1">
-              <span>💰</span> Make Me Money: B2B Revenue Engine
+              <span>💰</span> กลไกสร้างรายได้: Make Me Money (คอมมิชชั่น B2B)
             </span>
             <span className="text-[10px] font-mono text-slate-400">
-              {matchedDestination.commission_percentage}% Commission Tier
+              ส่วนแบ่งคอมมิชชั่น {matchedDestination.commission_percentage}%
             </span>
           </div>
 
           <div className="grid grid-cols-2 gap-3 my-3">
             <div>
               <label className="text-[10px] font-mono text-slate-400 uppercase block mb-1">
-                Attendees: <span className="text-white font-bold">{teamSize} people</span>
+                จำนวนสมาชิก: <span className="text-white font-bold">{teamSize} ท่าน</span>
               </label>
               <input
                 type="range"
@@ -126,7 +126,7 @@ export function MatchOverlayView({
             </div>
             <div>
               <label className="text-[10px] font-mono text-slate-400 uppercase block mb-1">
-                Duration: <span className="text-white font-bold">{nights} nights</span>
+                ระยะเวลาพัก: <span className="text-white font-bold">{nights} คืน</span>
               </label>
               <input
                 type="range"
@@ -141,12 +141,12 @@ export function MatchOverlayView({
 
           <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800/80">
             <div>
-              <span className="text-[10px] font-mono text-slate-400 uppercase">Gross Booking Value:</span>
-              <p className="text-base font-black font-mono text-white">${totalCost.toLocaleString()} USD</p>
+              <span className="text-[10px] font-mono text-slate-400 uppercase">มูลค่ายอดจองรวม (GBV):</span>
+              <p className="text-base font-black font-mono text-white">{totalCost.toLocaleString()} บาท</p>
             </div>
             <div className="text-right">
-              <span className="text-[10px] font-mono text-emerald-400 uppercase font-bold">TripPick Affiliate Take:</span>
-              <p className="text-base font-black font-mono text-emerald-400">+${commissionEarned.toLocaleString()} USD</p>
+              <span className="text-[10px] font-mono text-emerald-400 uppercase font-bold">คอมมิชชั่นที่ TripPick ได้รับ:</span>
+              <p className="text-base font-black font-mono text-emerald-400">+{commissionEarned.toLocaleString()} บาท</p>
             </div>
           </div>
         </div>
@@ -160,14 +160,14 @@ export function MatchOverlayView({
             className="flex-1 py-3.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-mono text-xs font-bold uppercase rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] text-center flex items-center justify-center gap-2"
           >
             <span>🏨</span>
-            <span>Book Group Retreat Now</span>
+            <span>กดจองแพ็กเกจทริปกลุ่มทันที</span>
           </a>
 
           <button
             onClick={handleSendProposal}
             className="py-3.5 px-4 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-cyan-300 font-mono text-xs font-bold uppercase rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
           >
-            {proposalSent ? '✓ RFP Exported!' : '📑 Export Corporate Proposal'}
+            {proposalSent ? '✓ ออกใบเสนอราคาสำเร็จ!' : '📑 ส่งออกใบเสนอราคาองค์กร'}
           </button>
         </div>
 
@@ -176,7 +176,7 @@ export function MatchOverlayView({
             onClick={onReset}
             className="text-xs font-mono text-slate-400 hover:text-white transition-colors cursor-pointer"
           >
-            ← Plan Another Retreat Session
+            ← วางแผนทริปอื่นเพิ่มเติม
           </button>
         </div>
       </div>

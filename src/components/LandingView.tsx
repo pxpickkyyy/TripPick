@@ -26,7 +26,7 @@ export function LandingView({
     e.preventDefault();
     setJoinError(null);
     if (code.length !== 4) {
-      setJoinError('Room code must be exactly 4 characters.');
+      setJoinError('รหัสห้องต้องมีขนาด 4 ตัวอักษรพอดีครับ');
       return;
     }
     await onJoinRoom(code);
@@ -57,8 +57,8 @@ export function LandingView({
         </span>
         <span className="font-semibold text-emerald-400">Make Me Money</span>
         <span className="text-slate-400">•</span>
-        <span>Software for Business &amp; Tourism</span>
-        <span className="text-cyan-400 font-bold ml-1">View Business Model →</span>
+        <span>ซอฟต์แวร์เพื่อธุรกิจและการท่องเที่ยว</span>
+        <span className="text-cyan-400 font-bold ml-1">ดูแผนธุรกิจและโมเดลรายได้ →</span>
       </motion.div>
 
       {/* Main Logo & Headline */}
@@ -81,10 +81,10 @@ export function LandingView({
         </div>
 
         <p className="text-xs md:text-sm font-mono uppercase tracking-[0.25em] text-cyan-300/80 mb-3 font-semibold">
-          Corporate Retreats &amp; Group Tourism Consensus Engine
+          ระบบสร้างฉันทามติเพื่อจัดทริปออฟไซต์และสัมมนาองค์กร
         </p>
         <p className="text-sm md:text-base text-slate-300 max-w-lg leading-relaxed font-normal">
-          Stop 3-week Slack debates on where your team should travel. Swipe together on curated retreats, reach instant consensus, and monetize high-ticket B2B bookings.
+          ยุติปัญหาเถียงกันใน Slack หรือ LINE เป็นอาทิตย์ ให้ทีมปัดเลือกสถานที่จัดออฟไซต์แบบ Real-time หาข้อสรุปใน 3 นาที พร้อมปิดยอดจองสร้างรายได้คอมมิชชั่น B2B ทันที
         </p>
       </motion.div>
 
@@ -114,7 +114,7 @@ export function LandingView({
               <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
             </span>
-            Re-enter Team Room: {cachedRoomId}
+            กลับเข้าห้องเดิมของทีม: {cachedRoomId}
           </motion.button>
         )}
 
@@ -132,12 +132,12 @@ export function LandingView({
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
-              Creating Team Room...
+              กำลังสร้างห้องทริปใหม่...
             </span>
           ) : (
             <>
               <span>✨</span>
-              <span>Create New Team Retreat Room</span>
+              <span>สร้างห้องทริปใหม่สำหรับทีม</span>
             </>
           )}
         </motion.button>
@@ -145,7 +145,7 @@ export function LandingView({
         {/* Divider */}
         <div className="flex items-center my-2 text-slate-500">
           <div className="flex-1 h-[1px] bg-slate-800" />
-          <span className="px-4 text-[11px] font-mono uppercase tracking-widest text-slate-400 font-semibold">Or Join Existing</span>
+          <span className="px-4 text-[11px] font-mono uppercase tracking-widest text-slate-400 font-semibold">หรือเข้าร่วมห้องที่มีอยู่</span>
           <div className="flex-1 h-[1px] bg-slate-800" />
         </div>
 
@@ -159,7 +159,7 @@ export function LandingView({
               setCode(e.target.value.toUpperCase());
               if (joinError) setJoinError(null);
             }}
-            placeholder="ROOM CODE (e.g. TRIP)"
+            placeholder="รหัสห้อง 4 หลัก (เช่น TRIP)"
             disabled={loading}
             className="w-2/3 py-3.5 px-4 text-center font-mono text-sm tracking-widest uppercase bg-slate-900/80 border border-slate-700/60 focus:border-cyan-500/80 rounded-2xl focus:outline-none transition-all placeholder:text-slate-600 font-semibold text-white"
           />
@@ -170,23 +170,23 @@ export function LandingView({
             disabled={loading || code.length !== 4}
             className="w-1/3 py-3.5 bg-slate-800 hover:bg-slate-700 border border-slate-600/50 text-cyan-300 hover:text-white font-mono text-xs uppercase font-bold tracking-wider rounded-2xl transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center"
           >
-            Join
+            เข้าร่วม
           </motion.button>
         </form>
 
         {/* Bottom Metrics Pill */}
         <div className="mt-6 pt-4 border-t border-slate-800/80 grid grid-cols-3 gap-2 text-center">
           <div className="p-2 rounded-xl bg-slate-900/40 border border-slate-800">
-            <p className="text-[10px] font-mono text-slate-400 uppercase">Avg. Booking</p>
-            <p className="text-sm font-bold text-white font-mono">$8,500+</p>
+            <p className="text-[10px] font-mono text-slate-400 uppercase">ยอดจองเฉลี่ย</p>
+            <p className="text-sm font-bold text-white font-mono">250,000+ บ.</p>
           </div>
           <div className="p-2 rounded-xl bg-slate-900/40 border border-slate-800">
-            <p className="text-[10px] font-mono text-slate-400 uppercase">TripPick Take</p>
+            <p className="text-[10px] font-mono text-slate-400 uppercase">คอมมิชชั่น B2B</p>
             <p className="text-sm font-bold text-emerald-400 font-mono">10% - 15%</p>
           </div>
           <div className="p-2 rounded-xl bg-slate-900/40 border border-slate-800">
-            <p className="text-[10px] font-mono text-slate-400 uppercase">Decision Time</p>
-            <p className="text-sm font-bold text-cyan-400 font-mono">&lt; 5 mins</p>
+            <p className="text-[10px] font-mono text-slate-400 uppercase">เวลาตัดสินใจ</p>
+            <p className="text-sm font-bold text-cyan-400 font-mono">&lt; 3 นาที</p>
           </div>
         </div>
       </div>

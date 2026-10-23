@@ -246,7 +246,7 @@ export function useTripPick() {
     setError(null);
     const normalized = code.trim().toUpperCase();
     if (normalized.length !== 4) {
-      setError('Room code must be exactly 4 letters/numbers.');
+      setError('รหัสห้องต้องมีขนาด 4 ตัวอักษรพอดีครับ');
       setLoading(false);
       return false;
     }
@@ -259,7 +259,7 @@ export function useTripPick() {
       localStorage.setItem('trippick_is_host', 'false');
       return true;
     } catch (err: any) {
-      setError(err.message || 'Failed to join room');
+      setError(err.message || 'ไม่สามารถเข้าร่วมห้องได้ กรุณาตรวจสอบรหัสห้อง');
       return false;
     } finally {
       setLoading(false);
@@ -298,7 +298,7 @@ export function useTripPick() {
       const welcomeMsg: ChatMessage = {
         id: 'msg_' + Date.now(),
         room_id: roomId,
-        sender_name: 'TripPick Concierge',
+        sender_name: 'AI ผู้ช่วย TripPick',
         message_text: welcome,
         created_at: new Date().toISOString()
       };
@@ -307,7 +307,7 @@ export function useTripPick() {
       setStep('lobby');
       return true;
     } catch (err: any) {
-      setError(err.message || 'Failed to register profile');
+      setError(err.message || 'ไม่สามารถลงทะเบียนข้อมูลได้');
       return false;
     } finally {
       setLoading(false);
@@ -357,7 +357,7 @@ export function useTripPick() {
 
       return true;
     } catch (err: any) {
-      setError(err.message || 'Failed to compile retreat deck');
+      setError(err.message || 'ไม่สามารถสร้างชุดสถานที่จัดทริปได้');
       return false;
     } finally {
       setCompilingDeck(false);

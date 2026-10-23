@@ -10,19 +10,19 @@ interface ProfileSelectorViewProps {
 }
 
 const ROLES = [
-  'Founder / C-Level',
-  'Engineering / Tech Lead',
-  'Product & Design Lead',
-  'People / HR & Events',
-  'Team Member'
+  'ผู้บริหาร / ผู้ก่อตั้ง (C-Level)',
+  'หัวหน้าฝ่ายวิศวกรรม / เทค (Tech Lead)',
+  'ฝ่ายผลิตภัณฑ์ & ดีไซน์ (Product & Design)',
+  'ฝ่ายบุคคล & จัดกิจกรรม (HR & People)',
+  'สมาชิกทีม (Team Member)'
 ];
 
 export function ProfileSelectorView({ onSubmit, loading, error, onBack }: ProfileSelectorViewProps) {
   const [name, setName] = useState('');
   const [role, setRole] = useState(ROLES[0]);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([
-    'Starlink / Fiber 500+ Mbps',
-    'Executive Boardroom & AV'
+    'อินเทอร์เน็ต Starlink / Fiber 500+ Mbps',
+    'ห้องประชุมผู้บริหาร & ระบบ AV ครบครัน'
   ]);
   const [nameError, setNameError] = useState<string | null>(null);
 
@@ -37,7 +37,7 @@ export function ProfileSelectorView({ onSubmit, loading, error, onBack }: Profil
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      setNameError('Please enter your name or role identifier.');
+      setNameError('กรุณากรอกชื่อหรือตำแหน่งของคุณครับ');
       return;
     }
     await onSubmit(name, role, selectedAmenities);
@@ -56,20 +56,20 @@ export function ProfileSelectorView({ onSubmit, loading, error, onBack }: Profil
           onClick={onBack}
           className="text-slate-400 hover:text-cyan-300 transition-colors text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
         >
-          ← Return
+          ← ย้อนกลับ
         </button>
       </div>
 
       <div className="w-full max-w-xl glass-panel p-6 md:p-8 rounded-3xl border border-slate-700/60 shadow-2xl">
         <div className="text-center mb-6">
           <span className="px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-300 font-mono text-[10px] uppercase tracking-widest font-bold">
-            Step 1 of 2: Team Identity
+            ขั้นตอนที่ 1 จาก 2: ข้อมูลผู้เข้าร่วมทริป
           </span>
           <h2 className="text-2xl font-black text-white uppercase tracking-wider mt-2">
-            Configure Your Retreat Profile
+            ตั้งค่าโปรไฟล์และสิ่งที่ต้องการ
           </h2>
           <p className="text-xs text-slate-400 font-mono mt-1">
-            Set your retreat priorities. We filter the deck based on what your team actually values.
+            เลือกสิ่งอำนวยความสะดวกที่ทีมของคุณให้ความสำคัญ เพื่อให้ AI คัดเลือกสถานที่ได้ตรงใจที่สุด
           </p>
         </div>
 
@@ -83,7 +83,7 @@ export function ProfileSelectorView({ onSubmit, loading, error, onBack }: Profil
           {/* Display Name Input */}
           <div>
             <label className="text-[11px] font-bold text-slate-300 uppercase font-mono tracking-wider block mb-2">
-              Your Name &amp; Title
+              ชื่อและบทบาทของคุณ
             </label>
             <input
               type="text"
@@ -94,7 +94,7 @@ export function ProfileSelectorView({ onSubmit, loading, error, onBack }: Profil
                 setName(e.target.value);
                 if (nameError) setNameError(null);
               }}
-              placeholder="e.g. Sarah (Head of Engineering)"
+              placeholder="เช่น นนท์ (Head of Tech) หรือ มุก (HR Lead)"
               className="w-full py-3.5 px-4 bg-slate-900/90 border border-slate-700 rounded-xl text-white font-medium text-sm focus:outline-none focus:border-cyan-500 transition-all placeholder:text-slate-600"
             />
           </div>
@@ -102,15 +102,15 @@ export function ProfileSelectorView({ onSubmit, loading, error, onBack }: Profil
           {/* Role selector */}
           <div>
             <label className="text-[11px] font-bold text-slate-300 uppercase font-mono tracking-wider block mb-2">
-              Primary Role for This Retreat
+              บทบาทของคุณในทริปนี้
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {ROLES.map((r) => (
                 <button
                   type="button"
                   key={r}
                   onClick={() => setRole(r)}
-                  className={`py-2 px-3 rounded-xl text-xs font-mono font-medium text-center transition-all cursor-pointer border ${
+                  className={`py-2 px-3 rounded-xl text-xs font-mono font-medium text-left transition-all cursor-pointer border ${
                     role === r
                       ? 'bg-cyan-500/20 border-cyan-500 text-cyan-200'
                       : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:border-slate-700'
@@ -125,7 +125,7 @@ export function ProfileSelectorView({ onSubmit, loading, error, onBack }: Profil
           {/* Must-Have Business & Tourism Amenities */}
           <div>
             <label className="text-[11px] font-bold text-slate-300 uppercase font-mono tracking-wider block mb-2">
-              Must-Have Amenities &amp; Perks
+              สิ่งอำนวยความสะดวกที่จำเป็นต้องมี
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {ALL_AMENITIES.map((amenity) => {
@@ -159,7 +159,7 @@ export function ProfileSelectorView({ onSubmit, loading, error, onBack }: Profil
             disabled={loading}
             className="w-full py-4 mt-2 bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white font-bold rounded-2xl text-xs font-mono tracking-widest uppercase shadow-[0_0_20px_rgba(6,182,212,0.25)] transition-all cursor-pointer flex items-center justify-center gap-2"
           >
-            {loading ? 'Joining Lobby...' : 'Proceed to Retreat Lobby →'}
+            {loading ? 'กำลังเข้าสู่ห้องล็อบบี้...' : 'เข้าสู่ห้องล็อบบี้ทริป →'}
           </motion.button>
         </form>
       </div>

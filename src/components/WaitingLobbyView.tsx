@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import type { RoomUser } from '../hooks/useTripPick';
-import { getSelectedAiModel, setSelectedAiModel } from '../lib/ai';
-import type { AiModelChoice } from '../lib/ai';
+import { FIXED_AI_MODEL_NAME } from '../lib/ai';
 
 interface WaitingLobbyViewProps {
   roomId: string;
@@ -21,12 +20,12 @@ interface WaitingLobbyViewProps {
 }
 
 const RETREAT_VIBES = [
-  'Executive Leadership Summit',
-  'Beachfront Tech Workation',
-  'Eco & Wellness Team Reset',
-  'High-Energy Adventure Offsite',
-  'Creative Agency Design Sprint',
-  'APAC MICE Conference & Gala'
+  'สัมมนาวางแผนกลยุทธ์ผู้บริหาร (Executive Summit)',
+  'ทำงานและพักผ่อนริมทะเล (Beachfront Workation)',
+  'ฟื้นฟูสุขภาพ & ชาร์จพลังทีม (Eco & Wellness)',
+  'ผจญภัยกระชับมิตรความสามัคคี (Team Adventure)',
+  'สปรินต์ระดมสมองสายเทค & ดีไซน์ (Design Sprint)',
+  'จัดประชุม MICE หรู & งานกาล่า (MICE Gala)'
 ];
 
 export function WaitingLobbyView({
@@ -42,9 +41,8 @@ export function WaitingLobbyView({
   const [copied, setCopied] = useState(false);
   const [selectedVibe, setSelectedVibe] = useState(RETREAT_VIBES[0]);
   const [customVibe, setCustomVibe] = useState('');
-  const [aiModel, setAiModel] = useState<AiModelChoice>(getSelectedAiModel());
-  const [minBudget, setMinBudget] = useState(100);
-  const [maxBudget, setMaxBudget] = useState(250);
+  const [minBudget, setMinBudget] = useState(3000);
+  const [maxBudget, setMaxBudget] = useState(8000);
 
   const handleCopyLink = () => {
     const url = `${window.location.origin}?room=${roomId}`;
@@ -70,7 +68,7 @@ export function WaitingLobbyView({
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-6 border-b border-slate-800">
           <div className="text-left">
             <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest font-bold">
-              Active Corporate Offsite Lobby
+              ห้องวางแผนทริปออฟไซต์ที่กำลังใช้งาน
             </span>
             <div className="flex items-center gap-3 mt-1">
               <span className="text-3xl font-black font-mono tracking-widest text-white">{roomId}</span>
@@ -78,7 +76,7 @@ export function WaitingLobbyView({
                 onClick={handleCopyLink}
                 className="py-1 px-3 bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-500/30 text-cyan-300 rounded-xl text-xs font-mono font-semibold transition-all cursor-pointer flex items-center gap-1.5"
               >
-                {copied ? '✓ Link Copied' : '📋 Copy Team Invite'}
+                {copied ? '✓ คัดลอกลิงก์แล้ว' : '📋 คัดลอกลิงก์ชวนทีม'}
               </button>
             </div>
           </div>
@@ -86,13 +84,13 @@ export function WaitingLobbyView({
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 text-xs font-mono">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              {users.length} {users.length === 1 ? 'Colleague' : 'Colleagues'} Online
+              สมาชิกในห้อง {users.length} คน
             </span>
             <button
               onClick={onLeave}
               className="py-1 px-2.5 rounded-xl text-slate-400 hover:text-rose-400 transition-colors text-xs font-mono cursor-pointer"
             >
-              Exit
+              ออกจากห้อง
             </button>
           </div>
         </div>
@@ -106,7 +104,7 @@ export function WaitingLobbyView({
         {/* Team Members Roster */}
         <div className="py-6 border-b border-slate-800 text-left">
           <h3 className="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider mb-3">
-            Connected Decision Makers ({users.length})
+            ผู้ร่วมตัดสินใจที่เชื่อมต่อแล้ว ({users.length} ท่าน)
           </h3>
           <div className="flex flex-wrap gap-2">
             {users.map((u) => (
@@ -119,7 +117,7 @@ export function WaitingLobbyView({
                 </div>
                 <div>
                   <span className="font-semibold text-white">{u.user_name}</span>
-                  {u.id === currentUser?.id && <span className="text-cyan-400 ml-1">(You)</span>}
+                  {u.id === currentUser?.id && <span className="text-cyan-400 ml-1">(คุณ)</span>}
                   <span className="text-slate-500 text-[10px] block">{u.role}</span>
                 </div>
               </div>
@@ -127,12 +125,30 @@ export function WaitingLobbyView({
           </div>
         </div>
 
+        {/* Fixed AI Engine Badge (DeepSeek V4.1 Flash 1017) */}
+        <div className="py-3 px-4 my-4 rounded-xl bg-gradient-to-r from-cyan-950/60 to-slate-900 border border-cyan-500/30 flex items-center justify-between text-left">
+          <div className="flex items-center gap-2.5">
+            <span className="text-base">⚡</span>
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-400 font-bold block">
+                ระบบปัญญาประดิษฐ์ประมวลผล
+              </span>
+              <span className="text-xs font-mono font-bold text-white">
+                {FIXED_AI_MODEL_NAME}
+              </span>
+            </div>
+          </div>
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 border border-emerald-500/40 text-emerald-300 font-semibold">
+            เปิดใช้งานอยู่
+          </span>
+        </div>
+
         {/* Retreat Theme / Vibe Selector (Host only) */}
         {isHost ? (
-          <div className="py-6 text-left space-y-5">
+          <div className="py-4 text-left space-y-5">
             <div>
               <label className="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider block mb-2">
-                Curate Offsite Vibe / Corporate Theme
+                เลือกธีมทริป / บรรยากาศออฟไซต์
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {RETREAT_VIBES.map((vibe) => (
@@ -158,13 +174,13 @@ export function WaitingLobbyView({
             {/* Custom Vibe prompt */}
             <div>
               <label className="text-[11px] font-mono text-slate-400 uppercase tracking-wider block mb-1">
-                Or Custom AI Retreat Prompt:
+                หรือระบุความต้องการเพิ่มเติมให้ AI คัดเลือก:
               </label>
               <input
                 type="text"
                 value={customVibe}
                 onChange={(e) => setCustomVibe(e.target.value)}
-                placeholder="e.g. 15-person AI engineering hackathon with ocean view and private chef"
+                placeholder="เช่น ทีมวิศวกร 15 คน ทำแฮกกาธอน ต้องการเน็ตแรง ติดทะเล มีเชฟส่วนตัว"
                 className="w-full py-2.5 px-3 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-cyan-500"
               />
             </div>
@@ -173,58 +189,38 @@ export function WaitingLobbyView({
             <div className="pt-2">
               <div className="flex justify-between items-center mb-1">
                 <span className="text-[11px] font-mono text-slate-300 uppercase font-bold">
-                  Target Per-Person Budget (USD / Night)
+                  งบประมาณเป้าหมาย (บาท / คน / คืน)
                 </span>
                 <span className="text-xs font-mono font-bold text-emerald-400">
-                  ${minBudget} – ${maxBudget} / head
+                  {minBudget.toLocaleString()} – {maxBudget.toLocaleString()} บาท/คน
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[9px] font-mono text-slate-500 uppercase block">Min Budget</label>
+                  <label className="text-[9px] font-mono text-slate-500 uppercase block">งบต่ำสุด</label>
                   <input
                     type="range"
-                    min={50}
-                    max={200}
-                    step={10}
+                    min={2000}
+                    max={6000}
+                    step={500}
                     value={minBudget}
                     onChange={(e) => setMinBudget(Number(e.target.value))}
                     className="w-full accent-cyan-500 cursor-pointer"
                   />
                 </div>
                 <div>
-                  <label className="text-[9px] font-mono text-slate-500 uppercase block">Max Budget</label>
+                  <label className="text-[9px] font-mono text-slate-500 uppercase block">งบสูงสุด</label>
                   <input
                     type="range"
-                    min={150}
-                    max={500}
-                    step={10}
+                    min={5000}
+                    max={15000}
+                    step={500}
                     value={maxBudget}
                     onChange={(e) => setMaxBudget(Number(e.target.value))}
                     className="w-full accent-cyan-500 cursor-pointer"
                   />
                 </div>
               </div>
-            </div>
-
-            {/* AI Model Choice */}
-            <div>
-              <label className="text-[11px] font-mono text-slate-400 uppercase tracking-wider block mb-1">
-                Concierge AI Engine:
-              </label>
-              <select
-                value={aiModel}
-                onChange={(e) => {
-                  const m = e.target.value as AiModelChoice;
-                  setAiModel(m);
-                  setSelectedAiModel(m);
-                }}
-                className="w-full py-2 px-3 bg-slate-900 border border-slate-800 rounded-xl text-cyan-300 font-mono text-xs focus:outline-none"
-              >
-                <option value="gemini-2.5-flash">Google Gemini 2.5 Flash (Ultralight &amp; Fast)</option>
-                <option value="deepseek-v3">DeepSeek V3 (Deep Corporate Analytics)</option>
-                <option value="gpt-4o-mini">GPT-4o Mini (OpenAI)</option>
-              </select>
             </div>
 
             {/* Start Session CTA */}
@@ -236,11 +232,11 @@ export function WaitingLobbyView({
               className="w-full py-4 mt-4 bg-gradient-to-r from-cyan-600 via-teal-500 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white font-bold rounded-2xl text-xs font-mono tracking-widest uppercase shadow-[0_0_25px_rgba(6,182,212,0.3)] transition-all cursor-pointer flex items-center justify-center gap-2"
             >
               {loading ? (
-                <span>Compiling AI Curated Retreat Deck...</span>
+                <span>DeepSeek กำลังคัดเลือกสถานที่จัดทริป...</span>
               ) : (
                 <>
                   <span>🚀</span>
-                  <span>Start Consensus Swiping Deck ({users.length} Decision Makers)</span>
+                  <span>เริ่มปัดเลือกสถานที่ด้วยระบบฉันทามติ ({users.length} คน)</span>
                 </>
               )}
             </motion.button>
@@ -248,10 +244,10 @@ export function WaitingLobbyView({
         ) : (
           <div className="py-8 text-center">
             <div className="inline-block p-4 rounded-2xl bg-cyan-950/40 border border-cyan-500/20 text-cyan-300 mb-3 animate-pulse">
-              ⏳ Waiting for the Host to launch the retreat deck...
+              ⏳ กำลังรอหัวหน้าห้อง (Host) เริ่มต้นรอบการปัดเลือกสถานที่...
             </div>
             <p className="text-xs text-slate-400 font-mono">
-              The host is calibrating the team budget and corporate theme. Swiping will start automatically!
+              ระบบจะพาเข้าสู่หน้าปัดเลือกสถานที่โดยอัตโนมัติเมื่อหัวหน้าห้องกดเริ่ม
             </p>
           </div>
         )}

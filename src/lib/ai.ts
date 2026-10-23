@@ -1,19 +1,9 @@
 import type { TravelDestination } from './travelDestinations';
 import { CURATED_DESTINATIONS, getFallbackDestinations } from './travelDestinations';
 
-export type AiModelChoice = 'gemini-2.5-flash' | 'deepseek-v3' | 'gpt-4o-mini' | 'claude-3-5-haiku';
-
-const AI_MODEL_STORAGE_KEY = 'trippick_ai_model';
-
-export function getSelectedAiModel(): AiModelChoice {
-  const stored = localStorage.getItem(AI_MODEL_STORAGE_KEY) as AiModelChoice;
-  if (stored) return stored;
-  return 'gemini-2.5-flash';
-}
-
-export function setSelectedAiModel(model: AiModelChoice): void {
-  localStorage.setItem(AI_MODEL_STORAGE_KEY, model);
-}
+// Fixed model per user requirement: DeepSeek: DeepSeek V4.1 Flash 1017 (no user selection allowed)
+export const FIXED_AI_MODEL = 'deepseek/deepseek-v4.1-flash:1017';
+export const FIXED_AI_MODEL_NAME = 'DeepSeek: DeepSeek V4.1 Flash 1017';
 
 export interface RoomContextInfo {
   roomCode: string;
@@ -45,19 +35,19 @@ export async function fetchAiRecommendations(
 ): Promise<TravelDestination[]> {
   const openRouterKey = localStorage.getItem('trippick_openrouter_api_key') || import.meta.env.VITE_OPENROUTER_API_KEY || '';
 
-  // If key is missing, use rich curated destination fallback engine
+  // If key is missing, use rich curated Thai destination catalog
   if (!openRouterKey || openRouterKey === 'your_openrouter_api_key_here') {
     return getFallbackDestinations(vibe, minBudget, maxBudget);
   }
 
   try {
-    const systemPrompt = `You are an elite B2B Travel Concierge & Corporate Retreat Architect.
-Recommend high-performing retreats and business tourism destinations tailored to the requested vibe and amenities.
-Return ONLY a valid JSON array of objects with fields:
-- "title": (string) Property name
-- "city": (string) City
-- "country": (string) Country
-- "ai_reason": (string) Under 90 chars explaining why this venue fits the corporate team offsite vibe.`;
+    const systemPrompt = `คุณคือผู้เชี่ยวชาญการออกแบบทริปออฟไซต์และสัมมนาผู้บริหารระดับพรีเมียม (B2B Travel Concierge & Corporate Retreat Architect)
+โปรดแนะนำสถานที่พักผ่อนและออฟไซต์สำหรับกลุ่มธุรกิจที่ตรงกับบรรยากาศ (Vibe) และสิ่งอำนวยความสะดวกที่ระบุ เป็นภาษาไทยทั้งหมด
+ส่งออกเฉพาะ JSON Array ของ Object ที่มีฟิลด์:
+- "title": (string) ชื่อสถานที่ภาษาไทย
+- "city": (string) เมืองหรือจังหวัด
+- "country": (string) ประเทศ
+- "ai_reason": (string) เหตุผลสั้นๆ ไม่เกิน 80 ตัวอักษร ว่าทำไมสถานที่นี้จึงเหมาะกับทริปทีมนี้`;
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -68,10 +58,10 @@ Return ONLY a valid JSON array of objects with fields:
         'X-Title': 'TripPick',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: FIXED_AI_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Vibe: ${vibe}, Amenities: ${amenities.join(', ')}` },
+          { role: 'user', content: `ธีมทริป: ${vibe}, สิ่งอำนวยความสะดวกที่ต้องการ: ${amenities.join(', ')}` },
         ],
         temperature: 0.6,
       }),
@@ -83,7 +73,6 @@ Return ONLY a valid JSON array of objects with fields:
     const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
 
     if (Array.isArray(parsed) && parsed.length > 0) {
-      // Merge with fallback visual details
       return parsed.map((item: any, idx: number) => {
         const fallback = CURATED_DESTINATIONS[idx % CURATED_DESTINATIONS.length];
         return {
@@ -103,62 +92,62 @@ Return ONLY a valid JSON array of objects with fields:
   return getFallbackDestinations(vibe, minBudget, maxBudget);
 }
 
-// Local Fallback heuristic AI Chat response
+// Local Fallback heuristic AI Chat response in 100% Thai
 function generateLocalConciergeResponse(userMessage: string, context: RoomContextInfo): string {
   const msg = userMessage.toLowerCase();
   const dest = context.currentDestination || context.matchedDestination;
   const teamCount = context.users.length || 1;
 
-  if (msg.includes('wifi') || msg.includes('internet') || msg.includes('speed')) {
+  if (msg.includes('wifi') || msg.includes('เน็ต') || msg.includes('อินเทอร์เน็ต') || msg.includes('ความเร็ว') || msg.includes('speed')) {
     if (dest) {
-      return `📶 **Connectivity Telemetry**: ${dest.title} provides **${dest.wifi_speed_mbps} Mbps** enterprise connectivity (Starlink & dedicated fiber fallback). Perfect for simultaneous Zoom calls and GitHub code pushes for your team of ${teamCount}!`;
+      return `📶 **ข้อมูลอินเทอร์เน็ตสด**: ที่ **${dest.title}** ติดตั้งอินเทอร์เน็ตระดับองค์กรความเร็ว **${dest.wifi_speed_mbps} Mbps** (รองรับทั้ง Starlink และไฟเบอร์ออปติกสำรอง) รองรับการประชุม Zoom และทำงานพร้อมกันของสมาชิก ${teamCount} คนได้อย่างลื่นไหลไร้สะดุดครับ!`;
     }
-    return `📶 All TripPick curated retreats guarantee verified 300+ Mbps business-grade fiber or Starlink connections.`;
+    return `📶 ทุกสถานที่บน TripPick ผ่านการตรวจสอบสัญญาณอินเทอร์เน็ตความเร็วสูง 300+ Mbps ขึ้นไปทั้งหมดครับ`;
   }
 
-  if (msg.includes('cost') || msg.includes('price') || msg.includes('budget') || msg.includes('money') || msg.includes('per person')) {
+  if (msg.includes('ราคา') || msg.includes('งบ') || msg.includes('เงิน') || msg.includes('เท่าไหร่') || msg.includes('budget') || msg.includes('cost')) {
     if (dest) {
       const perNight = dest.price_per_night;
       const perHead = dest.price_per_person;
       const commission = Math.round(perNight * (dest.commission_percentage / 100));
-      return `💰 **Financial Breakdown**: 
-- Rate: **$${perHead}/night per person** ($${perNight}/night for full private villa).
-- Estimated 3-night offsite for ${teamCount} people: **$${perHead * teamCount * 3} USD**.
-- **TripPick B2B Affiliate Commission Generated**: **$${commission * 3} USD** (Make Me Money model in action!)`;
+      return `💰 **สรุปประมาณการงบประมาณ**:
+- ค่าบริการเฉลี่ย: **${perHead.toLocaleString()} บาท/คน/คืน** (เหมาวิลล่า ${perNight.toLocaleString()} บาท/คืน)
+- ประมาณการทริป 3 คืน สำหรับสมาชิก ${teamCount} คน: **${(perHead * teamCount * 3).toLocaleString()} บาท**
+- **รายได้คอมมิชชั่น B2B ที่สร้างได้**: **${(commission * 3).toLocaleString()} บาท** (โมเดล Make Me Money)`;
     }
-    return `💰 Rates range from $110 to $240/person/night with an average 12% B2B commission fee collected via partner OTA APIs.`;
+    return `💰 อัตราค่าบริการเริ่มต้นประมาณ 3,800 - 8,500 บาท/คน/คืน พร้อมค่าคอมมิชชั่นเฉลี่ย 12% ผ่านระบบพันธมิตร OTA ครับ`;
   }
 
-  if (msg.includes('meeting') || msg.includes('boardroom') || msg.includes('work') || msg.includes('conference')) {
+  if (msg.includes('ห้องประชุม') || msg.includes('ประชุม') || msg.includes('ทำงาน') || msg.includes('boardroom') || msg.includes('meeting')) {
     if (dest) {
-      return `🖥️ **Work Facilities**: ${dest.title} features dedicated executive meeting salons, 4K laser projectors, and ergonomic seating. Capacity comfortably accommodates up to **${dest.max_capacity} attendees**.`;
+      return `🖥️ **ความพร้อมด้านการทำงาน**: ที่ **${dest.title}** มีห้องประชุมบอร์ดบริหารพร้อมจอโปรเจกเตอร์ 4K และระบบเสียงระดับพรีเมียม รองรับผู้เข้าร่วมประชุมได้สูงสุด **${dest.max_capacity} ท่าน** พร้อมโซนระดมสมองส่วนตัวครับ`;
     }
-    return `🖥️ All venues in this deck are vetted for dedicated boardroom facilities and team breakout areas.`;
+    return `🖥️ ทุกสถานที่ในระบบได้รับการคัดเลือกให้มีห้องประชุมและพื้นที่ทำงานร่วมกันของทีมครบครันครับ`;
   }
 
-  if (msg.includes('who') || msg.includes('team') || msg.includes('lobby') || msg.includes('people')) {
-    const names = context.users.map(u => u.user_name).join(', ') || 'Only you so far';
-    return `👥 Currently in room **${context.roomCode}**: **${names}** (${teamCount} total). Ready to find group consensus!`;
+  if (msg.includes('ใคร') || msg.includes('คน') || msg.includes('ทีม') || msg.includes('สมาชิก') || msg.includes('who')) {
+    const names = context.users.map(u => u.user_name).join(', ') || 'มีคุณเพียงคนเดียวในขณะนี้';
+    return `👥 ขณะนี้ในห้อง **${context.roomCode}** มีสมาชิกออนไลน์: **${names}** (รวม ${teamCount} ท่าน) พร้อมสำหรับการลงคะแนนเลือกสถานที่ครับ!`;
   }
 
-  if (msg.includes('activity') || msg.includes('fun') || msg.includes('adventure') || msg.includes('tourism')) {
+  if (msg.includes('กิจกรรม') || msg.includes('เที่ยว') || msg.includes('สนุก') || msg.includes('ทะเล') || msg.includes('activity')) {
     if (dest) {
-      return `🌴 **Team Experiences at ${dest.city}**:
+      return `🌴 **กิจกรรมกระชับมิตรทีมที่ ${dest.city}**:
 ${dest.tourism_highlights.map(h => `• ${h}`).join('\n')}
-All packages can be booked together with one-click group billing!`;
+สามารถกดจองรวมเป็นแพ็กเกจองค์กรในขั้นตอนเดียวได้เลยครับ!`;
     }
   }
 
   // Default intelligent assistant reply
   if (dest) {
-    return `🏨 **Concierge Intelligence for ${dest.title}**:
+    return `🏨 **ข้อมูล AI Concierge สำหรับ ${dest.title}**:
 ${dest.ai_reason}
-- **Location**: ${dest.city}, ${dest.country} (★ ${dest.rating} / 5)
-- **Top Amenities**: ${dest.business_amenities.slice(0, 3).join(', ')}
-Swipe right to vote, or ask me about flights, catering, or boardroom setup!`;
+- **ที่ตั้ง**: ${dest.city}, ${dest.country} (คะแนนรีวิว ★ ${dest.rating} / 5)
+- **จุดเด่น**: ${dest.business_amenities.slice(0, 3).join(', ')}
+ปัดขวาเพื่อโหวตถูกใจ หรือสอบถามเพิ่มเติมเรื่องตั๋วเครื่องบิน อาหาร หรือห้องประชุมได้ตลอดเวลาครับ!`;
   }
 
-  return `👋 Hello! I'm your **TripPick AI Concierge**. I can analyze venue telemetry, compute per-person budgets, verify WiFi bandwidth, and suggest team-building tours. What would you like to know?`;
+  return `👋 สวัสดีครับ! ผมคือ **TripPick AI Concierge** (ประมวลผลด้วย DeepSeek V4.1 Flash 1017) ผมคอยตรวจสอบสเปกสถานที่ คำนวณงบประมาณรายบุคคล และดูแลให้ทริปของคุณคุ้มค่าสูงสุด ต้องการสอบถามข้อมูลด้านใดครับ?`;
 }
 
 export async function fetchAiChatResponse(
@@ -173,12 +162,13 @@ export async function fetchAiChatResponse(
   }
 
   const dest = context.currentDestination || context.matchedDestination;
-  const systemPrompt = `You are the TripPick AI Concierge, a witty, world-class executive travel director and business tourism specialist.
-Current Telemetry:
-- Room Code: ${context.roomCode}
-- Active Destination on Screen: ${dest ? `${dest.title} in ${dest.city}, ${dest.country} ($${dest.price_per_person}/head/night, ${dest.wifi_speed_mbps} Mbps WiFi, Amenities: ${dest.business_amenities.join(', ')})` : 'Browsing'}
-- Group Members: ${context.users.map(u => u.user_name).join(', ')}
-- Goal: Help teams reach consensus on corporate offsites, bleisure trips, and group tourism that drives real ROI. Keep answers concise, helpful, and energetic (under 120 words).`;
+  const systemPrompt = `คุณคือ TripPick AI Concierge ผู้ช่วยอัจฉริยะด้านการจัดทริปธุรกิจและการท่องเที่ยวสำหรับองค์กร (ประมวลผลด้วยโมเดล DeepSeek V4.1 Flash 1017)
+ตอบคำถามเป็นภาษาไทยที่สุภาพ กระชับ มั่นใจ และมีพลัง (ไม่เกิน 100 คำ)
+ข้อมูลบริบทหน้าจอขณะนี้:
+- รหัสห้อง: ${context.roomCode}
+- สถานที่ที่ปรากฏบนหน้าจอ: ${dest ? `${dest.title} ณ ${dest.city}, ${dest.country} (ราคาประมาณ ${dest.price_per_person} บาท/คน/คืน, เน็ต ${dest.wifi_speed_mbps} Mbps, จุดเด่น: ${dest.business_amenities.join(', ')})` : 'อยู่ในหน้าล็อบบี้'}
+- รายชื่อสมาชิกในห้อง: ${context.users.map(u => u.user_name).join(', ')}
+ตอบคำถามเพื่อช่วยให้ทีมตัดสินใจเลือกสถานที่จัดทริปได้อย่างรวดเร็วและคุ้มค่าที่สุด`;
 
   try {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -190,12 +180,12 @@ Current Telemetry:
         'X-Title': 'TripPick',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: FIXED_AI_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage },
         ],
-        temperature: 0.7,
+        temperature: 0.6,
       }),
     });
 
@@ -203,7 +193,7 @@ Current Telemetry:
     const data = await response.json();
     return data?.choices?.[0]?.message?.content || generateLocalConciergeResponse(userMessage, context);
   } catch (err) {
-    console.warn('AI chat error, using local concierge engine:', err);
+    console.warn('AI chat error, using local Thai concierge engine:', err);
     return generateLocalConciergeResponse(userMessage, context);
   }
 }
@@ -211,16 +201,16 @@ Current Telemetry:
 export async function fetchAiCommentary(type: 'join' | 'match', entityName: string): Promise<string> {
   if (type === 'join') {
     const joinQuotes = [
-      `💼 ${entityName} just walked into the boardroom lobby. Bring your coffee and pitch ideas!`,
-      `✈️ Boarding pass verified for ${entityName}! Let's find your company's next dream retreat.`,
-      `🌴 ${entityName} joined the room. Let's see if their taste leans towards beachfront villas or mountain hackathons!`,
+      `💼 ${entityName} เดินทางเข้าสู่ห้องประชุมออนไลน์แล้ว เตรียมชงกาแฟแล้วลุยกันเลย!`,
+      `✈️ ตรวจสอบบอร์ดดิ้งพาสเรียบร้อย ยินดีต้อนรับคุณ ${entityName} เข้าสู่ห้องวางแผนทริป!`,
+      `🌴 คุณ ${entityName} เข้าร่วมห้องแล้ว มาดูกันว่าจะชอบวิลล่าริมทะเลหรือแฮกกาธอนบนดอย!`,
     ];
     return joinQuotes[Math.floor(Math.random() * joinQuotes.length)];
   } else {
     const matchQuotes = [
-      `🎉 CONSENSUS REACHED! The team has matched on ${entityName}. Packing bags immediately!`,
-      `🚀 Boom! Group agreement unlocked on ${entityName}. Zero meetings wasted, 100% team excitement.`,
-      `🥂 It's official: ${entityName} is the winner. Time to finalize the booking and book flights!`,
+      `🎉 ทุกคนเห็นตรงกันแล้ว! ทีมของคุณตกลงเลือก ${entityName} เตรียมจัดกระเป๋าได้เลย!`,
+      `🚀 ยอดเยี่ยมมาก! เกิดฉันทามติใน ${entityName} ไม่ต้องเสียเวลาเถียงกันในแชทอีกต่อไป!`,
+      `🥂 เป็นเอกฉันท์! ${entityName} คือผู้ชนะในทริปนี้ เตรียมกดจองและออกเดินทางได้เลย!`,
     ];
     return matchQuotes[Math.floor(Math.random() * matchQuotes.length)];
   }

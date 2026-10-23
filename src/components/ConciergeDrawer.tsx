@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { fetchAiChatResponse } from '../lib/ai';
+import { fetchAiChatResponse, FIXED_AI_MODEL_NAME } from '../lib/ai';
 import type { RoomContextInfo } from '../lib/ai';
 
 interface ConciergeDrawerProps {
@@ -17,10 +17,10 @@ interface Message {
 }
 
 const QUICK_PROMPTS = [
-  '📶 Check WiFi speed & boardrooms',
-  '💰 Calculate 12-person budget',
-  '🌴 Team adventure recommendations',
-  '👥 Who is in our room right now?'
+  '📶 ตรวจสอบความเร็วเน็ตและห้องประชุม',
+  '💰 คำนวณงบประมาณสำหรับ 12 คน',
+  '🌴 แนะนำกิจกรรมกระชับมิตรในพื้นที่',
+  '👥 ใครอยู่ในห้องนี้บ้างในขณะนี้?'
 ];
 
 export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDrawerProps) {
@@ -28,8 +28,8 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
     {
       id: 'init_1',
       sender: 'concierge',
-      text: "👋 Welcome! I'm your **TripPick AI Concierge**. I monitor live telemetry for the retreat cards on your screen, compute per-person budgets, and ensure your team offsite generates maximum ROI. Ask me anything!",
-      time: 'Now'
+      text: "👋 สวัสดีครับ! ผมคือ **TripPick AI Concierge** (ประมวลผลด้วยโมเดล DeepSeek V4.1 Flash 1017) ผมคอยอ่านข้อมูลสถานที่บนหน้าจอ คำนวณงบประมาณรายบุคคล และดูแลให้ทริปทีมของคุณคุ้มค่าสูงสุด มีอะไรให้ผมช่วยแนะนำไหมครับ?",
+      time: 'เมื่อสักครู่'
     }
   ]);
   const [inputText, setInputText] = useState('');
@@ -48,7 +48,7 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
       id: 'usr_' + Date.now(),
       sender: 'user',
       text: text.trim(),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
     };
 
     setMessages(prev => [...prev, userMsg]);
@@ -70,7 +70,7 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
         id: 'ai_' + Date.now(),
         sender: 'concierge',
         text: response,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        time: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, aiMsg]);
     } catch (err) {
@@ -90,7 +90,7 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
         className="fixed bottom-6 right-6 z-40 py-2.5 px-4 rounded-full bg-gradient-to-r from-cyan-600 to-emerald-600 text-white font-mono text-xs font-bold shadow-xl shadow-cyan-500/25 flex items-center gap-2 cursor-pointer border border-cyan-400/30"
       >
         <span className="text-base">🛎️</span>
-        <span>AI Concierge</span>
+        <span>AI ผู้ช่วยจัดทริป</span>
         <span className="flex h-2 w-2 relative">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -115,10 +115,10 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider">
-                    TripPick Concierge
+                    TripPick AI Concierge
                   </h3>
                   <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Live Telemetry Active
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> {FIXED_AI_MODEL_NAME}
                   </span>
                 </div>
               </div>
@@ -133,8 +133,8 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
 
             {/* Live Context Telemetry Banner */}
             <div className="p-2.5 bg-slate-900/90 border-b border-slate-800 text-[10px] font-mono text-slate-300">
-              <span className="text-cyan-400 font-bold">Target on Screen: </span>
-              {roomContext.current?.currentDestination?.title || 'Lobby Browsing'}
+              <span className="text-cyan-400 font-bold">สถานที่บนหน้าจอ: </span>
+              {roomContext.current?.currentDestination?.title || 'อยู่ในหน้าล็อบบี้'}
             </div>
 
             {/* Messages Chat List */}
@@ -193,7 +193,7 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
                   type="text"
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
-                  placeholder="Ask about WiFi, boardrooms, pricing..."
+                  placeholder="ถามเรื่องเน็ต ห้องประชุม งบประมาณ..."
                   className="flex-1 py-2 px-3 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-cyan-500"
                 />
                 <button
@@ -201,7 +201,7 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
                   disabled={!inputText.trim() || isTyping}
                   className="py-2 px-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-40"
                 >
-                  Send
+                  ส่ง
                 </button>
               </form>
             </div>
