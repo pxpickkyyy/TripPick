@@ -23,7 +23,7 @@ const VERIFIED_GOOGLE_METADATA: Record<number, GooglePlaceData> = {
     rating: 4.8,
     userRatingCount: 645,
     googleMapsUri: 'https://maps.google.com/?cid=14136667676615827349',
-    photoUrl: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80',
+    photoUrl: 'https://lh3.googleusercontent.com/grass-cs/AABkmLcYZXKxVxsBQyow8DQP0VUMZg1mxuuYvwKbx1UR6xYhhubVyEHqlJCSZPpsItg3MZcU99qgFvmcUxzMkumAkutNGHRLwqVz3YQlLe_J0apFdNVLJQPKxDqqpdbN92t2yJ9EtJAm=w1200-h800-k-no',
     nearestAirport: 'สนามบินนานาชาติภูเก็ต (HKT)',
     airportTravelTime: '18 นาที (12.4 กม. ผ่าน ทล.4018)',
     isLiveVerified: true
@@ -35,7 +35,7 @@ const VERIFIED_GOOGLE_METADATA: Record<number, GooglePlaceData> = {
     rating: 4.7,
     userRatingCount: 632,
     googleMapsUri: 'https://maps.google.com/?cid=13404330348731359768',
-    photoUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80',
+    photoUrl: 'https://lh3.googleusercontent.com/grass-cs/AABkmLfdMg2GvSDEoCFn5lSAulb8NisxWfo-pyo8ELdccKm0j8PvcXYgQLDYDUbH-HQynJDIgmrtOVu4hmYfAgTDwamWAs23gIeZUUCzcGomXN_KyAadHeW--NTuTUzMri1tIRtISKms=w1200-h800-k-no',
     nearestAirport: 'สนามบินนานาชาติเชียงใหม่ (CNX)',
     airportTravelTime: '25 นาที (16.2 กม. ผ่าน ถ.โชตนา)',
     isLiveVerified: true
@@ -47,7 +47,7 @@ const VERIFIED_GOOGLE_METADATA: Record<number, GooglePlaceData> = {
     rating: 4.6,
     userRatingCount: 1351,
     googleMapsUri: 'https://maps.google.com/?cid=4794720360258171853',
-    photoUrl: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=1200&q=80',
+    photoUrl: 'https://lh3.googleusercontent.com/grass-cs/AABkmLeAe9niMq-yvp8_CS13jm4V_OaGJJkXnze5OnnBUi1KXWiU6Glg3cpqELGUBvh7nxAmF1bEcSo-66xInvHNAgTQ01Jou24a9J0G1wsqBYCZ14faY5H2cImI8kaQLnkElXVOg9HK_txczI5x=w1200-h800-k-no',
     nearestAirport: 'สนามบินนานาชาติสมุย (USM)',
     airportTravelTime: '15 นาที (8.5 กม. ผ่าน ทล.4169)',
     isLiveVerified: true
@@ -59,7 +59,7 @@ const VERIFIED_GOOGLE_METADATA: Record<number, GooglePlaceData> = {
     rating: 4.6,
     userRatingCount: 1776,
     googleMapsUri: 'https://maps.google.com/?cid=16445563102209184144',
-    photoUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
+    photoUrl: 'https://lh3.googleusercontent.com/grass-cs/AABkmLfTGuZLqOrM-sxMU2hjpZC0aDG50Zxr8xQoRr2oHgTw5llClhPcMl9uXfzVCjCzQPZ_dU4bBEBbaUrC_CD6dNO-CE88-vjUICj5D-vim_FyHZkXhpi7zYdrxnEEUHdRQuN3-vcp=w1200-h800-k-no',
     nearestAirport: 'สนามบินนานาชาติกระบี่ (KBV)',
     airportTravelTime: '40 นาที (รถตู้ VIP + เรือสปีดโบ๊ตส่วนตัว)',
     isLiveVerified: true
@@ -71,7 +71,7 @@ const VERIFIED_GOOGLE_METADATA: Record<number, GooglePlaceData> = {
     rating: 4.8,
     userRatingCount: 2488,
     googleMapsUri: 'https://maps.google.com/?cid=3618450629827623144',
-    photoUrl: 'https://images.unsplash.com/photo-1508873696983-2df5293cb32b?auto=format&fit=crop&w=1200&q=80',
+    photoUrl: 'https://lh3.googleusercontent.com/grass-cs/AABkmLdpMVb2pJx_eRzXNNojWJ8buzkXEKA1o3Cpw8QOZKtp4-viwTu7qw6QfDn0vr1J4QB6Yy139-sGAoqDj-eff_aSHiKywaN-fSJg3ddeoTrf2lOHpJKHujk_n1LBl52N4t242tQy=w1200-h800-k-no',
     nearestAirport: 'สนามบินสุวรรณภูมิ (BKK)',
     airportTravelTime: '35 นาที (34.0 กม. ผ่าน ทางพิเศษศรีรัช)',
     isLiveVerified: true
@@ -83,7 +83,7 @@ const VERIFIED_GOOGLE_METADATA: Record<number, GooglePlaceData> = {
     rating: 4.7,
     userRatingCount: 9209,
     googleMapsUri: 'https://maps.google.com/?cid=6855431284523512593',
-    photoUrl: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=80',
+    photoUrl: 'https://lh3.googleusercontent.com/grass-cs/AABkmLfTORz220hKd25UXBI7Tz7CJA7hAoxE1wbQtK6LX-4hx45sJLmAgfecTIRhRDcLcrlaRck3aLA9wWmo7aP06HERKN8DCi0jqqQNqCS1b31HNRvpyvMYpZpN3m6kwXgkUU5ZiMg=w1200-h800-k-no',
     nearestAirport: 'Ngurah Rai International Airport (DPS)',
     airportTravelTime: '30 นาที (13.5 กม. ผ่าน Jl. Sunset Road)',
     isLiveVerified: true
@@ -95,7 +95,7 @@ const VERIFIED_GOOGLE_METADATA: Record<number, GooglePlaceData> = {
     rating: 4.9,
     userRatingCount: 12978,
     googleMapsUri: 'https://maps.google.com/?cid=6547822829102607629',
-    photoUrl: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?auto=format&fit=crop&w=1200&q=80',
+    photoUrl: 'https://lh3.googleusercontent.com/grass-cs/AABkmLdPe5HMlgBNtxNnWZug2vY8Hwu_tSKVG9lkTzc1fvDvfB_BXJxIDxDp62JH-Q9bmX_8XdH4Fb6PtxvozFnyNveRstUKKLBJjmfNvZLCtN14Y4jRZKV3ztoNaOYJxiiG4uRmGBWc4Q=w1200-h800-k-no',
     nearestAirport: 'Da Nang International Airport (DAD)',
     airportTravelTime: '35 นาที (22.0 กม. ผ่าน ถ. Hoang Sa)',
     isLiveVerified: true
@@ -107,7 +107,7 @@ const VERIFIED_GOOGLE_METADATA: Record<number, GooglePlaceData> = {
     rating: 4.7,
     userRatingCount: 2822,
     googleMapsUri: 'https://maps.google.com/?cid=6123263206880478565',
-    photoUrl: 'https://images.unsplash.com/photo-1565967511849-76a60a516170?auto=format&fit=crop&w=1200&q=80',
+    photoUrl: 'https://lh3.googleusercontent.com/grass-cs/AABkmLc7uCtfhiMrnxqxFz3A2jyGO20CnXh6gg8hmvwu_Bs-TsPgz33AAsTIzNZ1I7ZC-Iirvi-zalJUsGW0uAg4FMqvt1UBhHhP--bYHZ-tk-8b6ku8MTn4k-JskpwuMtTK9rKH9-6ufMjsMuI4=w1200-h800-k-no',
     nearestAirport: 'Singapore Changi Airport (SIN)',
     airportTravelTime: '25 นาที (26.5 กม. ผ่าน ECP Highway)',
     isLiveVerified: true
@@ -119,7 +119,7 @@ const VERIFIED_GOOGLE_METADATA: Record<number, GooglePlaceData> = {
     rating: 4.5,
     userRatingCount: 642,
     googleMapsUri: 'https://maps.google.com/?cid=7610759392094880051',
-    photoUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80',
+    photoUrl: 'https://lh3.googleusercontent.com/grass-proxy/AIM7gW3a0qBn8TcMHlu5RDnzpjxMRzr26aAjxLKX9JXGZYwL5tKunJz8sWLTIZE9KUnXLHjbNIBrBp1dnkh-cEV-LnuXDQRBRtFASe_Y6rpmoFFjX9EOfpKGkQakrDrMYFbkTpElw7X6OkBy4XObL7yeVdmtMVEW6ddJEES39OMtAhC9XO0db3LVZuJv=w1200-h800-k-no',
     nearestAirport: 'สนามบินนานาชาติแม่ฟ้าหลวง เชียงราย (CEI)',
     airportTravelTime: '45 นาที (38.0 กม. ผ่าน ทล.1 และ ทล.1089)',
     isLiveVerified: true
@@ -131,7 +131,7 @@ const VERIFIED_GOOGLE_METADATA: Record<number, GooglePlaceData> = {
     rating: 4.5,
     userRatingCount: 2074,
     googleMapsUri: 'https://maps.google.com/?cid=6044884354753188915',
-    photoUrl: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=80',
+    photoUrl: 'https://lh3.googleusercontent.com/grass-cs/AABkmLffKdBWB6fw41fKwdyQSODMv-vw597br5EHMn91iCptc9sLPCZJrU5CvHhQJx71g-504DCWFotiZEh8h8UniCZPBAxKO6Ofs6b6Sly1gZd7oJCsUQWoQ-YJo1VAhMmqbnzgUUB7=w1200-h800-k-no',
     nearestAirport: 'สนามบินดอนเมือง / สุวรรณภูมิ (DMK / BKK)',
     airportTravelTime: '2 ชม. (160 กม. ผ่าน มอเตอร์เวย์ M6 สายบางปะอิน-โคราช)',
     isLiveVerified: true

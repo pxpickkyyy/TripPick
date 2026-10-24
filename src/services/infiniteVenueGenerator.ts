@@ -40,10 +40,11 @@ export const EXPANDED_RETREAT_SEEDS: PropertySeed[] = [
     categoryEn: 'Ultra-Luxury Executive Oceanfront Resort',
     overviewTh: 'รีสอร์ตหรูระดับโลกริมหาดตรีตรัง ออกแบบสไตล์ร่วมสมัยกลมกลืนกับธรรมชาติ พร้อมห้องประชุม Pavilion ริมทะเล และวิลล่าส่วนตัวสำหรับผู้บริหาร',
     overviewEn: 'World-class ultra-luxury hideaway on Tri Trang Beach, featuring oceanfront executive pavilions and discreet private pool villas for C-suite offsites.',
-    heroImage: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1200&q=80',
+    heroImage: 'https://lh3.googleusercontent.com/grass-cs/AABkmLeJuGBc7hPzZ80ni5OTnQoqxR3PdX7JOf3S001P4o3hWaWsi3-rjjAwUiIyL_nsJ9PHHUZFgqnH10m15uaoPSdmE6UmmM21PLBykEZIVg3qBgxsgAgEBJ9l6P8iVzhcQO4I34-f=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=800&q=80',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLeJuGBc7hPzZ80ni5OTnQoqxR3PdX7JOf3S001P4o3hWaWsi3-rjjAwUiIyL_nsJ9PHHUZFgqnH10m15uaoPSdmE6UmmM21PLBykEZIVg3qBgxsgAgEBJ9l6P8iVzhcQO4I34-f=w1200-h800-k-no',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLd1a-61wvTOySRKVRXIQAVh2N-36AeVpwgW_XK-zt0oaI0Hif3oIXFLK1KiQ4Jx9EbSkKx_GmvX-GLB-9QbKon_YZ55DEcBi9Zn-H22eHZvxjlZLjsfCsN1CnK7qvupHG2JT2XbzQ=w1200-h800-k-no',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLegzrQPbL8m65IWcR-NMPq-VRBx6GcIHN_VvHpEEanacaPcr5PjtIrr6qlDBP3mwnXkLp78Yh8SoG2ZmItuBBfGit6rJpVZHV9JGcsm34ykrKTJRv-p9__tkrJJ6qh3MvrqH6bk=w1200-h800-k-no'
     ],
     baseRatePerHead: 7800,
     maxCapacity: 45,
@@ -68,10 +69,9 @@ export const EXPANDED_RETREAT_SEEDS: PropertySeed[] = [
     categoryEn: 'Private Island Executive Sanctuary',
     overviewTh: 'วิลล่าไม้สักบนเกาะยาวน้อย มองเห็นทัศนียภาพเขาหินปูนอ่าวพังงาอันงดงาม ปราศจากมลภาวะและเสียงรบกวน เหมาะแก่การวางแผนยุทธศาสตร์องค์กร',
     overviewEn: 'Eco-luxury teak villas perched above Phang Nga Bay limestone karsts, providing uninterrupted serenity for executive retreats.',
-    heroImage: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
+    heroImage: 'https://lh3.googleusercontent.com/grass-cs/AABkmLf_kyH1RpgLeLBxk08QHBoIIOljAMBSQf8hTQjiMOMZF7j5OQAFAC8h0dzC6xlXrr0tzW2bYW97DE71Zlexd3zX2d3o83td6-3Ijv8cct8QsHEDcwVlMd8dip6_B4RAnHsqnCNW=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=800&q=80',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLf_kyH1RpgLeLBxk08QHBoIIOljAMBSQf8hTQjiMOMZF7j5OQAFAC8h0dzC6xlXrr0tzW2bYW97DE71Zlexd3zX2d3o83td6-3Ijv8cct8QsHEDcwVlMd8dip6_B4RAnHsqnCNW=w1200-h800-k-no'
     ],
     baseRatePerHead: 8200,
     maxCapacity: 35,
@@ -96,10 +96,9 @@ export const EXPANDED_RETREAT_SEEDS: PropertySeed[] = [
     categoryEn: 'Limestone Marine Sanctuary Retreat',
     overviewTh: 'พาวิลเลียนทรงกลมหรูหราท่ามกลางแมกไม้เขียวขจี ล้อมรอบด้วยหน้าผาหินปูนและหาดไร่เลย์ มีห้องประชุมสัมมนารองรับคณะผู้บริหารครบวงจร',
     overviewEn: 'Iconic round pavilions nestled within Phranang Peninsula tropical gardens, surrounded by towering cliffs and emerald waters.',
-    heroImage: 'https://images.unsplash.com/photo-1519046904884-53103b34b271?auto=format&fit=crop&w=1200&q=80',
+    heroImage: 'https://lh3.googleusercontent.com/grass-cs/AABkmLfTGuZLqOrM-sxMU2hjpZC0aDG50Zxr8xQoRr2oHgTw5llClhPcMl9uXfzVCjCzQPZ_dU4bBEBbaUrC_CD6dNO-CE88-vjUICj5D-vim_FyHZkXhpi7zYdrxnEEUHdRQuN3-vcp=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1519046904884-53103b34b271?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&q=80',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLfTGuZLqOrM-sxMU2hjpZC0aDG50Zxr8xQoRr2oHgTw5llClhPcMl9uXfzVCjCzQPZ_dU4bBEBbaUrC_CD6dNO-CE88-vjUICj5D-vim_FyHZkXhpi7zYdrxnEEUHdRQuN3-vcp=w1200-h800-k-no'
     ],
     baseRatePerHead: 7200,
     maxCapacity: 50,
@@ -124,10 +123,9 @@ export const EXPANDED_RETREAT_SEEDS: PropertySeed[] = [
     categoryEn: 'Executive Private Pool Villa Retreat',
     overviewTh: 'รีสอร์ตพูลวิลล่าริมหาดเชิงมน บรรยากาศเงียบสงบ เหมาะกับการพักผ่อนและระดมสมองของทีมเทคและผู้นำระดับสูง พร้อมเทคโนโลยีภาพและเสียงทันสมัย',
     overviewEn: 'Minimalist luxury pool villas on Choengmon Beach, tailored for intimate high-impact tech summits and executive sprint planning.',
-    heroImage: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=1200&q=80',
+    heroImage: 'https://lh3.googleusercontent.com/grass-cs/AABkmLeAe9niMq-yvp8_CS13jm4V_OaGJJkXnze5OnnBUi1KXWiU6Glg3cpqELGUBvh7nxAmF1bEcSo-66xInvHNAgTQ01Jou24a9J0G1wsqBYCZ14faY5H2cImI8kaQLnkElXVOg9HK_txczI5x=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLeAe9niMq-yvp8_CS13jm4V_OaGJJkXnze5OnnBUi1KXWiU6Glg3cpqELGUBvh7nxAmF1bEcSo-66xInvHNAgTQ01Jou24a9J0G1wsqBYCZ14faY5H2cImI8kaQLnkElXVOg9HK_txczI5x=w1200-h800-k-no'
     ],
     baseRatePerHead: 6500,
     maxCapacity: 40,
@@ -152,10 +150,9 @@ export const EXPANDED_RETREAT_SEEDS: PropertySeed[] = [
     categoryEn: 'Luxury Wilderness & Mountain Sanctuary',
     overviewTh: 'สัมผัสประสบการณ์สุดพิเศษบนสันเขาเหนือแม่น้ำรวกและแม่น้ำโขง มองเห็น 3 ประเทศ วิวพาโนรามาพร้อมห้องประชุมสไตล์ล้านนาโมเดิร์น',
     overviewEn: 'Perched on a ridge overlooking three countries (Thailand, Myanmar, Laos) across Mekong River mist, featuring world-class luxury boardrooms.',
-    heroImage: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80',
+    heroImage: 'https://lh3.googleusercontent.com/grass-cs/AABkmLd9fAsqROx3HWikswPHbl1dBWsOQ8NYoYim-KfxOB1QGwUpo4CoYm7r999CP-X0T3CKg28LNe5qAzpCovBF7qxGL6VNuMSyLUd2B7NK4gTwKQwO2nXpyMbJcEdE87cK47GMabPrkvSidwq5=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLd9fAsqROx3HWikswPHbl1dBWsOQ8NYoYim-KfxOB1QGwUpo4CoYm7r999CP-X0T3CKg28LNe5qAzpCovBF7qxGL6VNuMSyLUd2B7NK4gTwKQwO2nXpyMbJcEdE87cK47GMabPrkvSidwq5=w1200-h800-k-no'
     ],
     baseRatePerHead: 8900,
     maxCapacity: 35,
@@ -180,10 +177,9 @@ export const EXPANDED_RETREAT_SEEDS: PropertySeed[] = [
     categoryEn: 'Mountain Valley Boutique Retreat',
     overviewTh: 'รีสอร์ตสงบเงียบแวดล้อมด้วยต้นไม้ใหญ่และไอหมอกยามเช้า ห้องประชุมเชื่อมต่อสวนร่มรื่น มอบบรรยากาศที่ช่วยกระตุ้นความคิดสร้างสรรค์ของทีม',
     overviewEn: 'Tranquil boutique sanctuary set beside historic canals with views of Doi Suthep, ideal for focused strategic alignment retreats.',
-    heroImage: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1200&q=80',
+    heroImage: 'https://lh3.googleusercontent.com/grass-cs/AABkmLf5RWl0ALAK9RzOQfi9_CJ0udvXVCu9HXZaByiT0XLLVDnRikzYLAoz-Jxz_SXTMSv3R0h1-Omge1NfiudCT3GmXgfP-i6oc4tlcHvIV4shzLAArGSdilvtPHKQZyh_H3TRSqXYaw=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLf5RWl0ALAK9RzOQfi9_CJ0udvXVCu9HXZaByiT0XLLVDnRikzYLAoz-Jxz_SXTMSv3R0h1-Omge1NfiudCT3GmXgfP-i6oc4tlcHvIV4shzLAArGSdilvtPHKQZyh_H3TRSqXYaw=w1200-h800-k-no'
     ],
     baseRatePerHead: 5400,
     maxCapacity: 45,
@@ -208,10 +204,11 @@ export const EXPANDED_RETREAT_SEEDS: PropertySeed[] = [
     categoryEn: 'Eco-Luxury Forest & Mountain Estate',
     overviewTh: 'พักผ่อนสูดโอโซนบริสุทธิ์ใกล้กรุงเทพฯ วิลล่าสไตล์สแกนดิเนเวียท่ามกลางขุนเขาดงพญาเย็น พร้อมสิ่งอำนวยความสะดวกสำหรับการประชุมสัมมนาครบวงจร',
     overviewEn: 'Scandinavian-inspired luxury mountain villas nestled in Khao Yai valleys, offering fresh air, zero travel fatigue, and seamless corporate offsite facilities.',
-    heroImage: 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&w=1200&q=80',
+    heroImage: 'https://lh3.googleusercontent.com/grass-cs/AABkmLffKdBWB6fw41fKwdyQSODMv-vw597br5EHMn91iCptc9sLPCZJrU5CvHhQJx71g-504DCWFotiZEh8h8UniCZPBAxKO6Ofs6b6Sly1gZd7oJCsUQWoQ-YJo1VAhMmqbnzgUUB7=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLffKdBWB6fw41fKwdyQSODMv-vw597br5EHMn91iCptc9sLPCZJrU5CvHhQJx71g-504DCWFotiZEh8h8UniCZPBAxKO6Ofs6b6Sly1gZd7oJCsUQWoQ-YJo1VAhMmqbnzgUUB7=w1200-h800-k-no',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLc1bhE1I4L1JcQKI4hzBGtQhhPp4C_YWm8X3v-GKpho8_Wn6B2lm6ibhTQro2CPdgVMAUYsT7kiZiX0yMqDUQ_n1idQYeqTt7H1XmucZv-umhcq0bygLyaXklloKh_4N2T2Y-Lm=w1200-h800-k-no',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLci9dqjLcPVUNJUcshOQ405zz7BbWUCOT3u1OU5O4lREtks4JkyQuSg6UDbbFjLjVlfCqUxvb68hkH2IXUXVw4bX4O-l59p52RDL2gSe2zmPX5kBue68lwzmki7vpp9ebcTGlClsA=w1200-h800-k-no'
     ],
     baseRatePerHead: 5200,
     maxCapacity: 60,
@@ -236,10 +233,9 @@ export const EXPANDED_RETREAT_SEEDS: PropertySeed[] = [
     categoryEn: 'Ultra-Luxury Riverside Boardroom Sanctuary',
     overviewTh: 'รีสอร์ตหรูริมแม่น้ำเจ้าพระยาการันตีรางวัลระดับโลก ห้องประชุมกระจกโปร่งวิวโค้งน้ำเจ้าพระยา และวิลล่าส่วนตัวพร้อมจากุซซี่ริมน้ำ',
     overviewEn: 'Award-winning ultra-luxury riverside sanctuary along the historic Chao Phraya River, featuring light-filled ballrooms and presidential villas.',
-    heroImage: 'https://images.unsplash.com/photo-1563911302283-d2bc129e7570?auto=format&fit=crop&w=1200&q=80',
+    heroImage: 'https://lh3.googleusercontent.com/grass-cs/AABkmLdpMVb2pJx_eRzXNNojWJ8buzkXEKA1o3Cpw8QOZKtp4-viwTu7qw6QfDn0vr1J4QB6Yy139-sGAoqDj-eff_aSHiKywaN-fSJg3ddeoTrf2lOHpJKHujk_n1LBl52N4t242tQy=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1563911302283-d2bc129e7570?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLdpMVb2pJx_eRzXNNojWJ8buzkXEKA1o3Cpw8QOZKtp4-viwTu7qw6QfDn0vr1J4QB6Yy139-sGAoqDj-eff_aSHiKywaN-fSJg3ddeoTrf2lOHpJKHujk_n1LBl52N4t242tQy=w1200-h800-k-no'
     ],
     baseRatePerHead: 8500,
     maxCapacity: 50,
@@ -264,10 +260,10 @@ export const EXPANDED_RETREAT_SEEDS: PropertySeed[] = [
     categoryEn: 'Art-Deco Heritage Executive Hideaway',
     overviewTh: 'ผลงานการออกแบบระดับมาสเตอร์พีซโดย Bill Bensley บรรยากาศเงียบสงบเป็นส่วนตัวสูงสุดในย่านดุสิต พร้อมสิ่งอำนวยความสะดวกในการประชุมระดับพรีเมียม',
     overviewEn: 'Bill Bensley-designed urban sanctuary on the banks of Chao Phraya River in the royal district, offering peerless privacy for executive negotiations.',
-    heroImage: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80',
+    heroImage: 'https://lh3.googleusercontent.com/grass-cs/AABkmLevQJ_fN6ZtXkoyWwYgL0iTMo6hq7GZ14v-cWNzJb0yzl9q8RgzyBuIsYeeUpo8njN0hzUxaLsA21Xv4Ptgn6VhjzdHU1BOhkD6SD4pLjr6qn5k6WQMCgwwt2r1X0-Yr-Ck8tWm=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1563911302283-d2bc129e7570?auto=format&fit=crop&w=800&q=80',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLevQJ_fN6ZtXkoyWwYgL0iTMo6hq7GZ14v-cWNzJb0yzl9q8RgzyBuIsYeeUpo8njN0hzUxaLsA21Xv4Ptgn6VhjzdHU1BOhkD6SD4pLjr6qn5k6WQMCgwwt2r1X0-Yr-Ck8tWm=w1200-h800-k-no',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLf4ym68BUYDxeY-9homiNCYjphOnkiHjd84pRCpUkuf5bChj5jkF226nSfqtXVpak20L29dqzqtZgl55VXd9e31avfrT2T9TxEVYHAoWljY_ziM5gC06P_1LaJ1JhwZK2p-zUfaiQ=w1200-h800-k-no'
     ],
     baseRatePerHead: 7900,
     maxCapacity: 30,
@@ -292,10 +288,9 @@ export const EXPANDED_RETREAT_SEEDS: PropertySeed[] = [
     categoryEn: 'Ritz-Carlton Reserve Rainforest Sanctuary',
     overviewTh: 'รีสอร์ตระดับตำนานซ่อนตัวในหุบเขาอูบุด ริมแม่น้ำอายุงอันศักดิ์สิทธิ์ เหมาะสำหรับรีทรีตผู้บริหารที่ต้องการปลดล็อกความคิดสร้างสรรค์และนวัตกรรมใหม่',
     overviewEn: 'Ultra-exclusive retreat situated along the Ayung River in Ubud, designed for transformational executive planning and wellness renewal.',
-    heroImage: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=80',
+    heroImage: 'https://lh3.googleusercontent.com/grass-cs/AABkmLf_kyH1RpgLeLBxk08QHBoIIOljAMBSQf8hTQjiMOMZF7j5OQAFAC8h0dzC6xlXrr0tzW2bYW97DE71Zlexd3zX2d3o83td6-3Ijv8cct8QsHEDcwVlMd8dip6_B4RAnHsqnCNW=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1518548419970-58e3b4079ab2?auto=format&fit=crop&w=800&q=80',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLf_kyH1RpgLeLBxk08QHBoIIOljAMBSQf8hTQjiMOMZF7j5OQAFAC8h0dzC6xlXrr0tzW2bYW97DE71Zlexd3zX2d3o83td6-3Ijv8cct8QsHEDcwVlMd8dip6_B4RAnHsqnCNW=w1200-h800-k-no'
     ],
     baseRatePerHead: 9200,
     maxCapacity: 40,
@@ -320,10 +315,9 @@ export const EXPANDED_RETREAT_SEEDS: PropertySeed[] = [
     categoryEn: 'Son Tra Peninsula Luxury Cliffside Retreat',
     overviewTh: 'รีสอร์ตสถาปัตยกรรมระดับโลกบนคาบสมุทรลิง ออกแบบ 4 ระดับ (Heaven, Sky, Earth, Sea) พร้อมห้องประชุมผู้นำ APAC ระดับเวิลด์คลาส',
     overviewEn: 'Architectural masterpiece cascading down Monkey Mountain in Son Tra Peninsula, renowned for hosting international CEO and heads-of-state summits.',
-    heroImage: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?auto=format&fit=crop&w=1200&q=80',
+    heroImage: 'https://lh3.googleusercontent.com/grass-cs/AABkmLdPe5HMlgBNtxNnWZug2vY8Hwu_tSKVG9lkTzc1fvDvfB_BXJxIDxDp62JH-Q9bmX_8XdH4Fb6PtxvozFnyNveRstUKKLBJjmfNvZLCtN14Y4jRZKV3ztoNaOYJxiiG4uRmGBWc4Q=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLdPe5HMlgBNtxNnWZug2vY8Hwu_tSKVG9lkTzc1fvDvfB_BXJxIDxDp62JH-Q9bmX_8XdH4Fb6PtxvozFnyNveRstUKKLBJjmfNvZLCtN14Y4jRZKV3ztoNaOYJxiiG4uRmGBWc4Q=w1200-h800-k-no'
     ],
     baseRatePerHead: 7500,
     maxCapacity: 60,
@@ -348,10 +342,11 @@ export const EXPANDED_RETREAT_SEEDS: PropertySeed[] = [
     categoryEn: 'Sentosa Island Colonial Heritage Sanctuary',
     overviewTh: 'ผสมผสานสถาปัตยกรรมโคโลเนียลกับความทันสมัยท่ามกลางป่าฝนบนเกาะเซนโตซ่า สถานที่จัดการประชุมประวัติศาสตร์ระดับโลก พร้อมระบบความปลอดภัยสูงสุด',
     overviewEn: 'Historic colonial manors blended with curved contemporary architecture on Sentosa Island, offering world-class security and executive discretion.',
-    heroImage: 'https://images.unsplash.com/photo-1525625293386-3f8f99389edd?auto=format&fit=crop&w=1200&q=80',
+    heroImage: 'https://lh3.googleusercontent.com/grass-cs/AABkmLc7uCtfhiMrnxqxFz3A2jyGO20CnXh6gg8hmvwu_Bs-TsPgz33AAsTIzNZ1I7ZC-Iirvi-zalJUsGW0uAg4FMqvt1UBhHhP--bYHZ-tk-8b6ku8MTn4k-JskpwuMtTK9rKH9-6ufMjsMuI4=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1525625293386-3f8f99389edd?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1563911302283-d2bc129e7570?auto=format&fit=crop&w=800&q=80',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLc7uCtfhiMrnxqxFz3A2jyGO20CnXh6gg8hmvwu_Bs-TsPgz33AAsTIzNZ1I7ZC-Iirvi-zalJUsGW0uAg4FMqvt1UBhHhP--bYHZ-tk-8b6ku8MTn4k-JskpwuMtTK9rKH9-6ufMjsMuI4=w1200-h800-k-no',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLfYv5FWkOXxA7QDth7hWnmI46yoOAtaAeXfuY-17ZiEvWKiieZf8HG5dYdlOqIlJXwJ2tlJkvgYmpvXlHe6tiWCgZdP6BskotiuU-890ej82HkOThfCqstrUKuPfyaKnDJM4jdn=w1200-h800-k-no',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLes6LJjAsrnIKE-rvJhiYPVw1_RrLUiUnweuNg_3KfnChfkCA1dP3VhkGEMzex6t56jUxAiRYyA3wvizkDOeThfxZp3LNdZ5OHJNuCXQLBvD4RwUjroJcWO5F_tXxMbbp95Poyhlz_VW27R=w1200-h800-k-no'
     ],
     baseRatePerHead: 11000,
     maxCapacity: 50,
@@ -408,18 +403,24 @@ const LUXURY_BRAND_PREFIXES = [
 ];
 
 const RETREAT_IMAGES = [
-  'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1563911302283-d2bc129e7570?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1519046904884-53103b34b271?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?auto=format&fit=crop&w=1200&q=80',
+  'https://lh3.googleusercontent.com/grass-cs/AABkmLcYZXKxVxsBQyow8DQP0VUMZg1mxuuYvwKbx1UR6xYhhubVyEHqlJCSZPpsItg3MZcU99qgFvmcUxzMkumAkutNGHRLwqVz3YQlLe_J0apFdNVLJQPKxDqqpdbN92t2yJ9EtJAm=w1200-h800-k-no',
+  'https://lh3.googleusercontent.com/grass-cs/AABkmLfdMg2GvSDEoCFn5lSAulb8NisxWfo-pyo8ELdccKm0j8PvcXYgQLDYDUbH-HQynJDIgmrtOVu4hmYfAgTDwamWAs23gIeZUUCzcGomXN_KyAadHeW--NTuTUzMri1tIRtISKms=w1200-h800-k-no',
+  'https://lh3.googleusercontent.com/grass-cs/AABkmLeAe9niMq-yvp8_CS13jm4V_OaGJJkXnze5OnnBUi1KXWiU6Glg3cpqELGUBvh7nxAmF1bEcSo-66xInvHNAgTQ01Jou24a9J0G1wsqBYCZ14faY5H2cImI8kaQLnkElXVOg9HK_txczI5x=w1200-h800-k-no',
+  'https://lh3.googleusercontent.com/grass-cs/AABkmLfTGuZLqOrM-sxMU2hjpZC0aDG50Zxr8xQoRr2oHgTw5llClhPcMl9uXfzVCjCzQPZ_dU4bBEBbaUrC_CD6dNO-CE88-vjUICj5D-vim_FyHZkXhpi7zYdrxnEEUHdRQuN3-vcp=w1200-h800-k-no',
+  'https://lh3.googleusercontent.com/grass-cs/AABkmLdpMVb2pJx_eRzXNNojWJ8buzkXEKA1o3Cpw8QOZKtp4-viwTu7qw6QfDn0vr1J4QB6Yy139-sGAoqDj-eff_aSHiKywaN-fSJg3ddeoTrf2lOHpJKHujk_n1LBl52N4t242tQy=w1200-h800-k-no',
+  'https://lh3.googleusercontent.com/grass-cs/AABkmLfTORz220hKd25UXBI7Tz7CJA7hAoxE1wbQtK6LX-4hx45sJLmAgfecTIRhRDcLcrlaRck3aLA9wWmo7aP06HERKN8DCi0jqqQNqCS1b31HNRvpyvMYpZpN3m6kwXgkUU5ZiMg=w1200-h800-k-no',
+  'https://lh3.googleusercontent.com/grass-cs/AABkmLdPe5HMlgBNtxNnWZug2vY8Hwu_tSKVG9lkTzc1fvDvfB_BXJxIDxDp62JH-Q9bmX_8XdH4Fb6PtxvozFnyNveRstUKKLBJjmfNvZLCtN14Y4jRZKV3ztoNaOYJxiiG4uRmGBWc4Q=w1200-h800-k-no',
+  'https://lh3.googleusercontent.com/grass-cs/AABkmLc7uCtfhiMrnxqxFz3A2jyGO20CnXh6gg8hmvwu_Bs-TsPgz33AAsTIzNZ1I7ZC-Iirvi-zalJUsGW0uAg4FMqvt1UBhHhP--bYHZ-tk-8b6ku8MTn4k-JskpwuMtTK9rKH9-6ufMjsMuI4=w1200-h800-k-no',
+  'https://lh3.googleusercontent.com/grass-proxy/AIM7gW3a0qBn8TcMHlu5RDnzpjxMRzr26aAjxLKX9JXGZYwL5tKunJz8sWLTIZE9KUnXLHjbNIBrBp1dnkh-cEV-LnuXDQRBRtFASe_Y6rpmoFFjX9EOfpKGkQakrDrMYFbkTpElw7X6OkBy4XObL7yeVdmtMVEW6ddJEES39OMtAhC9XO0db3LVZuJv=w1200-h800-k-no',
+  'https://lh3.googleusercontent.com/grass-cs/AABkmLffKdBWB6fw41fKwdyQSODMv-vw597br5EHMn91iCptc9sLPCZJrU5CvHhQJx71g-504DCWFotiZEh8h8UniCZPBAxKO6Ofs6b6Sly1gZd7oJCsUQWoQ-YJo1VAhMmqbnzgUUB7=w1200-h800-k-no',
+  'https://lh3.googleusercontent.com/grass-proxy/AIM7gW2hNkE-IJFX8w66cmnprEKEj-2LSHmQo763OQSguEhbQbIyVjcIFferWgzZzs88E17Lzzwr_oCEEMb51kkIXbdkRyNwUetv22jDst5crmNOmnH8rGI9KfroqaBJptNgduyfW3utDuG2HmPsRw6EpnqpM982CFDBa_uDcvURKxwyI0u_zXImrIfR=w1200-h800-k-no',
+  'https://lh3.googleusercontent.com/grass-cs/AABkmLdyK6OY-5YcYaaYXoZfS0qpvV7KlHJR-zudyiUc3qJygvfzKLIFsmloevUv1V0QCej_jKpfu4mp3XHBEEIsAe4pQj7bxJMRcK4v0oriQeDBDKVX0kr5--UJzYE6UKmfyDTXx0stIliMKCY=w1200-h800-k-no',
+  'https://lh3.googleusercontent.com/grass-cs/AABkmLd9fAsqROx3HWikswPHbl1dBWsOQ8NYoYim-KfxOB1QGwUpo4CoYm7r999CP-X0T3CKg28LNe5qAzpCovBF7qxGL6VNuMSyLUd2B7NK4gTwKQwO2nXpyMbJcEdE87cK47GMabPrkvSidwq5=w1200-h800-k-no',
+  'https://lh3.googleusercontent.com/grass-cs/AABkmLevQJ_fN6ZtXkoyWwYgL0iTMo6hq7GZ14v-cWNzJb0yzl9q8RgzyBuIsYeeUpo8njN0hzUxaLsA21Xv4Ptgn6VhjzdHU1BOhkD6SD4pLjr6qn5k6WQMCgwwt2r1X0-Yr-Ck8tWm=w1200-h800-k-no',
+  'https://lh3.googleusercontent.com/grass-cs/AABkmLeJuGBc7hPzZ80ni5OTnQoqxR3PdX7JOf3S001P4o3hWaWsi3-rjjAwUiIyL_nsJ9PHHUZFgqnH10m15uaoPSdmE6UmmM21PLBykEZIVg3qBgxsgAgEBJ9l6P8iVzhcQO4I34-f=w1200-h800-k-no',
+  'https://lh3.googleusercontent.com/grass-cs/AABkmLf_kyH1RpgLeLBxk08QHBoIIOljAMBSQf8hTQjiMOMZF7j5OQAFAC8h0dzC6xlXrr0tzW2bYW97DE71Zlexd3zX2d3o83td6-3Ijv8cct8QsHEDcwVlMd8dip6_B4RAnHsqnCNW=w1200-h800-k-no',
+  'https://lh3.googleusercontent.com/grass-cs/AABkmLf5RWl0ALAK9RzOQfi9_CJ0udvXVCu9HXZaByiT0XLLVDnRikzYLAoz-Jxz_SXTMSv3R0h1-Omge1NfiudCT3GmXgfP-i6oc4tlcHvIV4shzLAArGSdilvtPHKQZyh_H3TRSqXYaw=w1200-h800-k-no',
+  'https://lh3.googleusercontent.com/grass-cs/AABkmLeU0ibpuOQDbcLXoQIhotyON3LkXm6t46w9FP4CwmoUcQdR9u6UxBudkA49-lsaYzpduIc2HkSasOhuTwauifdvjm7bAZbeMdp-jhD-lMIGwGdvHwHQ6PUHX8VojBNqrtqggaAXeN2OXWry=w1200-h800-k-no',
 ];
 
 /**

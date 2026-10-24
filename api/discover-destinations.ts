@@ -21,10 +21,10 @@ export interface GooglePlacesSearchTextResponse {
 }
 
 const FALLBACK_PHOTO_MAP: Record<string, string> = {
-  coastal: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1200&q=80',
-  mountain: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80',
-  urban: 'https://images.unsplash.com/photo-1563911302283-d2bc129e7570?auto=format&fit=crop&w=1200&q=80',
-  regional_apac: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=80',
+  coastal: 'https://lh3.googleusercontent.com/grass-cs/AABkmLcYZXKxVxsBQyow8DQP0VUMZg1mxuuYvwKbx1UR6xYhhubVyEHqlJCSZPpsItg3MZcU99qgFvmcUxzMkumAkutNGHRLwqVz3YQlLe_J0apFdNVLJQPKxDqqpdbN92t2yJ9EtJAm=w1200-h800-k-no',
+  mountain: 'https://lh3.googleusercontent.com/grass-cs/AABkmLfdMg2GvSDEoCFn5lSAulb8NisxWfo-pyo8ELdccKm0j8PvcXYgQLDYDUbH-HQynJDIgmrtOVu4hmYfAgTDwamWAs23gIeZUUCzcGomXN_KyAadHeW--NTuTUzMri1tIRtISKms=w1200-h800-k-no',
+  urban: 'https://lh3.googleusercontent.com/grass-cs/AABkmLdpMVb2pJx_eRzXNNojWJ8buzkXEKA1o3Cpw8QOZKtp4-viwTu7qw6QfDn0vr1J4QB6Yy139-sGAoqDj-eff_aSHiKywaN-fSJg3ddeoTrf2lOHpJKHujk_n1LBl52N4t242tQy=w1200-h800-k-no',
+  regional_apac: 'https://lh3.googleusercontent.com/grass-cs/AABkmLfTORz220hKd25UXBI7Tz7CJA7hAoxE1wbQtK6LX-4hx45sJLmAgfecTIRhRDcLcrlaRck3aLA9wWmo7aP06HERKN8DCi0jqqQNqCS1b31HNRvpyvMYpZpN3m6kwXgkUU5ZiMg=w1200-h800-k-no',
 };
 
 /**

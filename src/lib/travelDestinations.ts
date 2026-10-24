@@ -58,11 +58,12 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     category: 'รีสอร์ตผู้บริหารระดับพรีเมียม',
     archetype: 'coastal',
     overview: 'พูลวิลล่าส่วนตัวบนแนวชายฝั่งตะวันตกเฉียงเหนือของภูเก็ต มาพร้อมอินเทอร์เน็ตความเร็วสูง Starlink ห้องประชุมเปิดโล่งรับลมทะเลอันดามัน และมื้อค่ำอาหารทะเลระดับมิชลินสำหรับทีมผู้นำระดับผู้บริหาร',
-    hero_image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80',
+    hero_image: 'https://lh3.googleusercontent.com/grass-cs/AABkmLcYZXKxVxsBQyow8DQP0VUMZg1mxuuYvwKbx1UR6xYhhubVyEHqlJCSZPpsItg3MZcU99qgFvmcUxzMkumAkutNGHRLwqVz3YQlLe_J0apFdNVLJQPKxDqqpdbN92t2yJ9EtJAm=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=800&q=80'
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLcYZXKxVxsBQyow8DQP0VUMZg1mxuuYvwKbx1UR6xYhhubVyEHqlJCSZPpsItg3MZcU99qgFvmcUxzMkumAkutNGHRLwqVz3YQlLe_J0apFdNVLJQPKxDqqpdbN92t2yJ9EtJAm=w1200-h800-k-no',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLe5E-f-Uas47u5VXBs0hDQtKSZ0VXRdLbO35fIB5Rwnzu-XO8uh9L66RO7TM20Uw2s-Mf4tNCG_wqNe--E0b4Xm8eDoqrnulbpZ6RMctaqV3obmxXugfo_BRjkxagVQ3QGDD6ahSA=w1200-h800-k-no',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLfpnKt2gIpS4ocf0dGkWURLeNUsrARWObdiIX0TH38ZjzDO-0Ovsz1-oMa8ypJ-zPsngJfXB-bOCLDdxbs9YwuMAkfOMYl-geFJPN-l4Vk475oN-HTCRkN85Lgtl6Yp61hqp9zPj0tNqm_r=w1200-h800-k-no',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLeLL1ApK2Wc3yJcUvJP_8rcrnsjytsxHLkYIu4H3RqDsO4TKIiTTjdtHkcTtg2lm7j9g6e4b4c5uLdPwBNGImqyxYP1uSf-LIclvQhSllqLRhMMfGFDwcvjN-ZycHc46JXMFUjO=w1200-h800-k-no'
     ],
     price_per_night: 42000,
     price_per_person: 6500,
@@ -93,10 +94,9 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     category: 'ฟื้นฟูสุขภาพ & Eco Retreat',
     archetype: 'mountain',
     overview: 'รีสอร์ตริมแม่น้ำปิงอันเงียบสงบ ผสมผสานจิตวิญญาณสถาปัตยกรรมล้านนากับพื้นที่ทำงานที่เป็นกลางทางคาร์บอน ศาลาระดมสมองริมน้ำ พิธีชงชา และโซนนั่งทำงานเพื่อจุดประกายความคิดสร้างสรรค์',
-    hero_image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80',
+    hero_image: 'https://lh3.googleusercontent.com/grass-cs/AABkmLfdMg2GvSDEoCFn5lSAulb8NisxWfo-pyo8ELdccKm0j8PvcXYgQLDYDUbH-HQynJDIgmrtOVu4hmYfAgTDwamWAs23gIeZUUCzcGomXN_KyAadHeW--NTuTUzMri1tIRtISKms=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=800&q=80'
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLfdMg2GvSDEoCFn5lSAulb8NisxWfo-pyo8ELdccKm0j8PvcXYgQLDYDUbH-HQynJDIgmrtOVu4hmYfAgTDwamWAs23gIeZUUCzcGomXN_KyAadHeW--NTuTUzMri1tIRtISKms=w1200-h800-k-no'
     ],
     price_per_night: 23500,
     price_per_person: 3800,
@@ -125,10 +125,9 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     category: 'ทำงานพักผ่อน (Bleisure & Coworking)',
     archetype: 'coastal',
     overview: 'การรวมตัวของพลังงานชีวิตที่สดใสและประสิทธิภาพการทำงาน คาบาน่าริมหาดพร้อมปลั๊กและเน็ต สระว่ายน้ำอินฟินิตี้ส่วนตัวทุกหลัง ปาร์ตี้ดีเจยามพระอาทิตย์ตก และห้อง Great Room สำหรับพรีเซนต์งานสำคัญ',
-    hero_image: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=1200&q=80',
+    hero_image: 'https://lh3.googleusercontent.com/grass-cs/AABkmLeAe9niMq-yvp8_CS13jm4V_OaGJJkXnze5OnnBUi1KXWiU6Glg3cpqELGUBvh7nxAmF1bEcSo-66xInvHNAgTQ01Jou24a9J0G1wsqBYCZ14faY5H2cImI8kaQLnkElXVOg9HK_txczI5x=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=800&q=80'
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLeAe9niMq-yvp8_CS13jm4V_OaGJJkXnze5OnnBUi1KXWiU6Glg3cpqELGUBvh7nxAmF1bEcSo-66xInvHNAgTQ01Jou24a9J0G1wsqBYCZ14faY5H2cImI8kaQLnkElXVOg9HK_txczI5x=w1200-h800-k-no'
     ],
     price_per_night: 33000,
     price_per_person: 5100,
@@ -157,10 +156,9 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     category: 'ผจญภัยกระชับมิตรทีม',
     archetype: 'coastal',
     overview: 'โอบล้อมด้วย 3 ชายหาดและยอดเขาหินปูนสูงตระหง่านใจกลางอุทยานแห่งชาติทางทะเล เหมาะสำหรับการผจญภัยเสริมสร้างความสามัคคี ควบคู่กับอาหารค่ำสุดหรูในถ้ำหินปูนและห้องประชุมกลางป่าเขตร้อน',
-    hero_image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
+    hero_image: 'https://lh3.googleusercontent.com/grass-cs/AABkmLfTGuZLqOrM-sxMU2hjpZC0aDG50Zxr8xQoRr2oHgTw5llClhPcMl9uXfzVCjCzQPZ_dU4bBEBbaUrC_CD6dNO-CE88-vjUICj5D-vim_FyHZkXhpi7zYdrxnEEUHdRQuN3-vcp=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1512353087810-25dfcd100962?auto=format&fit=crop&w=800&q=80'
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLfTGuZLqOrM-sxMU2hjpZC0aDG50Zxr8xQoRr2oHgTw5llClhPcMl9uXfzVCjCzQPZ_dU4bBEBbaUrC_CD6dNO-CE88-vjUICj5D-vim_FyHZkXhpi7zYdrxnEEUHdRQuN3-vcp=w1200-h800-k-no'
     ],
     price_per_night: 28500,
     price_per_person: 4500,
@@ -189,10 +187,9 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     category: 'จัดประชุม MICE หรูใจกลางเมือง',
     archetype: 'urban',
     overview: 'โอเอซิสริมแม่น้ำเจ้าพระยา นำเสนอสิ่งอำนวยความสะดวกในการจัดประชุมผู้บริหารระดับโลก อาหารระดับดาวมิชลิน วิลล่าริมน้ำส่วนตัว และบริการวางแผนการประชุมระดับองค์กรอย่างสมบูรณ์แบบ',
-    hero_image: 'https://images.unsplash.com/photo-1508873696983-2df5293cb32b?auto=format&fit=crop&w=1200&q=80',
+    hero_image: 'https://lh3.googleusercontent.com/grass-cs/AABkmLdpMVb2pJx_eRzXNNojWJ8buzkXEKA1o3Cpw8QOZKtp4-viwTu7qw6QfDn0vr1J4QB6Yy139-sGAoqDj-eff_aSHiKywaN-fSJg3ddeoTrf2lOHpJKHujk_n1LBl52N4t242tQy=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1508873696983-2df5293cb32b?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1563911302283-d2bc129e7570?auto=format&fit=crop&w=800&q=80'
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLdpMVb2pJx_eRzXNNojWJ8buzkXEKA1o3Cpw8QOZKtp4-viwTu7qw6QfDn0vr1J4QB6Yy139-sGAoqDj-eff_aSHiKywaN-fSJg3ddeoTrf2lOHpJKHujk_n1LBl52N4t242tQy=w1200-h800-k-no'
     ],
     price_per_night: 38000,
     price_per_person: 5900,
@@ -221,10 +218,9 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     category: 'ทำงานพักผ่อน (Bleisure & Coworking)',
     archetype: 'regional_apac',
     overview: 'มาตรฐานระดับโลกสำหรับออฟไซต์ของบริษัทเทคโนโลยีและเอเจนซี่ดีไซน์ สถาปัตยกรรมไร้ขยะ (Zero-Waste) อัฒจันทร์ไม้ไผ่ พื้นที่ทำงานริมหาด และวัฒนธรรมดนตรียามเย็นริมหาดเซมินยัค',
-    hero_image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=80',
+    hero_image: 'https://lh3.googleusercontent.com/grass-cs/AABkmLfTORz220hKd25UXBI7Tz7CJA7hAoxE1wbQtK6LX-4hx45sJLmAgfecTIRhRDcLcrlaRck3aLA9wWmo7aP06HERKN8DCi0jqqQNqCS1b31HNRvpyvMYpZpN3m6kwXgkUU5ZiMg=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1518548419970-58e3b4079ab2?auto=format&fit=crop&w=800&q=80'
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLfTORz220hKd25UXBI7Tz7CJA7hAoxE1wbQtK6LX-4hx45sJLmAgfecTIRhRDcLcrlaRck3aLA9wWmo7aP06HERKN8DCi0jqqQNqCS1b31HNRvpyvMYpZpN3m6kwXgkUU5ZiMg=w1200-h800-k-no'
     ],
     price_per_night: 26000,
     price_per_person: 4200,
@@ -253,10 +249,9 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     category: 'จัดประชุม MICE หรูใจกลางเมือง',
     archetype: 'regional_apac',
     overview: 'ผลงานชิ้นเอกที่ออกแบบโดย บิล เบนส์ลีย์ ข้ามภูเขาลิง วิลล่าสำหรับการประชุมระดับผู้นำพร้อมบริการบัตเลอร์ส่วนตัว ร้านอาหารระดับมิชลิน และรถรางไฟฟ้าส่วนตัวลงสู่อ่าวชายหาด',
-    hero_image: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?auto=format&fit=crop&w=1200&q=80',
+    hero_image: 'https://lh3.googleusercontent.com/grass-cs/AABkmLdPe5HMlgBNtxNnWZug2vY8Hwu_tSKVG9lkTzc1fvDvfB_BXJxIDxDp62JH-Q9bmX_8XdH4Fb6PtxvozFnyNveRstUKKLBJjmfNvZLCtN14Y4jRZKV3ztoNaOYJxiiG4uRmGBWc4Q=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1565031491910-e57fac030c41?auto=format&fit=crop&w=800&q=80'
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLdPe5HMlgBNtxNnWZug2vY8Hwu_tSKVG9lkTzc1fvDvfB_BXJxIDxDp62JH-Q9bmX_8XdH4Fb6PtxvozFnyNveRstUKKLBJjmfNvZLCtN14Y4jRZKV3ztoNaOYJxiiG4uRmGBWc4Q=w1200-h800-k-no'
     ],
     price_per_night: 31000,
     price_per_person: 4900,
@@ -285,10 +280,11 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     category: 'รีสอร์ตผู้บริหารระดับพรีเมียม',
     archetype: 'regional_apac',
     overview: 'คฤหาสน์สไตล์โคโลเนียลท่ามกลางพื้นที่ธรรมชาติกว่า 30 เอเคอร์บนเกาะเซ็นโตซ่า สถานที่จัดการประชุมระดับผู้นำนานาชาติ มีพูลวิลล่าส่วนตัว ระบบรักษาความปลอดภัยระดับสูงสุด และห่างจากย่านการเงินเพียง 10 นาที',
-    hero_image: 'https://images.unsplash.com/photo-1565967511849-76a60a516170?auto=format&fit=crop&w=1200&q=80',
+    hero_image: 'https://lh3.googleusercontent.com/grass-cs/AABkmLc7uCtfhiMrnxqxFz3A2jyGO20CnXh6gg8hmvwu_Bs-TsPgz33AAsTIzNZ1I7ZC-Iirvi-zalJUsGW0uAg4FMqvt1UBhHhP--bYHZ-tk-8b6ku8MTn4k-JskpwuMtTK9rKH9-6ufMjsMuI4=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1565967511849-76a60a516170?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1525625293386-3f8f99389edd?auto=format&fit=crop&w=800&q=80'
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLc7uCtfhiMrnxqxFz3A2jyGO20CnXh6gg8hmvwu_Bs-TsPgz33AAsTIzNZ1I7ZC-Iirvi-zalJUsGW0uAg4FMqvt1UBhHhP--bYHZ-tk-8b6ku8MTn4k-JskpwuMtTK9rKH9-6ufMjsMuI4=w1200-h800-k-no',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLfYv5FWkOXxA7QDth7hWnmI46yoOAtaAeXfuY-17ZiEvWKiieZf8HG5dYdlOqIlJXwJ2tlJkvgYmpvXlHe6tiWCgZdP6BskotiuU-890ej82HkOThfCqstrUKuPfyaKnDJM4jdn=w1200-h800-k-no',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLes6LJjAsrnIKE-rvJhiYPVw1_RrLUiUnweuNg_3KfnChfkCA1dP3VhkGEMzex6t56jUxAiRYyA3wvizkDOeThfxZp3LNdZ5OHJNuCXQLBvD4RwUjroJcWO5F_tXxMbbp95Poyhlz_VW27R=w1200-h800-k-no'
     ],
     price_per_night: 51000,
     price_per_person: 8400,
@@ -317,10 +313,11 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     category: 'ฟื้นฟูสุขภาพ & Eco Retreat',
     archetype: 'mountain',
     overview: 'รีสอร์ตไม้ไผ่ธรรมชาติบนยอดดอยแม่สลอง โอบล้อมด้วยไร่ชาขั้นบันไดและทะเลหมอก สัญญาณอินเทอร์เน็ต Starlink ครอบคลุมทั่วบริเวณ ศาลาประชุมรับลมหนาว และเวิร์กช็อประดมสมองพร้อมชาออร์แกนิก',
-    hero_image: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80',
+    hero_image: 'https://lh3.googleusercontent.com/grass-proxy/AIM7gW3a0qBn8TcMHlu5RDnzpjxMRzr26aAjxLKX9JXGZYwL5tKunJz8sWLTIZE9KUnXLHjbNIBrBp1dnkh-cEV-LnuXDQRBRtFASe_Y6rpmoFFjX9EOfpKGkQakrDrMYFbkTpElw7X6OkBy4XObL7yeVdmtMVEW6ddJEES39OMtAhC9XO0db3LVZuJv=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=800&q=80'
+      'https://lh3.googleusercontent.com/grass-proxy/AIM7gW3a0qBn8TcMHlu5RDnzpjxMRzr26aAjxLKX9JXGZYwL5tKunJz8sWLTIZE9KUnXLHjbNIBrBp1dnkh-cEV-LnuXDQRBRtFASe_Y6rpmoFFjX9EOfpKGkQakrDrMYFbkTpElw7X6OkBy4XObL7yeVdmtMVEW6ddJEES39OMtAhC9XO0db3LVZuJv=w1200-h800-k-no',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLdP9zxHLmwIHCUvlhZY9jqZe8wC2J_xoh_yYep9bD_gn2QFFZiOZk1sC6SLo_9QLVwqQdTVUctLtR-tc53VsnacVdGSbFcJe90J67fOXYKNnIiUj5zzOC9bUMzL--SCtadPIJSj2Q=w1200-h800-k-no',
+      'https://lh3.googleusercontent.com/grass-proxy/AIM7gW1B3H46bAk9mhtAC9BUZoCZ3igw2Xy7ZRWFCNiSLn6waWUulo63bgbbj1rM9kxz7qA6aFhWfyYT5w69eQ6PSTmIv3QCdsRzX1NnO3NGVBzFv1gZuqEFFhy2QvH26NKbTNSGxXT7IywDN_2Yj8GkO5eO9DZc1QHZgd4SdHBTRFwYQVG8S3nITMb0=w1200-h800-k-no'
     ],
     price_per_night: 22000,
     price_per_person: 3500,
@@ -349,10 +346,11 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
     category: 'ฟื้นฟูสุขภาพ & Eco Retreat',
     archetype: 'mountain',
     overview: 'รีสอร์ตระดับลักชัวรีติดอุทยานแห่งชาติเขาใหญ่ ขับรถจากกรุงเทพฯ เพียง 2 ชั่วโมง เพียบพร้อมด้วยสนามกอล์ฟ 18 หลุม ห้องสัมมนามาตรฐาน MICE พร้อมจอขนาดใหญ่และวิวเทือกเขาดงพญาเย็น',
-    hero_image: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=80',
+    hero_image: 'https://lh3.googleusercontent.com/grass-cs/AABkmLffKdBWB6fw41fKwdyQSODMv-vw597br5EHMn91iCptc9sLPCZJrU5CvHhQJx71g-504DCWFotiZEh8h8UniCZPBAxKO6Ofs6b6Sly1gZd7oJCsUQWoQ-YJo1VAhMmqbnzgUUB7=w1200-h800-k-no',
     gallery: [
-      'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80'
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLffKdBWB6fw41fKwdyQSODMv-vw597br5EHMn91iCptc9sLPCZJrU5CvHhQJx71g-504DCWFotiZEh8h8UniCZPBAxKO6Ofs6b6Sly1gZd7oJCsUQWoQ-YJo1VAhMmqbnzgUUB7=w1200-h800-k-no',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLc1bhE1I4L1JcQKI4hzBGtQhhPp4C_YWm8X3v-GKpho8_Wn6B2lm6ibhTQro2CPdgVMAUYsT7kiZiX0yMqDUQ_n1idQYeqTt7H1XmucZv-umhcq0bygLyaXklloKh_4N2T2Y-Lm=w1200-h800-k-no',
+      'https://lh3.googleusercontent.com/grass-cs/AABkmLci9dqjLcPVUNJUcshOQ405zz7BbWUCOT3u1OU5O4lREtks4JkyQuSg6UDbbFjLjVlfCqUxvb68hkH2IXUXVw4bX4O-l59p52RDL2gSe2zmPX5kBue68lwzmki7vpp9ebcTGlClsA=w1200-h800-k-no'
     ],
     price_per_night: 27000,
     price_per_person: 4100,
