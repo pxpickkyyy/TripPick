@@ -156,44 +156,23 @@ test.describe('TripPick UI Overlap, i18n & Voice Engine Smoke Suite', () => {
     await page.waitForTimeout(300);
   });
 
-  test('5. Business Model Dossier (100 Pts) Modal renders bilingual criteria and monetization data', async ({ page }) => {
+  test('5. Business Model Dossier button is removed cleanly from Landing page in all languages', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/');
 
-    // Switch to English first
+    // Switch to English
     await page.locator('[data-testid="lang-en-btn"]').click();
     await page.waitForTimeout(100);
 
-    // Click "View Business Model & Pitch Dossier"
-    const pitchBtn = page.locator('button:has-text("View Business Model")').first();
-    await expect(pitchBtn).toBeVisible();
-    await pitchBtn.click();
-
-    // Verify Modal Header & 100 PTS criteria in English
-    await expect(page.locator('text=COMPETITION DOSSIER // CRITERIA 100 PTS').first()).toBeVisible();
-    await expect(page.locator('text=฿32,400').first()).toBeVisible();
-    await expect(page.locator('text=Make Me Money').first()).toBeVisible();
-
-    // Close Modal via close button
-    const closeBtn = page.locator('button[aria-label="Close Window"]').first();
-    await expect(closeBtn).toBeVisible();
-    await closeBtn.click();
+    // Verify "View Business Model & Pitch Dossier" button is NOT rendered
+    await expect(page.locator('button:has-text("View Business Model")')).toHaveCount(0);
 
     // Switch to Thai
     await page.locator('[data-testid="lang-th-btn"]').click();
     await page.waitForTimeout(100);
 
-    // Reopen in Thai
-    const pitchBtnTh = page.locator('button:has-text("ดู Business Model")').first();
-    await expect(pitchBtnTh).toBeVisible();
-    await pitchBtnTh.click();
-
-    // Verify Modal in Thai
-    await expect(page.locator('text=ซอฟต์แวร์เพื่อธุรกิจและการท่องเที่ยว').first()).toBeVisible();
-    await expect(page.locator('text=32,400 บาท').first()).toBeVisible();
-
-    // Close Modal
-    await page.locator('button[aria-label="ปิดหน้าต่าง"]').first().click();
+    // Verify "ดู Business Model" button is NOT rendered
+    await expect(page.locator('button:has-text("ดู Business Model")')).toHaveCount(0);
   });
 
   test('6. Android 360px Small Screen: Strict zero-overlap verification', async ({ page }) => {

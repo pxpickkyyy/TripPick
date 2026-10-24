@@ -8,7 +8,6 @@ interface LandingViewProps {
   onReenterSession: () => Promise<boolean>;
   loading: boolean;
   error: string | null;
-  onOpenBusinessModel?: () => void;
 }
 
 export function LandingView({
@@ -17,7 +16,6 @@ export function LandingView({
   onReenterSession,
   loading,
   error,
-  onOpenBusinessModel,
 }: LandingViewProps) {
   const { language, t } = useLanguage();
   const [code, setCode] = useState('');
@@ -151,17 +149,6 @@ export function LandingView({
             </form>
           </div>
         </div>
-
-        {/* Business Model / Pitch Dossier Button */}
-        {onOpenBusinessModel && (
-          <button
-            onClick={onOpenBusinessModel}
-            className="mt-4 text-xs font-mono text-[#89b4fa] hover:text-[#b4befe] underline cursor-pointer flex items-center gap-1.5 transition-colors"
-          >
-            <span>💼 {t.viewPitchBtn}</span>
-            <span>→</span>
-          </button>
-        )}
 
         {/* Minimalist Bento Value Grid (Low-End Optimized Solid Surfaces) */}
         <div className="w-full max-w-md grid grid-cols-3 gap-2.5 mt-5">

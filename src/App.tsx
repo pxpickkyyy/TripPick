@@ -80,7 +80,6 @@ function App() {
             onReenterSession={reenterSession}
             loading={loading}
             error={error}
-            onOpenBusinessModel={() => setIsBusinessModalOpen(true)}
           />
         );
       case 'profile':
