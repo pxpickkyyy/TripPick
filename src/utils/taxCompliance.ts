@@ -16,8 +16,8 @@ export interface ThaiTaxValidationResult {
 /**
  * Automatically formats keystrokes as standard Thai DBD Corporate Tax ID: X-XXXX-XXXXX-XX-X
  */
-export function formatThaiTaxId(rawTaxId: string): string {
-  const digits = rawTaxId.replace(/\D/g, '').slice(0, 13);
+export function formatThaiTaxId(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 13);
   if (digits.length === 0) return '';
   if (digits.length <= 1) return digits;
   if (digits.length <= 5) return `${digits.slice(0, 1)}-${digits.slice(1)}`;
@@ -41,22 +41,32 @@ export function calculateModulus11CheckDigit(digits12: string): number {
 }
 
 /**
- * Returns a valid formatted Thai Tax ID by computing and attaching the Modulus 11 check digit
+ * Official Thai Corporate Tax ID Validation (Modulus 11 Algorithm)
+ * - Strip all non-digit characters (must strictly be 13 digits).
+ * - Multiply each of the first 12 digits by its positional weight (13 down to 2).
+ * - Calculate check digit: (11 - (sum % 11)) % 10.
+ * - Return true only if the calculated check digit matches the 13th digit.
  */
-export function ensureValidThaiTaxId(rawTaxId: string): string {
-  const digits = rawTaxId.replace(/\D/g, '');
-  if (digits.length >= 12) {
-    const base12 = digits.slice(0, 12);
-    const checkDigit = calculateModulus11CheckDigit(base12);
-    return formatThaiTaxId(`${base12}${checkDigit}`);
+export function validateThaiTaxId(taxId: string): boolean {
+  const digits = taxId.replace(/\D/g, '');
+  if (digits.length !== 13) return false;
+  if (/^(\d)\1{12}$/.test(digits)) return false;
+
+  let sum = 0;
+  for (let i = 0; i < 12; i++) {
+    const digit = parseInt(digits.charAt(i), 10);
+    const weight = 13 - i;
+    sum += digit * weight;
   }
-  return formatThaiTaxId(rawTaxId);
+
+  const checkDigit = (11 - (sum % 11)) % 10;
+  return checkDigit === parseInt(digits.charAt(12), 10);
 }
 
 /**
- * Official Thai 13-Digit Corporate Tax ID Validator (Modulus 11 Checksum)
+ * Detailed validation result helper for UI input feedback
  */
-export function validateThaiTaxId(rawTaxId: string): ThaiTaxValidationResult {
+export function validateThaiTaxIdDetailed(rawTaxId: string): ThaiTaxValidationResult {
   const digits = rawTaxId.replace(/\D/g, '').slice(0, 13);
   const formatted = formatThaiTaxId(digits);
 
@@ -80,7 +90,6 @@ export function validateThaiTaxId(rawTaxId: string): ThaiTaxValidationResult {
     };
   }
 
-  // Reject repeating patterns (e.g. 0000000000000 or 1111111111111)
   if (/^(\d)\1{12}$/.test(digits)) {
     return {
       isValid: false,
@@ -114,6 +123,19 @@ export function validateThaiTaxId(rawTaxId: string): ThaiTaxValidationResult {
   };
 }
 
+/**
+ * Returns a valid formatted Thai Tax ID by computing and attaching the Modulus 11 check digit
+ */
+export function ensureValidThaiTaxId(rawTaxId: string): string {
+  const digits = rawTaxId.replace(/\D/g, '');
+  if (digits.length >= 12) {
+    const base12 = digits.slice(0, 12);
+    const checkDigit = calculateModulus11CheckDigit(base12);
+    return formatThaiTaxId(`${base12}${checkDigit}`);
+  }
+  return formatThaiTaxId(rawTaxId);
+}
+
 export interface StatutoryB2BTaxResult {
   headcount: number;
   nights: number;
@@ -132,16 +154,6 @@ export interface StatutoryB2BTaxResult {
 
 /**
  * Statutory Thai B2B Tax Calculation (Tor.Por. 4/2528) with Hotel 10% Service Charge Awareness
- * 
- * Rules:
- * 1. Subtotal = Headcount * Nights * RatePerHead
- * 2. Service Charge (10% in luxury MICE venues): Service Charge = Subtotal * 0.10
- * 3. Service Fee Base = Subtotal + Service Charge
- * 4. VAT 7% = Service Fee Base * 0.07
- * 5. Gross Total = Service Fee Base + VAT 7%
- * 6. WHT 3% (Withholding Tax): Calculated strictly on the pre-VAT Service Fee Base per Tor.Por. 4/2528
- *    WHT 3% = Service Fee Base * 0.03
- * 7. Net Payable = Gross Total - WHT 3% = Service Fee Base * 1.04
  */
 export function calculateStatutoryB2BTax(
   headcount: number,

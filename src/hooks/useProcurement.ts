@@ -9,7 +9,7 @@ import type {
 } from '../types/procurement';
 import { calculateRetreatPricing, DEMO_COMPANY_PRESETS } from '../types/procurement';
 import type { DepositReceipt } from './useTripPick';
-import { downloadRfpPdf } from '../services/pdfReportGenerator';
+import { downloadCorporateRfpPdf } from '../utils/generatePdf';
 import { ensureValidThaiTaxId } from '../utils/taxCompliance';
 
 export interface UseProcurementOptions {
@@ -41,6 +41,26 @@ export function useProcurement({
   language = 'th',
   onConfirmDeposit,
 }: UseProcurementOptions) {
+  // Pro Subscription State persisted in localStorage ('trippick_demo_tier') and URL param ?pro=true
+  const [isProMember, setInternalProMember] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get('pro') === 'true') {
+        localStorage.setItem('trippick_demo_tier', 'pro');
+        return true;
+      }
+      return localStorage.getItem('trippick_demo_tier') === 'pro';
+    }
+    return false;
+  });
+
+  const setIsProMember = useCallback((val: boolean) => {
+    setInternalProMember(val);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('trippick_demo_tier', val ? 'pro' : 'free');
+    }
+  }, []);
+
   // Configurable Parameters
   const [userHeadcount, setUserHeadcount] = useState<number | null>(null);
   const headcount = userHeadcount ?? Math.max(4, initialHeadcount);
@@ -59,7 +79,7 @@ export function useProcurement({
   const [approverEmail, setApproverEmail] = useState<string>(defaultPreset.approverEmail);
   const [hasAppliedDemoPreset, setHasAppliedDemoPreset] = useState<boolean>(true);
   const [currentPresetIndex, setCurrentPresetIndex] = useState<number>(0);
-  const [hotelServiceChargePercent, setHotelServiceChargePercent] = useState<number>(0);
+  const [hotelServiceChargePercent, setHotelServiceChargePercent] = useState<number>(10);
 
   // Payment Method
   const [paymentMethod, setPaymentMethod] = useState<EscrowPaymentMethod>('PROMPTPAY_QR');
@@ -81,7 +101,7 @@ export function useProcurement({
   // Rate per head per night
   const ratePerHead = destination?.price_per_person ?? 6000;
 
-  // Real-time Pricing Model strictly compliant with ท.ป. 4/2528 & Hotel Service Charge
+  // Real-time Pricing Model strictly compliant with Tor.Por. 4/2528 & Hotel Service Charge
   const pricing: RetreatPricingModel = useMemo(() => {
     return calculateRetreatPricing(headcount, nights, ratePerHead, takeRatePercent, hotelServiceChargePercent);
   }, [headcount, nights, ratePerHead, takeRatePercent, hotelServiceChargePercent]);
@@ -122,10 +142,10 @@ export function useProcurement({
     setApproverEmail(preset.approverEmail);
     setCurrentPresetIndex(nextIndex);
     setHasAppliedDemoPreset(true);
-    showToast(`⚡ โหลดข้อมูลจำลอง: ${preset.companyName}`);
+    showToast(`Loaded preset: ${preset.companyName}`);
   }, [currentPresetIndex, showToast]);
 
-  // Confirm ฿5,000 Escrow Deposit
+  // Confirm THB 5,000 Escrow Deposit
   const confirmEscrow = useCallback(() => {
     if (isEscrowLocked) return;
 
@@ -143,10 +163,8 @@ export function useProcurement({
       timestamp: Date.now(),
     };
 
-    // Trigger parent callback which broadcasts ESCROW_LOCKED
     onConfirmDeposit?.(receiptNo, finalTaxId, amount, finalCompanyName, escrowPayload);
-
-    showToast(language === 'en' ? '🎉 Escrow deposit ฿5,000 secured (Venue locked)' : '🎉 วางเงินมัดจำ Escrow ฿5,000 สำเร็จ (ล็อกห้องสัมมนาเรียบร้อย)');
+    showToast(language === 'en' ? 'Escrow deposit 5,000 THB secured (Venue locked)' : 'มัดจำล็อกสิทธิ์ 5,000 บาทสำเร็จ (ล็อกสถานที่เรียบร้อย)');
   }, [isEscrowLocked, depositCode, roomId, companyName, defaultPreset.companyName, companyTaxId, defaultPreset.companyTaxId, onConfirmDeposit, showToast, language]);
 
   // Export to Google Sheets Compatible CSV (UTF-8 BOM \uFEFF)
@@ -258,7 +276,7 @@ export function useProcurement({
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    showToast(isEn ? '✓ CSV file downloaded for ERP / SAP / Excel' : '✓ ดาวน์โหลดไฟล์ .CSV สำหรับ Google Sheets สำเร็จ');
+    showToast(isEn ? 'CSV file downloaded for ERP / Excel' : 'ดาวน์โหลดไฟล์ .CSV สำหรับ Excel / Google Sheets สำเร็จ');
   }, [
     proposalRef,
     isEscrowLocked,
@@ -303,24 +321,11 @@ export function useProcurement({
       [''],
       ['Line', 'Procurement Line Items', 'Quantity', 'Unit Rate (THB)', 'Total (THB)'],
       ['1', `MICE Accommodation & Executive Retreat Package ${destinationTitle}`, `${pricing.headcount * pricing.nights} guest/nights`, pricing.ratePerHeadPerNight, pricing.subtotalBeforeVat],
-      ['2', 'Starlink Business SLA Dedicated Network', '1 system', 'Included', 0],
-      ['3', '24/7 Corporate Concierge Coordination Service', '1 service', 'Included', 0],
-      [''],
-      ['Tax Compliance per Thai Revenue Dept (Tor.Por. 4/2528)', 'Amount (THB)'],
-      ['1. Net Subtotal (Before VAT)', pricing.subtotalBeforeVat],
-      ...(pricing.hotelServiceChargeAmount && pricing.hotelServiceChargeAmount > 0 ? [
-        ['2. Hotel Service Charge (10%)', pricing.hotelServiceChargeAmount],
-        ['3. Pre-VAT Service Fee Base', pricing.serviceFeeBase],
-        ['4. Value Added Tax 7% (VAT 7%)', pricing.vat7Percent],
-        ['5. Gross Invoice Total (Base + VAT 7%)', pricing.grossTotalWithVat],
-        ['6. Withholding Tax 3% (WHT 3% calculated on pre-VAT Base)', -pricing.wht3Percent],
-        ['7. Net Payable to Vendor (Gross Total - WHT 3%)', pricing.netPayableToVendor],
-      ] : [
-        ['2. Value Added Tax 7% (VAT 7%)', pricing.vat7Percent],
-        ['3. Gross Invoice Total (Subtotal + VAT 7%)', pricing.grossTotalWithVat],
-        ['4. Withholding Tax 3% (WHT 3% calculated on pre-VAT Subtotal)', -pricing.wht3Percent],
-        ['5. Net Payable to Vendor (Gross Total - WHT 3%)', pricing.netPayableToVendor],
-      ]),
+      ['2', 'Hotel Service Charge (10%)', '1 service', `${pricing.hotelServiceChargeAmount || 0}`, pricing.hotelServiceChargeAmount || 0],
+      ['3', 'Pre-VAT Service Fee Base', '1 base', `${pricing.serviceFeeBase}`, pricing.serviceFeeBase],
+      ['4', 'Value Added Tax 7% (VAT 7%)', '7% statutory', `${pricing.vat7Percent}`, pricing.vat7Percent],
+      ['5', 'Withholding Tax 3% (WHT 3% calculated on pre-VAT Base)', '3% statutory', `-${pricing.wht3Percent}`, -pricing.wht3Percent],
+      ['6', 'Net Payable to Vendor', 'Gross - WHT 3%', `${pricing.netPayableToVendor}`, pricing.netPayableToVendor],
       [''],
       ['Escrow Lock Deposit', 5000],
     ] : [
@@ -341,24 +346,11 @@ export function useProcurement({
       [''],
       ['ลำดับ', 'รายการจัดซื้อจัดจ้าง (Line Items)', 'จำนวน', 'ราคาต่อหน่วย (THB)', 'ยอดรวม (THB)'],
       ['1', `ค่าแพ็กเกจที่พักและสิ่งอำนวยความสะดวก MICE ${destinationTitle}`, `${pricing.headcount * pricing.nights} คน/คืน`, pricing.ratePerHeadPerNight, pricing.subtotalBeforeVat],
-      ['2', 'สัญญาณอินเทอร์เน็ต Starlink Business SLA Guarantee', '1 ระบบ', 'รวมในแพ็กเกจ', 0],
-      ['3', 'บริการประสานงานผู้ช่วยจัดทริปองค์กร 24 ชม. ผ่าน TripPick AI Concierge', '1 รายการ', 'รวมในแพ็กเกจ', 0],
-      [''],
-      ['สรุปภาษีตามระเบียบกรมสรรพากร (ท.ป. 4/2528)', 'จำนวนเงิน (THB)'],
-      ['1. มูลค่ารวมก่อนภาษี (Net Subtotal)', pricing.subtotalBeforeVat],
-      ...(pricing.hotelServiceChargeAmount && pricing.hotelServiceChargeAmount > 0 ? [
-        ['2. ค่าบริการโรงแรม 10% (Hotel 10% Service Charge)', pricing.hotelServiceChargeAmount],
-        ['3. ฐานค่าบริการรวมก่อนภาษี (Service Fee Base)', pricing.serviceFeeBase],
-        ['4. ภาษีมูลค่าเพิ่ม 7% (VAT 7%)', pricing.vat7Percent],
-        ['5. ยอดรวมทั้งสิ้นรวมภาษี (Gross Invoice Total)', pricing.grossTotalWithVat],
-        ['6. ภาษีหัก ณ ที่จ่าย 3% (Withholding Tax 3% คิดจากยอดก่อน VAT)', -pricing.wht3Percent],
-        ['7. ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable to Vendor)', pricing.netPayableToVendor],
-      ] : [
-        ['2. ภาษีมูลค่าเพิ่ม 7% (VAT 7%)', pricing.vat7Percent],
-        ['3. ยอดรวมทั้งสิ้นรวมภาษี (Gross Invoice Total)', pricing.grossTotalWithVat],
-        ['4. ภาษีหัก ณ ที่จ่าย 3% (Withholding Tax 3% คิดจากยอดก่อน VAT)', -pricing.wht3Percent],
-        ['5. ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable to Vendor)', pricing.netPayableToVendor],
-      ]),
+      ['2', 'ค่าบริการโรงแรม 10% (Hotel 10% Service Charge)', '1 รายการ', `${pricing.hotelServiceChargeAmount || 0}`, pricing.hotelServiceChargeAmount || 0],
+      ['3', 'ฐานค่าบริการรวมก่อนภาษี (Service Fee Base)', '1 ฐาน', `${pricing.serviceFeeBase}`, pricing.serviceFeeBase],
+      ['4', 'ภาษีมูลค่าเพิ่ม 7% (VAT 7%)', '7%', `${pricing.vat7Percent}`, pricing.vat7Percent],
+      ['5', 'ภาษีหัก ณ ที่จ่าย 3% (Withholding Tax 3% คิดจากยอดก่อน VAT)', '3%', `-${pricing.wht3Percent}`, -pricing.wht3Percent],
+      ['6', 'ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable to Vendor)', 'สุทธิ', `${pricing.netPayableToVendor}`, pricing.netPayableToVendor],
       [''],
       ['เงินมัดจำล็อกสิทธิ์ (Escrow Deposit)', 5000],
     ];
@@ -371,7 +363,7 @@ export function useProcurement({
       // Clipboard fallback
     }
 
-    showToast(isEn ? '✓ TSV table copied! Ready to paste into Google Sheets (Ctrl+V)' : '✓ คัดลอกข้อมูลตาราง TSV แล้ว พร้อมวางใน Google Sheets (Ctrl+V)');
+    showToast(isEn ? 'TSV table copied! Ready to paste into Google Sheets (Ctrl+V)' : 'คัดลอกข้อมูลตาราง TSV แล้ว พร้อมวางใน Google Sheets (Ctrl+V)');
     window.open('https://docs.google.com/spreadsheets/create', '_blank', 'noopener,noreferrer');
   }, [
     destination,
@@ -387,98 +379,115 @@ export function useProcurement({
     language,
   ]);
 
-  // 1-Click Export to Google Docs (Markdown synthesis + clipboard + open Google Docs)
+  // Export to Google Docs (Markdown format copied + open Google Docs)
   const generateGoogleDocsMarkdown = useCallback(async () => {
     const isEn = language === 'en';
+    const issueDate = new Date().toLocaleDateString(isEn ? 'en-US' : 'th-TH', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
     const destinationTitle = destination?.title || (isEn ? 'TripPick Corporate Retreat' : 'TripPick สัมมนาองค์กร');
     const destinationLocation = destination ? `${destination.city}, ${destination.country}` : 'Thailand';
 
-    const markdown = `# ${destinationTitle} — B2B Executive Procurement RFP & Escrow Dossier
-
-**Client Company**: ${companyName}
-**Tax ID (13-Digit)**: ${companyTaxId}
-**Approver Email**: ${approverEmail}
-**Room Code**: #${roomId}
-**Destination**: ${destinationTitle} (${destinationLocation})
-**Attendees**: ${pricing.headcount} Pax | **Duration**: ${pricing.nights} Nights
-**Document Reference**: ${proposalRef}
-**Escrow Deposit Status**: ${isEscrowLocked ? `SECURED & LOCKED (Receipt: ${escrowDeposit.receiptNo})` : 'PENDING ฿5,000 ESCROW DEPOSIT'}
+    const mdContent = `# TripPick B2B Procurement RFP & Executive Schedule
+**Reference:** ${proposalRef} | **Room:** #${roomId} | **Date:** ${issueDate}
+**Client:** ${effectiveCompanyName} (Tax ID: ${effectiveTaxId})
+**Approver:** ${effectiveApproverEmail}
 
 ---
 
-## 1. ${isEn ? 'Tax & Accounting Breakdown' : 'การคำนวณภาษีและงบประมาณจัดซื้อจัดจ้าง (Tax & Accounting Breakdown)'}
-*Compliant with Thai Revenue Department Order Tor.Por. 4/2528 (คำสั่งกรมสรรพากรที่ ท.ป. 4/2528)*
-
-- **${isEn ? 'Net Subtotal (Before VAT)' : 'มูลค่ารวมก่อนภาษี (Net Subtotal)'}**: ฿${pricing.subtotalBeforeVat.toLocaleString()} THB
-${pricing.hotelServiceChargeAmount && pricing.hotelServiceChargeAmount > 0 ? `- **${isEn ? 'Hotel 10% Service Charge' : 'ค่าบริการโรงแรม 10% (Hotel Service Charge)'}**: +฿${pricing.hotelServiceChargeAmount.toLocaleString()} THB
-- **${isEn ? 'Pre-VAT Service Fee Base' : 'ฐานค่าบริการรวมก่อนภาษี (Service Fee Base)'}**: ฿${pricing.serviceFeeBase.toLocaleString()} THB
-- **${isEn ? 'Value Added Tax 7% (VAT 7% on Service Fee Base)' : 'ภาษีมูลค่าเพิ่ม 7% (VAT 7% คิดจากฐานค่าบริการ)'}**: +฿${pricing.vat7Percent.toLocaleString()} THB
-- **${isEn ? 'Gross Invoice Total' : 'ยอดรวมทั้งสิ้น (Gross Invoice Total)'}**: ฿${pricing.grossTotalWithVat.toLocaleString()} THB
-- **${isEn ? 'Withholding Tax 3% (WHT 3% on pre-VAT Base)' : 'ภาษีหัก ณ ที่จ่าย 3% (WHT 3% หมวดบริการ คิดจากฐานก่อน VAT)'}**: -฿${pricing.wht3Percent.toLocaleString()} THB` : `- **${isEn ? 'Value Added Tax 7% (VAT 7%)' : 'ภาษีมูลค่าเพิ่ม 7% (VAT 7%)'}**: +฿${pricing.vat7Percent.toLocaleString()} THB
-- **${isEn ? 'Gross Invoice Total' : 'ยอดรวมทั้งสิ้น (Gross Invoice Total)'}**: ฿${pricing.grossTotalWithVat.toLocaleString()} THB
-- **${isEn ? 'Withholding Tax 3% (WHT 3% calculated on Subtotal before VAT)' : 'ภาษีหัก ณ ที่จ่าย 3% (WHT 3% หมวดบริการ คิดจากยอดก่อน VAT)'}**: -฿${pricing.wht3Percent.toLocaleString()} THB`}
-- **${isEn ? 'Net Payable to Vendor' : 'ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable to Vendor)'}**: ฿${pricing.netPayableToVendor.toLocaleString()} THB
+## 1. Selected MICE Property
+- **Property:** ${destinationTitle}
+- **Location:** ${destinationLocation}
+- **Capacity:** ${pricing.headcount} Guests | **Duration:** ${pricing.nights} Nights
+- **Connectivity:** Dedicated Starlink & Fiber Network (500+ Mbps)
+- **Facilities:** Executive Boardroom with 4K AV Setup
 
 ---
 
-## 2. ${isEn ? 'Corporate Procurement & Escrow Status' : 'สถานะการจัดซื้อจัดจ้างและเงินมัดจำ (Corporate Escrow)'}
-- **${isEn ? 'Net Subtotal (Before VAT)' : 'มูลค่างานรวมก่อนภาษี (Subtotal)'}**: ฿${pricing.subtotalBeforeVat.toLocaleString()} THB
-${pricing.hotelServiceChargeAmount && pricing.hotelServiceChargeAmount > 0 ? `- **${isEn ? 'Pre-VAT Service Fee Base' : 'ฐานค่าบริการรวมก่อนภาษี (Service Fee Base)'}**: ฿${pricing.serviceFeeBase.toLocaleString()} THB
-` : ''}- **${isEn ? 'Net Payable to Vendor' : 'ยอดสุทธิที่ต้องชำระจริง (Net Payable)'}**: ฿${pricing.netPayableToVendor.toLocaleString()} THB
-- **${isEn ? 'Escrow Lock Deposit' : 'เงินมัดจำล็อกสิทธิ์ (Escrow Lock)'}**: ฿5,000.00 THB (${isEscrowLocked ? (isEn ? 'Paid & 100% Protected' : 'ชำระแล้ว - ได้รับการคุ้มครอง 100%') : (isEn ? 'Pending Payment' : 'รอการชำระ')})
+## 2. Statutory Financial Breakdown (Thai Revenue Dept Tor.Por. 4/2528)
+| Line Item | Formula | Amount (THB) |
+| :--- | :---: | :--- |
+| **1. Net Subtotal (GBV)** | ${pricing.headcount} pax x ${pricing.nights} nights x THB ${pricing.ratePerHeadPerNight.toLocaleString()} | THB ${pricing.subtotalBeforeVat.toLocaleString()} |
+${pricing.hotelServiceChargeAmount ? `| **2. Hotel Service Charge (10%)** | Subtotal x 0.10 | +THB ${pricing.hotelServiceChargeAmount.toLocaleString()} |\n| **3. Pre-VAT Service Fee Base** | Subtotal + Service Charge | THB ${pricing.serviceFeeBase.toLocaleString()} |` : ''}
+| **${pricing.hotelServiceChargeAmount ? '4' : '2'}. VAT 7%** | Base x 0.07 | +THB ${pricing.vat7Percent.toLocaleString()} |
+| **${pricing.hotelServiceChargeAmount ? '5' : '3'}. Gross Total** | Base + VAT 7% | THB ${pricing.grossTotalWithVat.toLocaleString()} |
+| **${pricing.hotelServiceChargeAmount ? '6' : '4'}. Withholding Tax 3% (WHT 3%)** | Pre-VAT Base x 0.03 | -THB ${pricing.wht3Percent.toLocaleString()} |
+| **${pricing.hotelServiceChargeAmount ? '7' : '5'}. Net Payable to Vendor** | Base x 1.04 | **THB ${pricing.netPayableToVendor.toLocaleString()}** |
+
+**Escrow Status:** ${isEscrowLocked ? `Escrow Secured & Locked (${escrowDeposit.receiptNo})` : 'Pending Escrow Deposit (THB 5,000)'}
 
 ---
 
-*Generated autonomously by TripPick B2B Procurement Engine*
-*Google Antigravity Hackathon — Track: Software for Business & Tourism (Make Me Money)*
+## 3. Executive 3-Day Retreat Agenda
+### Day 1: Arrival & High-Bandwidth Deep Work
+- 13:00 - Airport Transfer via Private VIP Van
+- 14:30 - Check-in & Starlink High-Speed Setup (500+ Mbps)
+- 15:30 - Engineering Sprint & Architecture Sync
+- 18:30 - Welcome Team Dinner & Local Seafood
+
+### Day 2: Executive Strategy & Workshop
+- 09:00 - Q3/Q4 OKRs in Executive Boardroom (30 Pax)
+- 12:30 - Executive Catering Lunch
+- 14:00 - Product Roadmap & Breakout Brainstorming
+- 17:00 - Team Adventure & Wellness Excursion
+- 19:30 - Gala Dinner & Strategy Retrospective
+
+### Day 3: Synthesis & Wrap-up
+- 08:30 - Executive Breakfast & Action Item Commitments
+- 10:30 - Checkout & Final Departure Transfer
 `;
 
     try {
-      await navigator.clipboard.writeText(markdown);
+      await navigator.clipboard.writeText(mdContent);
     } catch {
       // Clipboard fallback
     }
 
-    showToast(isEn ? '✓ Markdown RFP copied! Ready to paste into Google Docs (Ctrl+V)' : '✓ คัดลอกเอกสาร Markdown แล้ว พร้อมวางใน Google Docs (Ctrl+V)');
+    showToast(isEn ? 'Markdown document copied! Opening Google Docs (Ctrl+V)' : 'คัดลอกเอกสาร Markdown แล้ว พร้อมวางใน Google Docs (Ctrl+V)');
     window.open('https://docs.google.com/document/create', '_blank', 'noopener,noreferrer');
   }, [
-    destination,
-    companyName,
-    companyTaxId,
-    approverEmail,
-    roomId,
-    pricing,
     proposalRef,
+    roomId,
+    effectiveCompanyName,
+    effectiveTaxId,
+    effectiveApproverEmail,
+    destination,
+    pricing,
     isEscrowLocked,
     escrowDeposit.receiptNo,
-    showToast,
     language,
+    showToast,
   ]);
 
+  // Crash-proof PDF download using pdf-lib and Sarabun font
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
 
   const downloadPdf = useCallback(async () => {
+    setIsGeneratingPdf(true);
     try {
-      setIsGeneratingPdf(true);
-      const isEn = language === 'en';
-      const destinationTitle = destination?.title || (isEn ? 'TripPick Corporate Retreat' : 'TripPick สัมมนาองค์กร');
-      const destinationLocation = destination ? `${destination.city}, ${destination.country}` : 'Thailand';
-
-      await downloadRfpPdf({
+      await downloadCorporateRfpPdf({
         proposalRef,
-        issueDate: new Date().toLocaleDateString(isEn ? 'en-US' : 'th-TH', { year: 'numeric', month: 'long', day: 'numeric' }),
+        issueDate: new Date().toLocaleDateString(language === 'en' ? 'en-US' : 'th-TH', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        }),
         roomId,
         companyName: effectiveCompanyName,
         companyTaxId: effectiveTaxId,
         approverEmail: effectiveApproverEmail,
-        destinationTitle,
-        destinationCity: destinationLocation,
+        destinationTitle: destination?.title || 'TripPick Corporate Retreat',
+        destinationCity: destination?.city || 'Thailand',
+        destinationCountry: destination?.country || 'Thailand',
         headcount: pricing.headcount,
         nights: pricing.nights,
         ratePerHeadPerNight: pricing.ratePerHeadPerNight,
         subtotalBeforeVat: pricing.subtotalBeforeVat,
-        hotelServiceChargePercent: pricing.hotelServiceChargePercent || 0,
-        hotelServiceChargeAmount: pricing.hotelServiceChargeAmount || 0,
+        hotelServiceChargePercent: pricing.hotelServiceChargePercent,
+        hotelServiceChargeAmount: pricing.hotelServiceChargeAmount,
         serviceFeeBase: pricing.serviceFeeBase,
         vat7Percent: pricing.vat7Percent,
         grossTotalWithVat: pricing.grossTotalWithVat,
@@ -489,11 +498,10 @@ ${pricing.hotelServiceChargeAmount && pricing.hotelServiceChargeAmount > 0 ? `- 
         escrowAmount: escrowDeposit.amount,
         language,
       });
-
-      showToast(isEn ? '✓ Official PDF RFP downloaded successfully' : '✓ ดาวน์โหลดเอกสาร PDF จัดซื้อจัดจ้างสำเร็จ');
+      showToast(language === 'en' ? 'Official PDF RFP downloaded' : 'ดาวน์โหลดเอกสาร PDF RFP ทางการสำเร็จ');
     } catch (err) {
-      console.warn('PDF generation failed, falling back to window.print():', err);
-      window.print();
+      console.error('PDF generation error:', err);
+      showToast(language === 'en' ? 'PDF generation failed, please try again' : 'เกิดข้อผิดพลาดในการสร้าง PDF กรุณาลองใหม่อีกครั้ง');
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -517,6 +525,8 @@ ${pricing.hotelServiceChargeAmount && pricing.hotelServiceChargeAmount > 0 ? `- 
   }, [downloadPdf]);
 
   return {
+    isProMember,
+    setIsProMember,
     headcount,
     setHeadcount,
     nights,

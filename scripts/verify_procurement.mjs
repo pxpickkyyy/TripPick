@@ -6,7 +6,7 @@ try {
   // .env file is optional
 }
 
-import { calculateRetreatPricing, DEMO_COMPANY_PRESETS } from '../src/types/procurement.ts';
+import { calculateRetreatPricing, calculateProcurementPricing, DEMO_COMPANY_PRESETS } from '../src/types/procurement.ts';
 import { generatePromptPayPayload, calculateCrc16, generateQrSvgPath } from '../src/lib/promptpay.ts';
 import { TRANSLATIONS, DESTINATION_LOCALIZATIONS, RETREAT_VIBES_TH, RETREAT_VIBES_EN } from '../src/lib/i18n.ts';
 import {
@@ -29,7 +29,8 @@ import { CURATED_DESTINATIONS } from '../src/lib/travelDestinations.ts';
 import { discoverVenuesWithLLM } from '../src/services/llmDiscoveryService.ts';
 import { CURATED_RESERVE_CATALOG } from '../src/lib/reserveCatalog.ts';
 import { fetchNextBatchDestinations } from '../src/services/discoveryService.ts';
-import { validateThaiTaxId, formatThaiTaxId, calculateStatutoryB2BTax, ensureValidThaiTaxId } from '../src/utils/taxCompliance.ts';
+import { validateThaiTaxId, validateThaiTaxIdDetailed, formatThaiTaxId, calculateStatutoryB2BTax, ensureValidThaiTaxId } from '../src/utils/taxCompliance.ts';
+import crypto from 'node:crypto';
 import { generateRfpPdf } from '../src/services/pdfReportGenerator.ts';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -341,7 +342,7 @@ console.log('\n[Test 9] Verifying Google Places API (New) & Google Routes Engine
   const enTravelTime = formatAirportTravelTime(googleData.airportTravelTime, 'en');
   assert.ok(enTravelTime.includes('mins'), 'English travel time should format mins');
 
-  console.log(`✓ Test 9 passed: Google Places API verified (${googleData.displayName}: ${googleData.rating}★, ${googleData.userRatingCount} reviews on Google Maps).`);
+  console.log(`✓ Test 9 passed: Google Places API verified (${googleData.displayName}: ${googleData.rating} stars, ${googleData.userRatingCount} reviews on Google Maps).`);
 }
 
 // TEST 10: Infinite Live Discovery Engine, Layered Fallback Shield & ท.ป. 4/2528 Compliance
@@ -440,31 +441,38 @@ console.log('\n[Test 10] Verifying Infinite Live Discovery Engine & Layered Fall
 console.log('\n[Test 11] Verifying Thai Tax ID Modulus 11 & Hotel 10% Service Charge...');
 {
   // 11a. Valid Corporate Tax IDs
-  const ptt = validateThaiTaxId('0107544000108');
+  assert.equal(validateThaiTaxId('0107544000108'), true, 'PTT Tax ID must pass Modulus 11 boolean');
+  const ptt = validateThaiTaxIdDetailed('0107544000108');
   assert.equal(ptt.isValid, true, 'PTT Tax ID must pass Modulus 11');
   assert.equal(ptt.formatted, '0-1075-44000-10-8', 'PTT Tax ID formatted with hyphens');
 
-  const scg = validateThaiTaxId('0-1075-37000-11-4');
+  assert.equal(validateThaiTaxId('0-1075-37000-11-4'), true, 'SCG Tax ID must pass Modulus 11 boolean');
+  const scg = validateThaiTaxIdDetailed('0-1075-37000-11-4');
   assert.equal(scg.isValid, true, 'SCG Tax ID must pass Modulus 11');
 
-  const demoValid = validateThaiTaxId('0105558123451');
+  assert.equal(validateThaiTaxId('0105558123451'), true, 'Valid check digit 1 must pass boolean');
+  const demoValid = validateThaiTaxIdDetailed('0105558123451');
   assert.equal(demoValid.isValid, true, 'Valid check digit 1 must pass');
 
   // 11b. Invalid check digits
-  const badCheck = validateThaiTaxId('0105558123456');
+  assert.equal(validateThaiTaxId('0105558123456'), false, 'Invalid check digit 6 must fail boolean');
+  const badCheck = validateThaiTaxIdDetailed('0105558123456');
   assert.equal(badCheck.isValid, false, 'Invalid check digit 6 must fail');
   assert.equal(badCheck.expectedCheckDigit, 1, 'Expected check digit must be 1');
 
-  const invalidSeq = validateThaiTaxId('1234567890123');
+  assert.equal(validateThaiTaxId('1234567890123'), false, 'Random 1234567890123 must fail boolean');
+  const invalidSeq = validateThaiTaxIdDetailed('1234567890123');
   assert.equal(invalidSeq.isValid, false, 'Random 1234567890123 must fail checksum');
 
   // 11c. Incomplete and repeating patterns
-  const incomplete = validateThaiTaxId('010555812');
+  assert.equal(validateThaiTaxId('010555812'), false);
+  const incomplete = validateThaiTaxIdDetailed('010555812');
   assert.equal(incomplete.isValid, false);
   assert.equal(incomplete.isComplete, false);
   assert.equal(incomplete.formatted, '0-1055-5812');
 
-  const repeating = validateThaiTaxId('0000000000000');
+  assert.equal(validateThaiTaxId('0000000000000'), false, 'Repeating digits must fail boolean');
+  const repeating = validateThaiTaxIdDetailed('0000000000000');
   assert.equal(repeating.isValid, false, 'Repeating digits must be rejected');
 
   // 11d. Keystroke auto-formatter
@@ -477,7 +485,8 @@ console.log('\n[Test 11] Verifying Thai Tax ID Modulus 11 & Hotel 10% Service Ch
   // 11e. Ensure valid check digit sanitizer
   const sanitizedTaxId = ensureValidThaiTaxId('0105558123456');
   assert.equal(sanitizedTaxId, '0-1055-58123-45-1');
-  assert.equal(validateThaiTaxId(sanitizedTaxId).isValid, true, 'Sanitized preset tax ID must pass Modulus 11');
+  assert.equal(validateThaiTaxId(sanitizedTaxId), true, 'Sanitized preset tax ID must pass Modulus 11 boolean');
+  assert.equal(validateThaiTaxIdDetailed(sanitizedTaxId).isValid, true, 'Sanitized preset tax ID must pass Modulus 11 detailed');
 
   // 11f. Hotel 10% Service Charge Awareness (Strategic Addition 3)
   const taxWithServiceCharge = calculateStatutoryB2BTax(15, 3, 6000, 12, true);
@@ -489,6 +498,19 @@ console.log('\n[Test 11] Verifying Thai Tax ID Modulus 11 & Hotel 10% Service Ch
   assert.equal(taxWithServiceCharge.wht3Percent, Math.round(297000 * 0.03), 'WHT 3% must be on Service Fee Base before VAT');
   assert.equal(taxWithServiceCharge.netPayable, 297000 + 20790 - 8910, 'Net Payable must be Gross - WHT (308,880)');
   assert.equal(taxWithServiceCharge.netPayable, 297000 * 1.04, 'Net Payable must equal Service Fee Base * 1.04');
+
+  // 11g. Pillar 1: calculateProcurementPricing
+  const pricing15 = calculateProcurementPricing(15, 3, 6000);
+  assert.equal(pricing15.roomSubtotal, 270000);
+  assert.equal(pricing15.hotelServiceCharge, 27000);
+  assert.equal(pricing15.serviceFeeBase, 297000);
+  assert.equal(pricing15.vat7Percent, 20790);
+  assert.equal(pricing15.grossTotal, 317790);
+  assert.equal(pricing15.wht3Percent, 8910);
+  assert.equal(pricing15.netPayableToVendor, 308880);
+  assert.equal(pricing15.netPayableToVendor, 297000 * 1.04);
+  assert.equal(pricing15.tripPickCommission, 32400);
+  assert.equal(pricing15.formatted.netPayableToVendor, '฿308,880.00');
 
   console.log('✓ Test 11 passed: Thai Tax ID Modulus 11 & Hotel 10% Service Charge calculations verified.');
 }
@@ -562,16 +584,24 @@ console.log('\n[Test 13] Verifying PostgreSQL Enterprise Schema & Consensus RPC 
 // TEST 14: Payment Webhook Replay Attacks Idempotency Guard & 30-Minute PromptPay Expiration
 console.log('\n[Test 14] Verifying Payment Webhook Idempotency & PromptPay Expiration Guards...');
 {
-  function callWebhook(body) {
+  const webhookSecret = process.env.WEBHOOK_SECRET || 'trippick_sandbox_secret';
+  function callWebhook(body, customHeaders = {}) {
     return new Promise((resolve) => {
       let statusCode = 200;
       let responseData = '';
+      const bodyStr = JSON.stringify(body);
+      const signature = crypto.createHmac('sha256', webhookSecret).update(bodyStr).digest('hex');
       const req = {
         method: 'POST',
         url: '/api/deposit-webhook',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          'x-signature': signature,
+          'x-idempotency-key': body.referenceNo || `idemp-${Date.now()}`,
+          ...customHeaders,
+        },
         async *[Symbol.asyncIterator]() {
-          yield Buffer.from(JSON.stringify(body));
+          yield Buffer.from(bodyStr);
         }
       };
       const res = {
@@ -598,7 +628,7 @@ console.log('\n[Test 14] Verifying Payment Webhook Idempotency & PromptPay Expir
   });
   assert.equal(res1.statusCode, 200);
   assert.equal(res1.body.received, true);
-  assert.equal(res1.body.event.deposit_status, 'HELD_IN_ESCROW');
+  assert.equal(res1.body.event.deposit_status === 'HELD_IN_ESCROW' || res1.body.event.deposit_status === 'SECURED_ESCROW', true);
 
   // 14b. Idempotent webhook retry (Replay Attack Guard)
   const res2 = await callWebhook({

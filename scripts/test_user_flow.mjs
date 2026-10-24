@@ -104,7 +104,7 @@ console.log(`Active count on host: ${activeCount}, Required likes: ${requiredLik
 if (requiredLikes === 2) {
   console.log('✓ Correct: 1 like will NOT trigger consensus because requiredLikes = 2!');
 } else {
-  console.log('❌ Bug: requiredLikes is', requiredLikes);
+  console.log('[FAIL] Bug: requiredLikes is', requiredLikes);
 }
 
 process.exit(0);

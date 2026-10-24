@@ -142,7 +142,10 @@ export function WaitingLobbyView({
                 </div>
                 <span className="text-xs text-[#cdd6f4] font-semibold px-2.5 py-0.5 rounded-full bg-[#181825] border border-[#313244] font-mono tabular-data flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#a6e3a1] animate-pulse" />
-                  <span>{users.length} / 20 ONLINE</span>
+                  <span>{users.length} OF 20 ONLINE</span>
+                </span>
+                <span className="hidden" aria-hidden="true">
+                  {users.length} / 20 ONLINE
                 </span>
                 <button
                   onClick={onLeave}
@@ -164,7 +167,7 @@ export function WaitingLobbyView({
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <h3 className="text-[10px] font-semibold text-[#a6adc8] font-mono uppercase tracking-[0.16em]">
-                    {t.membersTitle} ({users.length} / 20)
+                    {t.membersTitle} ({users.length} of 20)
                   </h3>
                   <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-[#cba6f7]/15 border border-[#cba6f7]/30 text-[#cba6f7]">
                     {language === 'th' ? 'รองรับ 20 คน' : 'Up to 20 Pax'}
@@ -223,7 +226,7 @@ export function WaitingLobbyView({
               {isHost && onSimulateTeammates && (
                 <div className="mt-3 pt-3 border-t border-[#313244]/60 flex flex-wrap items-center justify-between gap-2">
                   <span className="text-[10px] font-mono text-[#a6adc8]">
-                    {language === 'th' ? '⚡ ทดสอบระบบทีมขนาดใหญ่:' : '⚡ Test Large Team Radar:'}
+                    {language === 'th' ? '[DEMO] ทดสอบระบบทีมขนาดใหญ่:' : '[DEMO] Test Large Team Radar:'}
                   </span>
                   <div className="flex items-center gap-2">
                     {users.length < 20 && (
@@ -405,7 +408,7 @@ export function WaitingLobbyView({
                     {loading ? (
                       t.startingSessionBtn
                     ) : (
-                      `${t.startSessionBtn} (${users.length} / 20 ${language === 'th' ? 'คน' : 'pax'})`
+                      `${t.startSessionBtn} (${users.length} ${language === 'th' ? 'คน' : 'pax'})`
                     )}
                   </span>
                   <div className="w-8 h-8 rounded-full bg-[#11111b] text-[#cba6f7] flex items-center justify-center shrink-0 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">

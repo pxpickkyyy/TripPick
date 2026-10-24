@@ -585,7 +585,7 @@ export function useTripPick() {
           setReceivedEmojis(prev => prev.filter(e => e.id !== emojiItem.id));
         }, 3000);
       }
-    } else if (type === 'ESCROW_LOCKED' || type === 'DEPOSIT_COMPLETED') {
+    } else if (type === 'ESCROW_LOCKED' || type === 'ESCROW_SECURED' || type === 'DEPOSIT_COMPLETED') {
       const receiptNo = typeof payload.depositId === 'string'
         ? payload.depositId
         : (typeof payload.receipt_no === 'string' ? payload.receipt_no : `DEP-TP-${Date.now().toString().slice(-6)}`);
@@ -596,9 +596,9 @@ export function useTripPick() {
       const taxId = typeof payload.companyTaxId === 'string' ? payload.companyTaxId : '0105558123456';
       setDepositStatus('SECURED_ESCROW');
       setDepositReceipt({ receiptNo, amount, paidAt, taxId });
-      setEscrowNotification('🎉 บริษัทวางมัดจำล็อกสถานที่เรียบร้อยแล้ว');
+      setEscrowNotification('[ESCROW] บริษัทวางมัดจำล็อกสถานที่เรียบร้อยแล้ว');
       setTimeout(() => {
-        setEscrowNotification(prev => prev === '🎉 บริษัทวางมัดจำล็อกสถานที่เรียบร้อยแล้ว' ? null : prev);
+        setEscrowNotification(prev => prev === '[ESCROW] บริษัทวางมัดจำล็อกสถานที่เรียบร้อยแล้ว' ? null : prev);
       }, 5000);
     } else if (type === 'REQUEST_ROOM_STATE') {
       // Authoritative response from Host or latest peer
@@ -736,6 +736,7 @@ export function useTripPick() {
         .on('broadcast', { event: 'SYNC_ROOM_STATE' }, ({ payload }: { payload: unknown }) => handleIncomingEvent('SYNC_ROOM_STATE', payload))
         .on('broadcast', { event: 'DEPOSIT_COMPLETED' }, ({ payload }: { payload: unknown }) => handleIncomingEvent('DEPOSIT_COMPLETED', payload))
         .on('broadcast', { event: 'ESCROW_LOCKED' }, ({ payload }: { payload: unknown }) => handleIncomingEvent('ESCROW_LOCKED', payload))
+        .on('broadcast', { event: 'ESCROW_SECURED' }, ({ payload }: { payload: unknown }) => handleIncomingEvent('ESCROW_LOCKED', payload))
         .on('broadcast', { event: 'DECK_EXPANDED' }, ({ payload }: { payload: unknown }) => handleIncomingEvent('DECK_EXPANDED', payload))
         .on('broadcast', { event: 'LEADER_PROMOTED' }, ({ payload }: { payload: unknown }) => handleIncomingEvent('LEADER_PROMOTED', payload))
         .on(
@@ -1044,47 +1045,59 @@ export function useTripPick() {
       }
     }
 
-    // Fallback Majority Consensus Check:
-    // Only triggers when ALL members in the room have swiped all cards, or in large groups (>=4) if >=80% finished
+    // Tier 2: Adaptive Deadlock Recovery (Borda-Count Consensus Compromise)
+    // If all users have finished their decks (or >=80% in large teams), calculate cumulative Borda-count score:
+    // Score = (Likes * 2) - (Passes * 1) - (Vetoes * 10), excluding any venue with a hard veto.
     const finishedUsers = users.filter(u => {
       const userSwipes = swipes.filter(s => s.user_id === u.id);
       return deck.every(dest => userSwipes.some(s => s.destination_id === dest.id));
     });
 
-    const isConsensusReady =
+    const isDeckCompleted =
       (totalMembers > 1 && finishedUsers.length === totalMembers) ||
-      (totalMembers >= 4 && (finishedUsers.length / totalMembers) >= 0.8);
+      (totalMembers >= 4 && (finishedUsers.length / totalMembers) >= 0.8) ||
+      (totalMembers === 1 && finishedUsers.length === 1);
 
-    if (isConsensusReady && !matchedDestinationRef.current) {
-      const nonVetoed = deck.filter(dest => !swipes.some(s => s.destination_id === dest.id && s.is_veto));
-      if (nonVetoed.length > 0) {
-        const scored = nonVetoed.map(dest => {
-          const uniqueLikers = new Set(
-            swipes.filter(s => s.destination_id === dest.id && s.is_like).map(s => s.user_id)
-          );
+    if (isDeckCompleted && !matchedDestinationRef.current) {
+      const nonVetoedCandidates = deck
+        .filter(dest => !swipes.some(s => s.destination_id === dest.id && s.is_veto))
+        .map(dest => {
+          const venueSwipes = swipes.filter(s => s.destination_id === dest.id);
+          const likes = venueSwipes.filter(s => s.is_like).length;
+          const passes = venueSwipes.filter(s => !s.is_like && !s.is_veto).length;
+          const vetoes = venueSwipes.filter(s => s.is_veto).length;
+          const score = (likes * 2) - (passes * 1) - (vetoes * 10);
           return {
-            dest,
-            uniqueLikes: uniqueLikers.size
+            destination: dest,
+            likes,
+            passes,
+            vetoes,
+            score,
           };
         });
-        scored.sort((a, b) => b.uniqueLikes - a.uniqueLikes);
 
-        // For 2 players: Both must agree (2 likes). Never declare consensus on 1 like when 2 people are in the room!
-        const minLikesNeeded = totalMembers <= 2 ? 2 : Math.max(2, Math.ceil(totalMembers * 0.5));
-        if (scored[0].uniqueLikes >= minLikesNeeded) {
-          const winner = scored[0].dest;
-          queueMicrotask(() => {
-            if (matchedDestinationRef.current) return;
-            setMatchedDestination(winner);
-            setStep('matched');
-          });
-          broadcastEvent('MATCH_FOUND', {
-            destination: winner,
-            hostId: currentUserRef.current?.id,
-            timestamp: Date.now()
-          });
-          return;
-        }
+      nonVetoedCandidates.sort((a, b) => b.score - a.score);
+
+      if (totalMembers > 1 && nonVetoedCandidates.length > 0 && nonVetoedCandidates[0].score > 0) {
+        const compromiseWinner: TravelDestination = {
+          ...nonVetoedCandidates[0].destination,
+          isCompromiseMatch: true,
+          compromiseLabel: 'Best Team Fit (Consensus Compromise)',
+        };
+
+        queueMicrotask(() => {
+          if (matchedDestinationRef.current) return;
+          setMatchedDestination(compromiseWinner);
+          setStep('matched');
+        });
+        broadcastEvent('MATCH_FOUND', {
+          destination: compromiseWinner,
+          hostId: currentUserRef.current?.id,
+          timestamp: Date.now(),
+          isCompromiseMatch: true,
+          consensusType: 'BORDA_COMPROMISE',
+        });
+        return;
       }
     }
   }, [swipes, users, room, step, matchedDestination, broadcastEvent, currentUser]);
@@ -1404,8 +1417,6 @@ export function useTripPick() {
     mode: 'rapid' | 'infinite' = 'rapid'
   ): Promise<boolean> => {
     if (!roomId) return false;
-    setCompilingDeck(true);
-    setLoading(true);
 
     try {
       setDiscoveryMode(mode);
@@ -1414,51 +1425,20 @@ export function useTripPick() {
       deckBatchVersionRef.current = 1;
       lastFetchedBatchVersionRef.current = 1;
 
-      let deck: TravelDestination[] = [];
+      // Seed initial deck synchronously with 5 pre-warmed curated venues
+      // Guarantees 0ms immediate transition to swiping without being blocked by API latency
+      const matchingCurated = CURATED_DESTINATIONS.filter(d => !vibe || d.category === vibe || d.vibe_category === vibe);
+      const prewarmed = matchingCurated.length >= 5
+        ? matchingCurated.slice(0, 5)
+        : [...matchingCurated, ...CURATED_DESTINATIONS.filter(d => !matchingCurated.some(m => m.id === d.id))].slice(0, 5);
 
-      // In Infinite Discovery Mode: fetch live venues from Gemini + Google Places
-      if (mode === 'infinite') {
-        const activeHeadcount = Math.max(1, usersRef.current.length);
-        const activeBudget = maxBudget || 8000;
-        setDiscoveryStatus('กำลังค้นหา MICE Retreats สดใหม่...');
-        try {
-          const result = await fetchNextBatchDestinationsService({
-            vibe,
-            headcount: activeHeadcount,
-            maxBudgetPerHead: activeBudget,
-            minBudgetPerHead: minBudget,
-            excludedPlaceIds: [],
-            excludedNames: [],
-            batchVersion: 1,
-          });
-          if (result && Array.isArray(result.destinations) && result.destinations.length > 0) {
-            deck = result.destinations;
-          }
-        } catch (e) {
-          console.warn('TripPick: Initial infinite batch fetch error, falling back to curated:', e);
-        }
-      }
-
-      // If rapid consensus mode or if infinite discovery initial batch returned empty, fall back to curated recommendations
-      if (!deck || deck.length === 0) {
-        // Gather team amenity preferences
-        const allSelectedAmenities = Array.from(
-          new Set(usersRef.current.flatMap(u => u.preferred_amenities))
-        );
-
-        deck = await fetchAiRecommendations(
-          allSelectedAmenities,
-          vibe,
-          minBudget,
-          maxBudget
-        );
-      }
+      const initialDeck: TravelDestination[] = [...prewarmed];
 
       const updatedRoom: Room = {
         id: roomId,
         created_at: roomRef.current?.created_at || new Date().toISOString(),
         status: 'swiping',
-        destinations_deck: deck,
+        destinations_deck: initialDeck,
         vibe,
         discovery_mode: mode,
         deck_batch_version: 1,
@@ -1467,7 +1447,11 @@ export function useTripPick() {
       };
 
       setRoom(updatedRoom);
+      roomRef.current = updatedRoom;
       setStep('swiping');
+      stepRef.current = 'swiping';
+      setCompilingDeck(false);
+      setLoading(false);
       setSwipes([]);
       swipesRef.current = [];
       setMatchedDestination(null);
@@ -1496,7 +1480,7 @@ export function useTripPick() {
 
       // Populate seen place IDs
       const initialSeen = new Set<string>();
-      deck.forEach(d => {
+      initialDeck.forEach(d => {
         if (d.google_place_id) initialSeen.add(d.google_place_id);
       });
       setSeenPlaceIds(initialSeen);
@@ -1507,12 +1491,11 @@ export function useTripPick() {
 
       // If simulated teammates exist in room, schedule realistic automated votes
       const simUsers = usersRef.current.filter(u => u.isSimulated && u.id !== currentUserRef.current?.id);
-      if (simUsers.length > 0 && deck && deck.length > 0) {
+      if (simUsers.length > 0 && initialDeck.length > 0) {
         simUsers.forEach((sim, userIdx) => {
-          deck.forEach((dest, destIdx) => {
+          initialDeck.forEach((dest, destIdx) => {
             const delayMs = 1200 + (userIdx * 350) + (destIdx * 700) + Math.floor(Math.random() * 500);
             setTimeout(() => {
-              // High probability (80%) of liking to reach consensus smoothly
               const isLike = Math.random() > 0.18;
               const isVeto = !isLike && Math.random() < 0.08;
               const swipePayload: Swipe = {
@@ -1532,6 +1515,60 @@ export function useTripPick() {
           });
         });
       }
+
+      // Concurrently in background: enrich and expand the deck seamlessly
+      (async () => {
+        try {
+          let additionalVenues: TravelDestination[] = [];
+          if (mode === 'infinite') {
+            const activeHeadcount = Math.max(1, usersRef.current.length);
+            const activeBudget = maxBudget || 8000;
+            const result = await fetchNextBatchDestinationsService({
+              vibe,
+              headcount: activeHeadcount,
+              maxBudgetPerHead: activeBudget,
+              minBudgetPerHead: minBudget,
+              excludedPlaceIds: Array.from(seenPlaceIdsRef.current),
+              excludedNames: initialDeck.map(d => d.title),
+              batchVersion: 1,
+            });
+            if (result && Array.isArray(result.destinations) && result.destinations.length > 0) {
+              additionalVenues = result.destinations;
+            }
+          } else {
+            const allSelectedAmenities = Array.from(
+              new Set(usersRef.current.flatMap(u => u.preferred_amenities))
+            );
+            const recs = await fetchAiRecommendations(
+              allSelectedAmenities,
+              vibe,
+              minBudget,
+              maxBudget
+            );
+            additionalVenues = recs.filter(r => !initialDeck.some(i => i.id === r.id || i.title === r.title));
+          }
+
+          if (additionalVenues.length > 0) {
+            setRoom(prev => {
+              if (!prev) return prev;
+              const currentDeck = prev.destinations_deck || [];
+              const combined = [...currentDeck];
+              for (const v of additionalVenues) {
+                if (!combined.some(c => c.id === v.id || (v.google_place_id && c.google_place_id === v.google_place_id))) {
+                  combined.push(v);
+                  if (v.google_place_id) seenPlaceIdsRef.current.add(v.google_place_id);
+                }
+              }
+              const expandedRoom = { ...prev, destinations_deck: combined };
+              roomRef.current = expandedRoom;
+              broadcastEvent('DECK_EXPANDED', { destinations_deck: combined });
+              return expandedRoom;
+            });
+          }
+        } catch (e) {
+          console.warn('TripPick: Background destination enrichment notice:', e);
+        }
+      })();
 
       return true;
     } catch (err: unknown) {
@@ -1737,9 +1774,9 @@ export function useTripPick() {
     };
     broadcastEvent('DEPOSIT_COMPLETED', legacyPayload);
 
-    setEscrowNotification('🎉 บริษัทวางมัดจำล็อกสถานที่เรียบร้อยแล้ว');
+    setEscrowNotification('[ESCROW] บริษัทวางมัดจำล็อกสถานที่เรียบร้อยแล้ว');
     setTimeout(() => {
-      setEscrowNotification(prev => prev === '🎉 บริษัทวางมัดจำล็อกสถานที่เรียบร้อยแล้ว' ? null : prev);
+      setEscrowNotification(prev => prev === '[ESCROW] บริษัทวางมัดจำล็อกสถานที่เรียบร้อยแล้ว' ? null : prev);
     }, 5000);
   }, [roomId, broadcastEvent]);
 

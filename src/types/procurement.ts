@@ -1,62 +1,53 @@
 /**
  * B2B Procurement & Monetization Types for TripPick
- * Fully compliant with Thai Revenue Department Regulations (ท.ป. 4/2528)
- * Track: Software for Business & Tourism - "Make Me Money"
+ * Fully compliant with Thai Revenue Department Regulations (Order No. Tor.Por. 4/2528)
+ * Track: Software for Business & Tourism - Make Me Money
  */
 
-export interface RetreatPricingModel {
-  /** Number of retreat attendees (min 4, scalable to 40+) */
-  headcount: number;
-  /** Duration of corporate stay in nights */
+export interface FormattedProcurementStrings {
+  roomSubtotal: string;
+  hotelServiceCharge: string;
+  serviceFeeBase: string;
+  vat7Percent: string;
+  grossTotal: string;
+  wht3Percent: string;
+  netPayableToVendor: string;
+  tripPickCommission: string;
+}
+
+export interface ProcurementPricingModel {
+  pax: number;
   nights: number;
-  /** MICE Package Rate per head per night in THB */
+  ratePerHead: number;
+  roomSubtotal: number;
+  hotelServiceCharge: number;
+  serviceFeeBase: number;
+  vat7Percent: number;
+  grossTotal: number;
+  wht3Percent: number;
+  netPayableToVendor: number;
+  tripPickCommission: number;
+  formatted: FormattedProcurementStrings;
+}
+
+export interface RetreatPricingModel {
+  headcount: number;
+  nights: number;
   ratePerHeadPerNight: number;
-  /**
-   * Gross Booking Value (GBV) / Subtotal before VAT:
-   * Formula: Headcount * Nights * RatePerHeadPerNight
-   */
   subtotalBeforeVat: number;
   grossBookingValue: number;
-  /**
-   * Thai VAT (7%):
-   * Formula: Subtotal * 0.07
-   */
   vat7Percent: number;
-  /**
-   * Gross Total with VAT:
-   * Formula: Subtotal + VAT 7%
-   */
   grossTotalWithVat: number;
-  /**
-   * Withholding Tax 3% (ภาษีหัก ณ ที่จ่าย 3% หมวดบริการ):
-   * LEGAL REQUIREMENT (ท.ป. 4/2528):
-   * Must be calculated exclusively from the pre-VAT Subtotal, NEVER from Gross Total!
-   * Formula: Subtotal * 0.03
-   */
   wht3Percent: number;
-  /**
-   * Net Payable to Vendor:
-   * Formula: Gross Total - WHT 3%
-   * Mathematically equivalent to: Subtotal * (1 + 0.07 - 0.03) = Subtotal * 1.04
-   */
   netPayableToVendor: number;
-  /**
-   * Hotel Service Charge (10% in hospitality MICE contracts)
-   */
   hotelServiceChargePercent?: number;
   hotelServiceChargeAmount?: number;
-  /**
-   * Service Fee Base = Subtotal + Service Charge (Pre-VAT Base for VAT and WHT)
-   */
   serviceFeeBase: number;
-  /** Platform commission take-rate percentage (default: 12%) */
   tripPickTakeRatePercent: number;
-  /** Platform commission earned: Subtotal * (takeRate / 100) */
   tripPickRevenue: number;
 }
 
 export type EscrowDepositStatus = 'IDLE' | 'PROCESSING' | 'SECURED_ESCROW' | 'REFUNDED';
-
 export type EscrowPaymentMethod = 'PROMPTPAY_QR' | 'CORPORATE_CARD' | 'NET_30_PO';
 
 export interface EscrowDeposit {
@@ -71,10 +62,6 @@ export interface EscrowDeposit {
   receiptNo: string;
 }
 
-/**
- * Real-time Peer Synchronization Payload
- * Broadcast across peers via Supabase and BroadcastChannel when escrow is secured
- */
 export interface EscrowBroadcastPayload {
   type: 'ESCROW_LOCKED';
   roomId: string;
@@ -107,14 +94,63 @@ export const DEMO_COMPANY_PRESETS: DemoCompanyPreset[] = [
 ];
 
 /**
- * Calculates Thai corporate retreat pricing adhering strictly to Thai Revenue Department rules (ท.ป. 4/2528)
- *
- * CRITICAL TAX FORMULA:
- * Subtotal = Headcount * Nights * RatePerHead
- * VAT 7% = Subtotal * 0.07
- * Gross Total = Subtotal + VAT 7%
- * WHT 3% = Subtotal * 0.03 (Calculated from pre-VAT Subtotal, NEVER from Gross)
- * Net Payable = Gross Total - WHT 3% = Subtotal * 1.04
+ * Formats a number into standard Thai Baht currency string: ฿XXX,XXX.XX
+ */
+export function formatBaht(amount: number): string {
+  const parts = (Math.round(amount * 100) / 100).toFixed(2).split('.');
+  const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `฿${integerPart}.${parts[1]}`;
+}
+
+/**
+ * Pillar 1: Statutory Hospitality Tax Calculations
+ * Thai Revenue Department Order No. Tor.Por. 4/2528
+ */
+export function calculateProcurementPricing(
+  pax: number,
+  nights: number,
+  ratePerHead: number
+): ProcurementPricingModel {
+  const safePax = Math.max(1, Math.round(pax));
+  const safeNights = Math.max(1, Math.round(nights));
+  const safeRate = Math.max(0, ratePerHead);
+
+  const roomSubtotal = Math.round(safePax * safeNights * safeRate * 100) / 100;
+  const hotelServiceCharge = Math.round(roomSubtotal * 0.10 * 100) / 100;
+  const serviceFeeBase = Math.round((roomSubtotal + hotelServiceCharge) * 100) / 100;
+  const vat7Percent = Math.round(serviceFeeBase * 0.07 * 100) / 100;
+  const grossTotal = Math.round((serviceFeeBase + vat7Percent) * 100) / 100;
+  const wht3Percent = Math.round(serviceFeeBase * 0.03 * 100) / 100;
+  const netPayableToVendor = Math.round((grossTotal - wht3Percent) * 100) / 100;
+  const tripPickCommission = Math.round(roomSubtotal * 0.12 * 100) / 100;
+
+  return {
+    pax: safePax,
+    nights: safeNights,
+    ratePerHead: safeRate,
+    roomSubtotal,
+    hotelServiceCharge,
+    serviceFeeBase,
+    vat7Percent,
+    grossTotal,
+    wht3Percent,
+    netPayableToVendor,
+    tripPickCommission,
+    formatted: {
+      roomSubtotal: formatBaht(roomSubtotal),
+      hotelServiceCharge: formatBaht(hotelServiceCharge),
+      serviceFeeBase: formatBaht(serviceFeeBase),
+      vat7Percent: formatBaht(vat7Percent),
+      grossTotal: formatBaht(grossTotal),
+      wht3Percent: formatBaht(wht3Percent),
+      netPayableToVendor: formatBaht(netPayableToVendor),
+      tripPickCommission: formatBaht(tripPickCommission),
+    },
+  };
+}
+
+/**
+ * Backward-compatible wrapper for retreat pricing calculation
  */
 export function calculateRetreatPricing(
   headcount: number,
@@ -129,30 +165,16 @@ export function calculateRetreatPricing(
   const safeTakeRate = Math.max(0, Math.min(100, takeRatePercent));
   const safeServiceChargePercent = Math.max(0, Math.min(100, hotelServiceChargePercent));
 
-  // 1. Subtotal = Headcount * Nights * RatePerHead
   const subtotalBeforeVat = safeHeadcount * safeNights * safeRate;
-
-  // 2. Hotel Service Charge (10% standard in luxury MICE hotels)
   const hotelServiceChargeAmount = safeServiceChargePercent > 0
     ? Math.round(subtotalBeforeVat * (safeServiceChargePercent / 100))
     : 0;
 
-  // 3. Pre-VAT Service Fee Base = Subtotal + Service Charge
   const serviceFeeBase = subtotalBeforeVat + hotelServiceChargeAmount;
-
-  // 4. VAT 7% = Service Fee Base * 0.07
   const vat7Percent = Math.round(serviceFeeBase * 0.07);
-
-  // 5. Gross Total = Service Fee Base + VAT 7%
   const grossTotalWithVat = serviceFeeBase + vat7Percent;
-
-  // 6. WHT 3% = Service Fee Base * 0.03 (Statutory 3% service withholding tax on pre-VAT Service Fee Base)
   const wht3Percent = Math.round(serviceFeeBase * 0.03);
-
-  // 7. Net Payable to Vendor = Gross Total - WHT 3%
   const netPayableToVendor = grossTotalWithVat - wht3Percent;
-
-  // 8. Platform Take-Rate Revenue (Gross Booking Value * Take-Rate %)
   const tripPickRevenue = Math.round(subtotalBeforeVat * (safeTakeRate / 100));
 
   return {

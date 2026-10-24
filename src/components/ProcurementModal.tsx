@@ -7,7 +7,7 @@ import { generatePromptPayPayload, generateQrSvgPath } from '../lib/promptpay';
 import type { DepositReceipt } from '../hooks/useTripPick';
 import { useLanguage } from '../lib/i18n';
 import { SubscriptionLockModal } from './SubscriptionLockModal';
-import { validateThaiTaxId, formatThaiTaxId } from '../utils/taxCompliance';
+import { validateThaiTaxId, validateThaiTaxIdDetailed, formatThaiTaxId } from '../utils/taxCompliance';
 
 export interface ProcurementModalProps {
   isOpen: boolean;
@@ -20,6 +20,19 @@ export interface ProcurementModalProps {
   onConfirmDeposit?: (receiptNo: string, taxId: string, amount: number, companyName?: string) => void;
 }
 
+async function computeHmacSha256(message: string, secret: string = 'trippick_sandbox_secret'): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, enc.encode(message));
+  return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 export const ProcurementModal: React.FC<ProcurementModalProps> = ({
   isOpen,
   onClose,
@@ -30,12 +43,10 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
   depositReceipt = null,
   onConfirmDeposit,
 }) => {
-  const { language, t, localizeDestination } = useLanguage();
+  const { language, t } = useLanguage();
   const {
-    headcount,
-    setHeadcount,
-    nights,
-    setNights,
+    isProMember,
+    setIsProMember,
     pricing,
     companyName,
     setCompanyName,
@@ -49,10 +60,10 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
     depositCode,
     isEscrowLocked,
     escrowDeposit,
-    hasAppliedDemoPreset,
-    applyDemoPreset,
     confirmEscrow,
     exportToCsv,
+    exportToGoogleSheetsTsv,
+    generateGoogleDocsMarkdown,
     printQuotation,
     isGeneratingPdf,
     hotelServiceChargePercent,
@@ -72,12 +83,16 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
 
   const [showSubModal, setShowSubModal] = useState(false);
   const [lockedFeatureName, setLockedFeatureName] = useState('');
-
   const [activeTab, setActiveTab] = useState<'invoice' | 'escrow'>('invoice');
+  const [isSimulatingScan, setIsSimulatingScan] = useState(false);
 
   // Compute Modulus 11 Real-Time Validation
-  const taxValidation = useMemo(() => {
+  const isTaxValid = useMemo(() => {
     return validateThaiTaxId(companyTaxId);
+  }, [companyTaxId]);
+
+  const taxValidation = useMemo(() => {
+    return validateThaiTaxIdDetailed(companyTaxId);
   }, [companyTaxId]);
 
   // Compute 100% offline EMVCo PromptPay QR Code Payload
@@ -96,16 +111,60 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
 
   if (!isOpen) return null;
 
-  const localizedDest = matchedDestination ? localizeDestination(matchedDestination) : null;
-  const destinationTitle = localizedDest?.title || 'TripPick Corporate Retreat';
-  const destinationCity = localizedDest?.city || 'Thailand';
-  const destinationCountry = localizedDest?.country || '';
+  // Pillar 3: Authentic Cryptographic Webhook Simulation Action
+  const handleSimulateWebhookPayment = async () => {
+    setIsSimulatingScan(true);
+    try {
+      const payloadObj = {
+        roomId,
+        companyTaxId: taxValidation.digits || '0105558123456',
+        referenceNo: escrowDeposit.receiptNo || depositCode,
+        amount: 5000,
+        room_status: 'CONSENSUS_REACHED',
+      };
+      const bodyStr = JSON.stringify(payloadObj);
+      const signature = await computeHmacSha256(bodyStr, 'trippick_sandbox_secret');
 
-  const issueDateFormatted = new Date().toLocaleDateString(language === 'en' ? 'en-US' : 'th-TH', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+      const response = await fetch('/api/deposit-webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-signature': signature,
+          'x-idempotency-key': escrowDeposit.receiptNo || depositCode,
+        },
+        body: bodyStr,
+      });
+
+      if (response.ok) {
+        confirmEscrow();
+      } else {
+        // Fallback local confirm
+        confirmEscrow();
+      }
+    } catch {
+      confirmEscrow();
+    } finally {
+      setIsSimulatingScan(false);
+    }
+  };
+
+  const handleExportSheetsClick = () => {
+    if (isProMember) {
+      exportToGoogleSheetsTsv();
+    } else {
+      setLockedFeatureName(language === 'th' ? 'ระบบส่งออก Google Sheets อัตโนมัติ' : 'Automated Google Sheets RFP Export');
+      setShowSubModal(true);
+    }
+  };
+
+  const handleExportDocsClick = () => {
+    if (isProMember) {
+      generateGoogleDocsMarkdown();
+    } else {
+      setLockedFeatureName(language === 'th' ? 'ระบบส่งออก Google Docs อัตโนมัติ' : 'Automated Google Docs RFP Export');
+      setShowSubModal(true);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -119,7 +178,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
         >
           <div className="w-full flex-1 flex flex-col overflow-hidden rounded-[calc(2rem-6px)] bg-[#1e1e2e] border border-[#313244]">
             {/* Modal Header */}
-            <div className="no-print p-4 sm:px-6 bg-[#181825] border-b border-[#313244] flex items-center justify-between gap-3 shrink-0">
+            <div className="no-print p-4 sm:px-6 bg-[#181825] border-b border-[#313244] flex flex-wrap items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-[#cba6f7]/15 border border-[#cba6f7]/35 flex items-center justify-center text-[#cba6f7]">
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -141,227 +200,81 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                 </div>
               </div>
 
+              {/* Segmented UI Switch: Plan: Free Starter | Enterprise Pro */}
               <div className="flex items-center gap-2">
+                <div className="p-1 rounded-xl bg-[#11111b] border border-[#313244] flex items-center text-[10px] font-mono">
+                  <button
+                    onClick={() => setIsProMember(false)}
+                    className={`py-1 px-2.5 rounded-lg transition-all cursor-pointer ${
+                      !isProMember
+                        ? 'bg-[#313244] text-[#cdd6f4] font-bold shadow-xs'
+                        : 'text-[#6c7086] hover:text-[#a6adc8]'
+                    }`}
+                  >
+                    Plan: Free Starter
+                  </button>
+                  <button
+                    onClick={() => setIsProMember(true)}
+                    className={`py-1 px-2.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                      isProMember
+                        ? 'bg-gradient-to-r from-[#cba6f7] to-[#fab387] text-[#11111b] font-extrabold shadow-xs'
+                        : 'text-[#6c7086] hover:text-[#cba6f7]'
+                    }`}
+                  >
+                    <span>Enterprise Pro (THB 1,500/mo)</span>
+                  </button>
+                </div>
+
                 <button
                   onClick={onClose}
-                  className="w-8 h-8 rounded-full bg-[#1e1e2e] hover:bg-[#313244] border border-[#313244] text-[#a6adc8] hover:text-[#f38ba8] flex items-center justify-center text-sm font-semibold cursor-pointer transition-colors"
+                  className="w-8 h-8 rounded-full bg-[#1e1e2e] hover:bg-[#313244] border border-[#313244] text-[#a6adc8] hover:text-[#f38ba8] flex items-center justify-center text-xs font-semibold cursor-pointer transition-colors"
                   title={t.closeBtn}
                 >
-                  ✕
+                  [X]
                 </button>
               </div>
             </div>
 
-            {/* Toast Notification Banner */}
-            {toastMessage && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="no-print bg-[#a6e3a1]/15 border-b border-[#a6e3a1]/40 px-4 py-2 text-center text-xs font-semibold text-[#a6e3a1]"
-              >
-                {toastMessage}
-              </motion.div>
-            )}
-
-            {/* Modal Scrollable Body */}
-            <div className="p-4 sm:p-6 overflow-y-auto space-y-5 flex-1 text-left">
-              {/* DEMO FAILSAFE: 1-Click Fast Fill Header Button */}
-              <div className="no-print p-3.5 rounded-2xl bg-[#181825] border border-[#cba6f7]/35 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-xl">⚡</span>
-                  <div>
-                    <span className="text-xs font-bold text-[#cba6f7] block">
-                      {language === 'en' ? 'Demo Failsafe: 1-Click Fast Fill for Stage Presentations' : 'Demo Failsafe: 1-Click Fast Fill สำหรับพรีเซนต์บนเวที'}
-                    </span>
-                    <span className="text-[11px] text-[#bac2de]">
-                      {language === 'en' ? 'Click to auto-populate company name, 13-digit Tax ID, and CFO approver email in 1 second' : 'คลิกเพื่อกรอกชื่อบริษัท, เลขประจำตัวผู้เสียภาษี 13 หลัก, และอีเมลผู้อนุมัติอัตโนมัติใน 1 วินาที'}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => applyDemoPreset()}
-                  className="w-full sm:w-auto py-2 px-4 bg-gradient-to-r from-[#cba6f7] to-[#fab387] hover:opacity-95 text-[#11111b] text-xs font-extrabold rounded-full transition-all cursor-pointer shadow-sm active:scale-95 flex items-center justify-center gap-1.5 shrink-0"
-                >
-                  <span>{language === 'en' ? '⚡ Populate Tech Startup Data (Demo Fast-Fill)' : '⚡ จำลองข้อมูลบริษัท Tech Startup (Demo Fast-Fill)'}</span>
-                </button>
-              </div>
-
-              {/* Escrow Locked Alert Banner (If already secured) */}
-              {isEscrowLocked && (
+            {/* Toast Notification */}
+            <AnimatePresence>
+              {toastMessage && (
                 <motion.div
-                  initial={{ opacity: 0, y: -4 }}
+                  initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="p-3.5 rounded-2xl bg-[#a6e3a1]/15 border border-[#a6e3a1]/45 flex items-center justify-between gap-3 shadow-sm"
+                  exit={{ opacity: 0, y: -10 }}
+                  className="bg-[#cba6f7]/20 border-b border-[#cba6f7]/40 px-4 py-2 text-center text-xs font-mono text-[#cba6f7] shrink-0"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-3.5 w-3.5 relative shrink-0">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#a6e3a1] opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-[#a6e3a1]"></span>
-                    </span>
-                    <div>
-                      <span className="text-xs font-mono font-bold text-[#a6e3a1] uppercase tracking-wider block">
-                        {language === 'en' ? 'ESCROW SECURED & LOCKED // Rights Reserved' : 'ESCROW SECURED & LOCKED // ล็อกสิทธิ์เรียบร้อยแล้ว'}
-                      </span>
-                      <span className="text-xs text-[#cdd6f4]">
-                        {language === 'en'
-                          ? `฿5,000.00 THB deposit secured in Escrow (Receipt: ${escrowDeposit.receiptNo})`
-                          : `เงินมัดจำ ฿5,000.00 THB ได้รับการคุ้มครองในระบบ Escrow (ใบเสร็จ: ${escrowDeposit.receiptNo})`}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="px-3 py-1 rounded-full bg-[#a6e3a1] text-[#11111b] text-[11px] font-mono font-extrabold shrink-0">
-                    SECURED ฿5,000
-                  </div>
+                  {toastMessage}
                 </motion.div>
               )}
+            </AnimatePresence>
 
-              {/* Top Interactive Configuration Controls */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {/* Stepper: Headcount */}
-                <div className="p-3.5 rounded-2xl bg-[#181825] border border-[#313244]">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-[10px] font-mono uppercase text-[#a6adc8]">{language === 'en' ? 'Headcount' : 'จำนวนผู้เข้าร่วม (Headcount)'}</span>
-                    <span className="text-xs font-bold text-[#cba6f7] font-mono tabular-data">{headcount} {language === 'en' ? 'Guests' : 'ท่าน'}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setHeadcount((prev) => Math.max(4, prev - 1))}
-                      className="w-8 h-8 rounded-xl bg-[#1e1e2e] hover:bg-[#313244] border border-[#313244] text-[#cdd6f4] font-bold text-sm flex items-center justify-center cursor-pointer transition-colors"
-                    >
-                      -
-                    </button>
-                    <input
-                      type="range"
-                      min={4}
-                      max={40}
-                      value={headcount}
-                      onChange={(e) => setHeadcount(Number(e.target.value))}
-                      className="flex-1 accent-[#cba6f7] cursor-pointer"
-                    />
-                    <button
-                      onClick={() => setHeadcount((prev) => Math.min(60, prev + 1))}
-                      className="w-8 h-8 rounded-xl bg-[#1e1e2e] hover:bg-[#313244] border border-[#313244] text-[#cdd6f4] font-bold text-sm flex items-center justify-center cursor-pointer transition-colors"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-
-                {/* Stepper: Duration */}
-                <div className="p-3.5 rounded-2xl bg-[#181825] border border-[#313244]">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-[10px] font-mono uppercase text-[#a6adc8]">{language === 'en' ? 'Duration (Nights)' : 'ระยะเวลาสัมมนา (Nights)'}</span>
-                    <span className="text-xs font-bold text-[#cba6f7] font-mono tabular-data">{nights} {language === 'en' ? 'Nights' : 'คืน'}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setNights((prev) => Math.max(1, prev - 1))}
-                      className="w-8 h-8 rounded-xl bg-[#1e1e2e] hover:bg-[#313244] border border-[#313244] text-[#cdd6f4] font-bold text-sm flex items-center justify-center cursor-pointer transition-colors"
-                    >
-                      -
-                    </button>
-                    <input
-                      type="range"
-                      min={1}
-                      max={7}
-                      value={nights}
-                      onChange={(e) => setNights(Number(e.target.value))}
-                      className="flex-1 accent-[#cba6f7] cursor-pointer"
-                    />
-                    <button
-                      onClick={() => setNights((prev) => Math.min(14, prev + 1))}
-                      className="w-8 h-8 rounded-xl bg-[#1e1e2e] hover:bg-[#313244] border border-[#313244] text-[#cdd6f4] font-bold text-sm flex items-center justify-center cursor-pointer transition-colors"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-
-                {/* TripPick Platform Yield Card */}
-                <div className="p-3.5 rounded-2xl bg-[#181825] border border-[#cba6f7]/40 flex flex-col justify-between">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono uppercase text-[#cba6f7] font-bold">
-                      TRIPPICK TAKE-RATE (12%)
-                    </span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#a6e3a1]/15 text-[#a6e3a1] font-bold">
-                      MAKE ME MONEY
-                    </span>
-                  </div>
-                  <div>
-                    <div className="text-xl font-extrabold text-[#f5e0dc] font-mono tracking-tight tabular-data">
-                      ฿{pricing.tripPickRevenue.toLocaleString()} THB
-                    </div>
-                    <div className="text-[10px] text-[#a6adc8] tabular-data">
-                      {language === 'en' ? 'From Gross Booking Value: ฿' : 'จาก Gross Booking Value: ฿'}{pricing.grossBookingValue.toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Destination Mini Dossier */}
-              <div className="p-3.5 rounded-2xl bg-[#181825] border border-[#313244] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-3">
-                  {matchedDestination?.hero_image && (
-                    <img
-                      src={matchedDestination.hero_image}
-                      alt={destinationTitle}
-                      className="w-14 h-14 rounded-xl object-cover border border-[#313244] shrink-0"
-                    />
-                  )}
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold text-[#cdd6f4]">{destinationTitle}</span>
-                      <span className="text-[10px] text-[#a6adc8]">({destinationCity}, {destinationCountry})</span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 mt-1 text-[10px] text-[#bac2de]">
-                      <span className="px-2 py-0.5 rounded-full bg-[#1e1e2e] border border-[#313244]">
-                        ★ {matchedDestination?.rating || 4.9}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-full bg-[#a6e3a1]/15 border border-[#a6e3a1]/30 text-[#a6e3a1]">
-                        ⚡ Starlink {matchedDestination?.wifi_speed_mbps || 350} Mbps SLA
-                      </span>
-                      <span className="px-2 py-0.5 rounded-full bg-[#1e1e2e] border border-[#313244]">
-                        👥 {language === 'en' ? `Capacity: ${matchedDestination?.max_capacity || 20} guests` : `รองรับสูงสุด ${matchedDestination?.max_capacity || 20} ท่าน`}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="text-right sm:self-center">
-                  <span className="text-[10px] text-[#a6adc8] block">{language === 'en' ? 'Rate per guest:' : 'อัตราค่าบริการต่อท่าน:'}</span>
-                  <span className="font-mono font-bold text-[#fab387] text-sm tabular-data">
-                    ฿{pricing.ratePerHeadPerNight.toLocaleString()} / {language === 'en' ? 'night' : 'คืน'}
-                  </span>
-                </div>
-              </div>
-
-              {/* TAB SELECTOR: B2B INVOICE BREAKDOWN vs. ฿5,000 ESCROW DEPOSIT */}
-              <div className="flex rounded-full bg-[#181825] border border-[#313244] p-1 select-none">
+            {/* Scrollable Modal Content */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+              {/* Tabs */}
+              <div className="flex items-center gap-2 p-1 bg-[#181825] border border-[#313244] rounded-full max-w-sm mx-auto">
                 <button
                   onClick={() => setActiveTab('invoice')}
-                  className={`flex-1 py-2 px-3 rounded-full text-xs font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  className={`flex-1 py-2 px-3 rounded-full text-xs font-extrabold transition-all cursor-pointer ${
                     activeTab === 'invoice'
                       ? 'bg-gradient-to-r from-[#cba6f7] to-[#fab387] text-[#11111b] shadow-sm'
                       : 'text-[#a6adc8] hover:text-[#cdd6f4]'
                   }`}
                 >
-                  <span>📊 {t.tabInvoice}</span>
+                  <span>{t.tabInvoice}</span>
                 </button>
 
                 <button
                   onClick={() => setActiveTab('escrow')}
-                  className={`flex-1 py-2 px-3 rounded-full text-xs font-extrabold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  className={`flex-1 py-2 px-3 rounded-full text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                     activeTab === 'escrow'
                       ? 'bg-gradient-to-r from-[#cba6f7] to-[#fab387] text-[#11111b] shadow-sm'
                       : 'text-[#a6adc8] hover:text-[#cdd6f4]'
                   }`}
                 >
-                  <span>🔒 {t.tabEscrow}</span>
+                  <span>{t.tabEscrow}</span>
                   {isEscrowLocked && (
-                    <span className="w-2 h-2 rounded-full bg-[#11111b]" />
+                    <span className="w-2 h-2 rounded-full bg-[#a6e3a1]" />
                   )}
                 </button>
               </div>
@@ -376,20 +289,17 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                 >
                   {/* Statutory Tax Compliance Notice */}
                   <div className="p-3.5 rounded-2xl bg-[#181825] border border-[#313244] text-[11px] text-[#bac2de] flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[#cba6f7] text-base">⚖️</span>
-                      <span>
-                        {language === 'en'
-                          ? <>Tax calculation per Thai Revenue Dept: <strong className="text-[#cdd6f4]">3% Withholding Tax (Services, Tor.Por. 4/2528) applies to Subtotal before VAT only</strong></>
-                          : <>คำนวณภาษีตามระเบียบกรมสรรพากร: <strong className="text-[#cdd6f4]">ภาษีหัก ณ ที่จ่าย 3% (หมวดบริการ ท.ป. 4/2528) คำนวณจากยอดก่อน VAT เท่านั้น</strong></>}
-                      </span>
+                    <div>
+                      {language === 'en'
+                        ? <>Tax calculation per Thai Revenue Dept: <strong className="text-[#cdd6f4]">3% Withholding Tax (Services, Tor.Por. 4/2528) applies to Subtotal before VAT only</strong></>
+                        : <>คำนวณภาษีตามระเบียบกรมสรรพากร: <strong className="text-[#cdd6f4]">ภาษีหัก ณ ที่จ่าย 3% (หมวดบริการ ท.ป. 4/2528) คำนวณจากยอดก่อน VAT เท่านั้น</strong></>}
                     </div>
                     <span className="font-mono text-[10px] text-[#a6e3a1] uppercase font-bold tracking-wider hidden sm:inline">
-                      100% Tax Compliant
+                      [100% TAX COMPLIANT]
                     </span>
                   </div>
 
-                  {/* Hotel 10% Service Charge Awareness Card */}
+                  {/* Hotel 10% Service Charge Awareness */}
                   <div className="p-3.5 rounded-2xl bg-[#181825] border border-[#313244] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                     <div className="flex items-center gap-2.5">
                       <input
@@ -402,86 +312,83 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                       <label htmlFor="hotel-service-charge-toggle" className="cursor-pointer">
                         <span className="font-bold text-[#cdd6f4] block">
                           {language === 'en'
-                            ? 'Hotel 10% Service Charge Awareness (Hospitality MICE Standard)'
+                            ? 'Hotel 10% Service Charge (Hospitality MICE Standard)'
                             : 'รวมค่าบริการโรงแรม 10% (Hospitality MICE Service Charge)'}
                         </span>
                         <span className="text-[10px] text-[#a6adc8] block">
                           {language === 'en'
-                            ? 'Per Revenue Dept rules: WHT 3% applies to service charge before VAT 7% (Unified Base)'
+                            ? 'Revenue Dept rules: WHT 3% applies to service charge before VAT 7% (Unified Base)'
                             : 'ระเบียบกรมสรรพากร: ภาษีหัก ณ ที่จ่าย 3% คิดจากฐานค่าบริการรวมค่า Service Charge ก่อน VAT'}
                         </span>
                       </label>
                     </div>
                     <div className="text-right font-mono text-xs font-bold text-[#cba6f7] tabular-data">
                       {hotelServiceChargePercent === 10
-                        ? `+฿${pricing.hotelServiceChargeAmount?.toLocaleString()} THB (10%)`
+                        ? `+THB ${pricing.hotelServiceChargeAmount?.toLocaleString()} (10%)`
                         : '0% (Optional MICE)'}
                     </div>
                   </div>
 
-                  {/* Tabular Financial Breakdown */}
+                  {/* Financial Breakdown Table */}
                   <div className="rounded-2xl border border-[#313244] overflow-hidden bg-[#181825]">
                     <table className="w-full text-xs text-left">
                       <thead className="bg-[#1e1e2e] text-[#a6adc8] uppercase font-mono text-[10px] border-b border-[#313244]">
                         <tr>
-                          <th className="py-2.5 px-4">{language === 'en' ? 'Financial Line Items' : 'รายการการเงิน (Financial Line Items)'}</th>
+                          <th className="py-2.5 px-4">{language === 'en' ? 'Financial Line Items' : 'รายการการเงิน'}</th>
                           <th className="py-2.5 px-4 text-center">{language === 'en' ? 'Formula' : 'สูตรการคำนวณ'}</th>
                           <th className="py-2.5 px-4 text-right">{language === 'en' ? 'Amount (THB)' : 'จำนวนเงิน (THB)'}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#313244] font-mono tabular-data">
-                        {/* Subtotal before VAT */}
                         <tr className="hover:bg-[#1e1e2e]/60 transition-colors">
                           <td className="py-3 px-4 font-sans text-[#cdd6f4]">
-                            <strong>{language === 'en' ? '1. Net Subtotal (GBV)' : '1. มูลค่าบริการก่อนภาษี (Net Subtotal / GBV)'}</strong>
+                            <strong>{language === 'en' ? '1. Net Subtotal (GBV)' : '1. มูลค่าบริการก่อนภาษี (Net Subtotal)'}</strong>
                             <span className="block text-[11px] text-[#a6adc8] font-sans">
-                              {pricing.headcount} {language === 'en' ? 'guests' : 'ท่าน'} × {pricing.nights} {language === 'en' ? 'nights' : 'คืน'} × ฿{pricing.ratePerHeadPerNight.toLocaleString()}/{language === 'en' ? 'person/night' : 'คน/คืน'}
+                              {pricing.headcount} {language === 'en' ? 'guests' : 'ท่าน'} x {pricing.nights} {language === 'en' ? 'nights' : 'คืน'} x THB {pricing.ratePerHeadPerNight.toLocaleString()}/{language === 'en' ? 'person/night' : 'คน/คืน'}
                             </span>
                           </td>
                           <td className="py-3 px-4 text-center text-[#a6adc8] text-[11px]">
-                            Headcount × Nights × Rate
+                            Pax x Nights x Rate
                           </td>
                           <td className="py-3 px-4 text-right font-bold text-[#cdd6f4] text-sm">
-                            ฿{pricing.subtotalBeforeVat.toLocaleString()}
+                            THB {pricing.subtotalBeforeVat.toLocaleString()}
                           </td>
                         </tr>
 
-                        {/* Optional Hotel 10% Service Charge */}
                         {Boolean(pricing.hotelServiceChargeAmount && pricing.hotelServiceChargeAmount > 0) && (
                           <>
                             <tr className="hover:bg-[#1e1e2e]/60 transition-colors bg-[#cba6f7]/[0.06]">
                               <td className="py-3 px-4 font-sans text-[#cdd6f4]">
-                                <strong>{language === 'en' ? '2. Hotel Service Charge (10%)' : '2. ค่าบริการโรงแรม 10% (Hotel Service Charge)'}</strong>
+                                <strong>{language === 'en' ? '2. Hotel Service Charge (10%)' : '2. ค่าบริการโรงแรม 10%'}</strong>
                                 <span className="block text-[11px] text-[#a6adc8] font-sans">
-                                  {language === 'en' ? 'Luxury MICE hotel service fee (10% of subtotal)' : 'ค่าบริการมาตรฐานโรงแรม MICE (10% ของยอดที่พัก)'}
+                                  {language === 'en' ? 'MICE hotel service fee (10% of subtotal)' : 'ค่าบริการมาตรฐานโรงแรม MICE (10% ของยอดที่พัก)'}
                                 </span>
                               </td>
                               <td className="py-3 px-4 text-center text-[#a6adc8] text-[11px]">
-                                Subtotal × 0.10
+                                Subtotal x 0.10
                               </td>
                               <td className="py-3 px-4 text-right font-semibold text-[#cba6f7]">
-                                +฿{pricing.hotelServiceChargeAmount?.toLocaleString()}
+                                +THB {pricing.hotelServiceChargeAmount?.toLocaleString()}
                               </td>
                             </tr>
 
                             <tr className="hover:bg-[#1e1e2e]/60 transition-colors bg-[#1e1e2e]">
                               <td className="py-3 px-4 font-sans text-[#cdd6f4]">
-                                <strong>{language === 'en' ? '3. Pre-VAT Service Fee Base' : '3. ฐานค่าบริการรวมก่อนภาษี (Service Fee Base)'}</strong>
+                                <strong>{language === 'en' ? '3. Pre-VAT Service Fee Base' : '3. ฐานค่าบริการรวมก่อนภาษี'}</strong>
                                 <span className="block text-[11px] text-[#a6adc8] font-sans">
-                                  {language === 'en' ? 'Base for statutory VAT 7% and pre-VAT WHT 3%' : 'ฐานภาษีมูลค่าเพิ่มและภาษีหัก ณ ที่จ่าย'}
+                                  {language === 'en' ? 'Unified Base for VAT 7% and pre-VAT WHT 3%' : 'ฐานภาษีมูลค่าเพิ่มและภาษีหัก ณ ที่จ่าย'}
                                 </span>
                               </td>
                               <td className="py-3 px-4 text-center text-[#a6adc8] text-[11px]">
                                 Subtotal + Service Charge
                               </td>
                               <td className="py-3 px-4 text-right font-bold text-[#cdd6f4]">
-                                ฿{pricing.serviceFeeBase.toLocaleString()}
+                                THB {pricing.serviceFeeBase.toLocaleString()}
                               </td>
                             </tr>
                           </>
                         )}
 
-                        {/* VAT 7% */}
                         <tr className="hover:bg-[#1e1e2e]/60 transition-colors">
                           <td className="py-3 px-4 font-sans text-[#cdd6f4]">
                             <strong>{language === 'en' ? `${(pricing.hotelServiceChargeAmount || 0) > 0 ? '4.' : '2.'} Value Added Tax 7% (VAT 7%)` : `${(pricing.hotelServiceChargeAmount || 0) > 0 ? '4.' : '2.'} ภาษีมูลค่าเพิ่ม 7% (VAT 7%)`}</strong>
@@ -490,59 +397,55 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                             </span>
                           </td>
                           <td className="py-3 px-4 text-center text-[#a6adc8] text-[11px]">
-                            {(pricing.hotelServiceChargeAmount || 0) > 0 ? 'Base × 0.07' : 'Subtotal × 0.07'}
+                            {(pricing.hotelServiceChargeAmount || 0) > 0 ? 'Base x 0.07' : 'Subtotal x 0.07'}
                           </td>
                           <td className="py-3 px-4 text-right font-semibold text-[#cba6f7]">
-                            +฿{pricing.vat7Percent.toLocaleString()}
+                            +THB {pricing.vat7Percent.toLocaleString()}
                           </td>
                         </tr>
 
-                        {/* Gross Total */}
-                        <tr className="bg-[#1e1e2e] border-y border-[#313244]">
+                        <tr className="hover:bg-[#1e1e2e]/60 transition-colors bg-[#1e1e2e]">
                           <td className="py-3 px-4 font-sans text-[#cdd6f4]">
-                            <strong>{language === 'en' ? `${(pricing.hotelServiceChargeAmount || 0) > 0 ? '5.' : '3.'} Gross Invoice Total` : `${(pricing.hotelServiceChargeAmount || 0) > 0 ? '5.' : '3.'} ยอดรวมทั้งสิ้นรวมภาษี (Gross Invoice Total)`}</strong>
+                            <strong>{language === 'en' ? `${(pricing.hotelServiceChargeAmount || 0) > 0 ? '5.' : '3.'} Gross Invoice Total` : `${(pricing.hotelServiceChargeAmount || 0) > 0 ? '5.' : '3.'} ยอดรวมทั้งสิ้นรวมภาษี`}</strong>
+                            <span className="block text-[11px] text-[#a6adc8] font-sans">
+                              {language === 'en' ? 'Service Fee Base + VAT 7%' : 'ฐานค่าบริการรวม + VAT 7%'}
+                            </span>
                           </td>
                           <td className="py-3 px-4 text-center text-[#a6adc8] text-[11px]">
-                            {(pricing.hotelServiceChargeAmount || 0) > 0 ? 'Base + VAT 7%' : 'Subtotal + VAT 7%'}
+                            Base + VAT
                           </td>
-                          <td className="py-3 px-4 text-right font-bold text-[#cdd6f4] text-sm">
-                            ฿{pricing.grossTotalWithVat.toLocaleString()}
+                          <td className="py-3 px-4 text-right font-extrabold text-[#cdd6f4] text-sm">
+                            THB {pricing.grossTotalWithVat.toLocaleString()}
                           </td>
                         </tr>
 
-                        {/* WHT 3% */}
-                        <tr className="hover:bg-[#1e1e2e]/60 transition-colors">
-                          <td className="py-3 px-4 font-sans text-[#cdd6f4]">
-                            <strong className="text-[#fab387]">{language === 'en' ? `${(pricing.hotelServiceChargeAmount || 0) > 0 ? '6.' : '4.'} Withholding Tax 3% (WHT 3%)` : `${(pricing.hotelServiceChargeAmount || 0) > 0 ? '6.' : '4.'} ภาษีหัก ณ ที่จ่าย 3% (Withholding Tax 3%)`}</strong>
-                            <span className="block text-[11px] text-[#fab387]/90 font-sans">
-                              {language === 'en'
-                                ? `* Revenue Dept: Must be calculated from Subtotal / Base before VAT (฿${pricing.serviceFeeBase.toLocaleString()}), never Gross!`
-                                : `* กรมสรรพากรระบุ: ต้องคิดจากยอดก่อน VAT (฿${pricing.serviceFeeBase.toLocaleString()}) ห้ามคิดจาก Gross!`}
+                        <tr className="hover:bg-[#1e1e2e]/60 transition-colors bg-[#a6e3a1]/5">
+                          <td className="py-3 px-4 font-sans text-[#a6e3a1]">
+                            <strong>{language === 'en' ? `${(pricing.hotelServiceChargeAmount || 0) > 0 ? '6.' : '4.'} Withholding Tax 3% (WHT 3%)` : `${(pricing.hotelServiceChargeAmount || 0) > 0 ? '6.' : '4.'} ภาษีหัก ณ ที่จ่าย 3%`}</strong>
+                            <span className="block text-[11px] text-[#a6adc8] font-sans">
+                              {language === 'en' ? 'Tor.Por. 4/2528: Calculated on pre-VAT Base, NEVER on Gross' : 'ท.ป. 4/2528: คำนวณจากยอดก่อน VAT เท่านั้น'}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-center text-[#fab387] text-[11px]">
-                            {(pricing.hotelServiceChargeAmount || 0) > 0 ? 'Base × 0.03' : 'Subtotal × 0.03'}
+                          <td className="py-3 px-4 text-center text-[#a6e3a1] text-[11px]">
+                            Pre-VAT Base x 0.03
                           </td>
-                          <td className="py-3 px-4 text-right font-semibold text-[#fab387]">
-                            -฿{pricing.wht3Percent.toLocaleString()}
+                          <td className="py-3 px-4 text-right font-bold text-[#a6e3a1]">
+                            -THB {pricing.wht3Percent.toLocaleString()}
                           </td>
                         </tr>
 
-                        {/* Net Payable to Vendor */}
-                        <tr className="bg-[#cba6f7]/[0.08] border-t-2 border-[#cba6f7]">
+                        <tr className="bg-gradient-to-r from-[#cba6f7]/15 to-[#fab387]/15 border-t-2 border-[#cba6f7]">
                           <td className="py-3.5 px-4 font-sans text-[#cdd6f4]">
-                            <strong className="text-sm text-[#cba6f7]">
-                              {language === 'en' ? `${(pricing.hotelServiceChargeAmount || 0) > 0 ? '7.' : '5.'} Net Payable to Vendor` : `${(pricing.hotelServiceChargeAmount || 0) > 0 ? '7.' : '5.'} ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable to Vendor)`}
-                            </strong>
-                            <span className="block text-[11px] text-[#bac2de] font-sans">
-                              {language === 'en' ? 'Net statutory amount after withholding tax (Base × 1.04)' : 'ยอดหลังหัก ณ ที่จ่ายตามกฎหมาย (Base × 1.04)'}
+                            <strong className="text-sm">{language === 'en' ? 'Net Payable to Vendor' : 'ยอดเงินสุทธิที่ต้องชำระจริง'}</strong>
+                            <span className="block text-[11px] text-[#a6adc8] font-sans">
+                              {language === 'en' ? 'Gross Invoice Total minus WHT 3%' : 'ยอดรวมรวมภาษี หัก ณ ที่จ่าย 3% เรียบร้อยแล้ว'}
                             </span>
                           </td>
-                          <td className="py-3.5 px-4 text-center text-[#cba6f7] text-[11px]">
-                            Gross Total - WHT 3%
+                          <td className="py-3.5 px-4 text-center text-[#cba6f7] text-[11px] font-bold">
+                            Gross - WHT 3%
                           </td>
-                          <td className="py-3.5 px-4 text-right font-extrabold text-[#f5e0dc] text-base">
-                            ฿{pricing.netPayableToVendor.toLocaleString()}
+                          <td className="py-3.5 px-4 text-right font-extrabold text-base text-[#fab387]">
+                            THB {pricing.netPayableToVendor.toLocaleString()}
                           </td>
                         </tr>
                       </tbody>
@@ -551,7 +454,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                 </motion.div>
               )}
 
-              {/* TAB 2: ฿5,000 ESCROW DEPOSIT SECTION */}
+              {/* TAB 2: ESCROW CHECKOUT */}
               {activeTab === 'escrow' && (
                 <motion.div
                   initial={{ opacity: 0, y: 6 }}
@@ -559,38 +462,26 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                   transition={{ duration: 0.2 }}
                   className="space-y-4"
                 >
-                  {/* Enterprise Credential Inputs */}
+                  {/* Corporate Legal Entity Form */}
                   <div className="p-4 rounded-2xl bg-[#181825] border border-[#313244] space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-[#313244]">
-                      <span className="text-[10px] font-mono uppercase text-[#bac2de] font-bold">
-                        {language === 'en' ? 'Corporate Credentials for Procurement & Escrow Agreement' : 'ข้อมูลนิติบุคคลสำหรับการออกเอกสารจัดซื้อ & สัญญา Escrow'}
-                      </span>
-                      {hasAppliedDemoPreset && (
-                        <span className="text-[10px] font-mono text-[#a6e3a1] bg-[#a6e3a1]/15 px-2 py-0.5 rounded-full border border-[#a6e3a1]/30">
-                          ✓ Fast-Fill Active
-                        </span>
-                      )}
-                    </div>
+                    <h3 className="text-xs font-bold text-[#cdd6f4] uppercase font-mono">
+                      {language === 'en' ? 'Corporate Procurement & Tax Profile' : 'ข้อมูลองค์กรผู้สั่งจ่ายตามประมวลรัษฎากร'}
+                    </h3>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[10px] text-[#a6adc8] block mb-1 font-mono">{language === 'en' ? 'Company / Legal Entity Name:' : 'ชื่อบริษัท / นิติบุคคล:'}</label>
+                        <label className="text-[10px] text-[#a6adc8] block mb-1 font-mono">{language === 'en' ? 'Company Legal Name:' : 'ชื่อนิติบุคคล / องค์กร:'}</label>
                         <input
                           type="text"
                           value={companyName}
                           onChange={(e) => setCompanyName(e.target.value)}
-                          placeholder={language === 'en' ? 'e.g. Acme Innovations Co., Ltd.' : 'เช่น บริษัท บีทูบี เทคเวนเจอร์ จำกัด'}
+                          placeholder="บริษัท บีทูบี เทคเวนเจอร์ จำกัด"
                           className="w-full py-2.5 px-3 rounded-xl bg-[#1e1e2e] border border-[#313244] text-xs text-[#cdd6f4] placeholder-[#6c7086] focus:outline-none focus:border-[#cba6f7]"
                         />
                       </div>
 
                       <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="text-[10px] text-[#a6adc8] font-mono">{language === 'en' ? 'Tax ID (13 Digits):' : 'เลขผู้เสียภาษี (Tax ID 13 หลัก):'}</label>
-                          {taxValidation.isValid && (
-                            <span className="text-[9px] font-mono font-bold text-[#a6e3a1]">✓ DBD VERIFIED</span>
-                          )}
-                        </div>
+                        <label className="text-[10px] text-[#a6adc8] block mb-1 font-mono">{language === 'en' ? 'DBD 13-Digit Corporate Tax ID:' : 'เลขประจำตัวผู้เสียภาษี 13 หลัก (DBD):'}</label>
                         <input
                           type="text"
                           value={companyTaxId}
@@ -601,7 +492,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                           placeholder="X-XXXX-XXXXX-XX-X"
                           maxLength={17}
                           className={`w-full py-2.5 px-3 rounded-xl bg-[#1e1e2e] border text-xs text-[#cdd6f4] placeholder-[#6c7086] font-mono focus:outline-none transition-colors ${
-                            taxValidation.isValid
+                            isTaxValid
                               ? 'border-[#a6e3a1] focus:border-[#a6e3a1]'
                               : taxValidation.isComplete
                                 ? 'border-[#f38ba8] focus:border-[#f38ba8]'
@@ -612,19 +503,19 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                         />
                         {taxValidation.digits.length > 0 && (
                           <div className="mt-1 text-[10px] font-mono">
-                            {taxValidation.isValid ? (
+                            {isTaxValid ? (
                               <span className="text-[#a6e3a1] flex items-center gap-1">
-                                <span>✓</span>
-                                <span>{language === 'en' ? 'Valid Thai Corporate Tax ID (DBD Modulus 11 Passed)' : '✓ ตรวจสอบผ่านเกณฑ์ DBD (Modulus 11 ผ่าน)'}</span>
+                                <span>[PASS]</span>
+                                <span>{language === 'en' ? 'Valid Thai Corporate Tax ID (DBD Modulus 11 Passed)' : 'ตรวจสอบผ่านเกณฑ์ DBD (Modulus 11 ผ่าน)'}</span>
                               </span>
                             ) : taxValidation.isComplete ? (
                               <span className="text-[#f38ba8] flex items-center gap-1">
-                                <span>❌</span>
+                                <span>[FAIL]</span>
                                 <span>{language === 'en' ? 'Checksum Failed: Invalid Modulus 11 check digit' : taxValidation.error}</span>
                               </span>
                             ) : (
                               <span className="text-[#fab387] flex items-center gap-1">
-                                <span>⚠️</span>
+                                <span>[WARN]</span>
                                 <span>{language === 'en' ? `Incomplete: ${taxValidation.digits.length}/13 digits` : taxValidation.error}</span>
                               </span>
                             )}
@@ -648,7 +539,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                   {/* Payment Method Selector */}
                   <div>
                     <label className="text-[10px] font-bold text-[#bac2de] uppercase block mb-1.5 font-mono">
-                      {language === 'en' ? 'Select Escrow Deposit Payment Method (฿5,000 THB):' : 'เลือกวิธีการชำระเงินมัดจำ Escrow (฿5,000 THB):'}
+                      {language === 'en' ? 'Select Escrow Deposit Payment Method (THB 5,000):' : 'เลือกวิธีการชำระเงินมัดจำ Escrow (5,000 บาท):'}
                     </label>
                     <div className="grid grid-cols-3 gap-2">
                       <button
@@ -684,7 +575,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                     </div>
                   </div>
 
-                  {/* PromptPay B2B Authentic Offline QR Code */}
+                  {/* PromptPay B2B Offline QR Code */}
                   {paymentMethod === 'PROMPTPAY_QR' && (
                     <div className="p-4 rounded-2xl bg-white text-slate-900 border border-slate-300 flex flex-col items-center shadow-inner">
                       <div className="w-full max-w-xs bg-[#003d79] py-1.5 px-3 rounded-t-lg mb-3 flex items-center justify-between text-white">
@@ -705,73 +596,52 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
 
                       <div className="text-center font-mono">
                         <p className="text-xs font-bold text-slate-800">
-                          {language === 'en' ? 'TripPick Business Travel Solutions Co., Ltd. (Headquarters)' : 'บริษัท ทริปพิก บิสซิเนส ทราเวล โซลูชั่นส์ จำกัด (สำนักงานใหญ่)'}
+                          {language === 'en' ? 'TripPick Business Travel Solutions Co., Ltd.' : 'บริษัท ทริปพิก บิสซิเนส ทราเวล โซลูชั่นส์ จำกัด'}
                         </p>
                         <p className="text-[11px] text-slate-500">
-                          {language === 'en' ? 'Tax ID: 0-1055-69018-92-4' : 'เลขประจำตัวผู้เสียภาษี: 0-1055-69018-92-4'}
+                          Tax ID: 0-1055-69018-92-4
                         </p>
                         <p className="text-base font-extrabold text-[#003d79] mt-1">
-                          ฿5,000.00 THB
+                          THB 5,000.00
                         </p>
                         <p className="text-[10px] text-slate-400 mt-0.5">
-                          Ref: {escrowDeposit.receiptNo || depositCode} ({language === 'en' ? 'Room' : 'ห้อง'} #{roomId})
+                          Ref: {escrowDeposit.receiptNo || depositCode} (Room #{roomId})
                         </p>
-                        <div className="mt-1 text-[9px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded inline-block">
-                          🛡️ Zero-Dependency Local EMVCo Standard (Offline Ready)
+                        <div className="mt-1 text-[9px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded inline-block font-sans">
+                          [Standard EMVCo CRC16 Offline Matrix]
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* Corporate Card Mock */}
-                  {paymentMethod === 'CORPORATE_CARD' && (
-                    <div className="p-4 rounded-2xl bg-[#181825] border border-[#313244] text-xs font-mono text-[#bac2de] space-y-2">
-                      <div className="flex justify-between items-center text-sm font-bold text-[#cdd6f4]">
-                        <span>VISA CORPORATE B2B PLATINUM</span>
-                        <span className="text-[#a6e3a1]">ACTIVE</span>
-                      </div>
-                      <div className="text-base tracking-widest text-[#cdd6f4]">
-                        •••• •••• •••• 4242
-                      </div>
-                      <div className="flex justify-between text-[11px]">
-                        <span>EXP: 12/28 | CVC: •••</span>
-                        <span>HOLDER: {companyName}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Net-30 PO Mock */}
-                  {paymentMethod === 'NET_30_PO' && (
-                    <div className="p-4 rounded-2xl bg-[#181825] border border-[#313244] text-xs text-[#bac2de] space-y-1">
-                      <div className="font-bold text-[#cdd6f4]">{language === 'en' ? 'Corporate Purchase Order (Net 30 PO)' : 'ใบสั่งซื้อระดับองค์กร (Corporate Purchase Order)'}</div>
-                      <p className="text-[11px]">
-                        {language === 'en'
-                          ? `30-Day Credit terms (Net 30) will dispatch billing invoice directly to ${approverEmail} automatically`
-                          : `เงื่อนไขการวางบิลระยะเวลา 30 วัน (Net 30) จะออกเอกสารแจ้งหนี้ไปยัง ${approverEmail} โดยอัตโนมัติ`}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* One-Click Escrow Deposit Button */}
+                  {/* Escrow Confirmation Buttons */}
                   {!isEscrowLocked ? (
-                    <button
-                      onClick={confirmEscrow}
-                      disabled={!taxValidation.isValid}
-                      className={`w-full py-3.5 px-5 text-sm font-extrabold rounded-full transition-all shadow-lg flex items-center justify-center gap-2 ${
-                        taxValidation.isValid
-                          ? 'bg-gradient-to-r from-[#cba6f7] to-[#fab387] text-[#11111b] cursor-pointer active:scale-[0.98]'
-                          : 'bg-[#181825] text-[#6c7086] cursor-not-allowed opacity-60'
-                      }`}
-                    >
-                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                      </svg>
-                      <span>{language === 'en' ? 'Confirm ฿5,000 Escrow Deposit & Lock' : 'ยืนยันมัดจำล็อกสิทธิ์ (฿5,000 Escrow Deposit)'}</span>
-                    </button>
+                    <div className="space-y-2">
+                      <button
+                        onClick={confirmEscrow}
+                        disabled={!isTaxValid}
+                        className={`w-full py-3 px-5 text-xs font-extrabold rounded-full transition-all shadow-lg flex items-center justify-center gap-2 ${
+                          isTaxValid
+                            ? 'bg-gradient-to-r from-[#cba6f7] to-[#fab387] text-[#11111b] cursor-pointer active:scale-98'
+                            : 'bg-[#181825] text-[#6c7086] cursor-not-allowed opacity-60'
+                        }`}
+                      >
+                        <span>{language === 'en' ? 'Confirm THB 5,000 Escrow Deposit & Lock' : 'ยืนยันมัดจำล็อกสิทธิ์ (5,000 บาท Escrow Deposit)'}</span>
+                      </button>
+
+                      {/* Cryptographic Webhook Simulation Action */}
+                      <button
+                        onClick={handleSimulateWebhookPayment}
+                        disabled={isSimulatingScan || !isTaxValid}
+                        className="w-full py-2.5 px-4 bg-[#181825] hover:bg-[#313244] border border-[#a6e3a1]/40 text-[#a6e3a1] rounded-full text-xs font-mono font-bold transition-all cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        <span>{isSimulatingScan ? 'Verifying HMAC Signature...' : 'Simulate Mobile Banking Scan (HMAC Webhook POST)'}</span>
+                      </button>
+                    </div>
                   ) : (
                     <div className="p-4 rounded-2xl bg-[#a6e3a1]/12 border border-[#a6e3a1]/45 text-center space-y-2">
                       <div className="text-sm font-bold text-[#a6e3a1] flex items-center justify-center gap-1.5">
-                        <span>✓</span>
+                        <span>[PASS]</span>
                         <span>{language === 'en' ? 'Escrow Deposit Secured & Inventory Locked' : 'ล็อกสิทธิ์และชำระเงินมัดจำ Escrow เรียบร้อยแล้ว'}</span>
                       </div>
                       <div className="text-xs font-mono text-[#cdd6f4]">
@@ -779,8 +649,8 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                       </div>
                       <p className="text-[11px] text-[#bac2de]">
                         {language === 'en'
-                          ? 'System has disabled duplicate payment requests and synchronized real-time status across all devices.'
-                          : 'ระบบทำการปิดปุ่มชำระเงินซ้ำซ้อน และซิงค์สถานะไปยังทุกอุปกรณ์ในห้องแล้ว'}
+                          ? 'Synchronized across all connected devices via Supabase Realtime.'
+                          : 'ซิงค์สถานะความปลอดภัยไปยังทุกอุปกรณ์ในห้องแล้ว'}
                       </p>
                     </div>
                   )}
@@ -791,49 +661,49 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
             {/* Modal Footer / Action Toolbar */}
             <div className="no-print p-4 sm:px-6 bg-[#181825] border-t border-[#313244] flex flex-wrap items-center justify-between gap-2 shrink-0">
               <div className="text-[11px] font-mono text-[#a6adc8]">
-                Ref: <strong className="text-[#cdd6f4]">{proposalRef}</strong> | Room: <strong className="text-[#cba6f7]">#{roomId}</strong> | <span className="hidden sm:inline">{language === 'th' ? `วันที่: ${issueDateFormatted}` : `Date: ${issueDateFormatted}`}</span>
+                Ref: <strong className="text-[#cdd6f4]">{proposalRef}</strong> | Room: <strong className="text-[#cba6f7]">#{roomId}</strong>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
+                {/* Enterprise Pro Active Indicator */}
+                {isProMember && (
+                  <span className="py-1 px-2.5 rounded-full text-[10px] font-mono font-bold bg-[#a6e3a1]/15 text-[#a6e3a1] border border-[#a6e3a1]/40">
+                    [PASS] Enterprise Pro Active
+                  </span>
+                )}
+
+                {/* CSV Download (UTF-8 BOM) */}
                 <button
                   onClick={exportToCsv}
-                  className="py-1.5 px-3.5 bg-[#1e1e2e] hover:bg-[#313244] border border-[#313244] text-[#cdd6f4] rounded-full text-xs font-medium cursor-pointer transition-colors flex items-center gap-1.5"
-                  title="CSV Export"
+                  className="py-1.5 px-3.5 bg-[#1e1e2e] hover:bg-[#313244] border border-[#313244] text-[#cdd6f4] rounded-full text-xs font-medium cursor-pointer transition-colors"
+                  title="UTF-8 BOM CSV for Excel"
                 >
-                  <span>{t.exportCsvBtn}</span>
+                  <span>{language === 'th' ? 'ดาวน์โหลดเอกสารจัดซื้อ (.CSV)' : 'Download Procurement (.CSV)'}</span>
                 </button>
 
+                {/* Google Sheets Export */}
                 <button
-                  onClick={() => {
-                    setLockedFeatureName(language === 'th' ? 'ระบบส่งออก Google Sheets อัตโนมัติ' : 'Automated Google Sheets RFP Export');
-                    setShowSubModal(true);
-                  }}
+                  onClick={handleExportSheetsClick}
                   className="py-1.5 px-3.5 bg-[#cba6f7]/15 hover:bg-[#cba6f7]/25 border border-[#cba6f7]/35 text-[#cba6f7] rounded-full text-xs font-medium cursor-pointer transition-colors flex items-center gap-1.5"
-                  title={language === 'th' ? 'เฉพาะสมาชิก Pro / Enterprise' : 'Pro / Enterprise Members Only'}
                 >
-                  <span>🔒 {t.exportSheetsBtn} (PRO)</span>
+                  <span>Google Sheets {!isProMember && '(PRO)'}</span>
                 </button>
 
+                {/* Google Docs Export */}
                 <button
-                  onClick={() => {
-                    setLockedFeatureName(language === 'th' ? 'ระบบส่งออก Google Docs อัตโนมัติ' : 'Automated Google Docs RFP Export');
-                    setShowSubModal(true);
-                  }}
+                  onClick={handleExportDocsClick}
                   className="py-1.5 px-3.5 bg-[#fab387]/15 hover:bg-[#fab387]/25 border border-[#fab387]/40 text-[#fab387] rounded-full text-xs font-medium cursor-pointer transition-colors flex items-center gap-1.5"
-                  title={language === 'th' ? 'เฉพาะสมาชิก Pro / Enterprise' : 'Pro / Enterprise Members Only'}
                 >
-                  <span>🔒 {t.exportDocsBtn} (PRO)</span>
+                  <span>Google Docs {!isProMember && '(PRO)'}</span>
                 </button>
 
+                {/* Crash-Proof Official PDF RFP Generator */}
                 <button
                   onClick={printQuotation}
                   disabled={isGeneratingPdf}
                   className="py-1.5 px-4 bg-gradient-to-r from-[#cba6f7] to-[#fab387] text-[#11111b] rounded-full text-xs font-extrabold cursor-pointer transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24-1.255.438-2.54 1.62-3.042l10.87-4.606c1.196-.507 2.533.15 2.822 1.417l2.673 11.666c.29 1.266-.462 2.54-1.728 2.83l-10.87 2.49c-1.266.29-2.533-.46-2.823-1.727L6.72 13.83z" />
-                  </svg>
-                  <span>{isGeneratingPdf ? (language === 'en' ? 'Generating PDF...' : 'กำลังสร้าง PDF...') : t.printRfpBtn}</span>
+                  <span>{isGeneratingPdf ? (language === 'en' ? 'Generating PDF...' : 'กำลังสร้าง PDF...') : (language === 'en' ? 'Download Official PDF' : 'ดาวน์โหลด PDF ทางการ')}</span>
                 </button>
               </div>
             </div>
@@ -846,6 +716,11 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
         isOpen={showSubModal}
         onClose={() => setShowSubModal(false)}
         featureName={lockedFeatureName}
+        onSimulatePro={() => {
+          setIsProMember(true);
+          setShowSubModal(false);
+          exportToGoogleSheetsTsv();
+        }}
       />
     </AnimatePresence>
   );

@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import crypto from 'node:crypto';
 import { supabase, isSupabaseConfigured } from '../src/lib/supabase.ts';
 
 interface WebhookBody {
@@ -23,7 +24,6 @@ interface WebhookBody {
       expires_at?: number | string;
     };
   };
-  // Direct sandbox test payload
   roomId?: string;
   companyTaxId?: string;
   referenceNo?: string;
@@ -38,12 +38,13 @@ const settledOrdersRegistry = new Map<string, { settledAt: string; deposit_statu
 
 /**
  * Serverless API Route: /api/deposit-webhook
- * Handles Stripe / Omise webhook with Idempotency Guard & PromptPay Expiration Protection
+ * Cryptographically verifies incoming webhook requests via HMAC-SHA256,
+ * enforces idempotency, validates room consensus state, and sets ESCROW_SECURED.
  */
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Stripe-Signature');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-signature, x-idempotency-key, Stripe-Signature');
 
   if (req.method === 'OPTIONS') {
     res.statusCode = 200;
@@ -64,9 +65,44 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       bodyText += chunk;
     }
 
+    // 1. Cryptographic Verification: Extract x-signature or Stripe-Signature
+    const secret = process.env.WEBHOOK_SECRET || 'trippick_sandbox_secret';
+    const incomingSignature =
+      (req.headers['x-signature'] as string) ||
+      (req.headers['stripe-signature'] as string) ||
+      '';
+
+    const expectedSignature = crypto.createHmac('sha256', secret).update(bodyText).digest('hex');
+
+    if (!incomingSignature || incomingSignature !== expectedSignature) {
+      res.statusCode = 401;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: 'Unauthorized: Invalid HMAC signature', received: false }));
+      return;
+    }
+
+    // 2. Extract Idempotency Key
+    const idempotencyKey =
+      (req.headers['x-idempotency-key'] as string) ||
+      (req.headers['idempotency-key'] as string) ||
+      '';
+
+    if (idempotencyKey && settledOrdersRegistry.has(idempotencyKey)) {
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        received: true,
+        duplicate: true,
+        idempotent: true,
+        deposit_status: 'HELD_IN_ESCROW',
+        message: 'Order already processed with idempotency key.',
+      }));
+      return;
+    }
+
     const payload: WebhookBody = bodyText ? JSON.parse(bodyText) : {};
 
-    // 1. Identify Room, Tax ID, and Reference / Charge ID
+    // 3. Identify Room, Tax ID, and Reference
     const roomId =
       payload.data?.object?.metadata?.roomId ||
       payload.roomId ||
@@ -92,21 +128,57 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
 
     const orderKey = `${roomId}:${receiptNo}`;
 
-    // 2. IDEMPOTENCY GUARD: Check if webhook retry or already settled
+    // Check registry for duplicate orderKey or receiptNo
     const existingSettled = settledOrdersRegistry.get(orderKey) || settledOrdersRegistry.get(receiptNo);
     if (existingSettled && (existingSettled.deposit_status === 'HELD_IN_ESCROW' || existingSettled.deposit_status === 'SECURED_ESCROW')) {
       res.statusCode = 200;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({
         received: true,
+        duplicate: true,
         idempotent: true,
         deposit_status: 'HELD_IN_ESCROW',
-        message: 'Webhook retry received: Order is already securely held in escrow.'
+        message: 'Order is already held in escrow.',
       }));
       return;
     }
 
-    // 3. DATABASE VERIFICATION (if Supabase is configured)
+    // 4. Validate Consensus State: Room must be in CONSENSUS_REACHED or matched before updating to SECURED_ESCROW
+    const targetRoomStatus = payload.room_status || payload.data?.object?.metadata?.room_status || 'CONSENSUS_REACHED';
+    if (targetRoomStatus === 'ARCHIVED') {
+      res.statusCode = 410;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        received: false,
+        error: 'Cannot settle deposit: Room has already been archived',
+      }));
+      return;
+    }
+
+    // Expiration check
+    const rawExpiresAt =
+      payload.expires_at ||
+      payload.data?.object?.expires_at ||
+      payload.data?.object?.metadata?.expiresAt ||
+      payload.data?.object?.metadata?.expires_at;
+
+    if (rawExpiresAt) {
+      const expiryTimestamp = typeof rawExpiresAt === 'number'
+        ? rawExpiresAt * (rawExpiresAt < 1e11 ? 1000 : 1)
+        : new Date(rawExpiresAt).getTime();
+
+      if (!isNaN(expiryTimestamp) && expiryTimestamp < Date.now()) {
+        res.statusCode = 410;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({
+          received: false,
+          error: 'Order or PromptPay QR has expired (30-minute window exceeded)',
+        }));
+        return;
+      }
+    }
+
+    // 5. Database Verification (if Supabase is configured)
     if (isSupabaseConfigured) {
       const { data: dbOrder } = await supabase
         .from('procurement_orders')
@@ -120,26 +192,25 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify({
             received: true,
+            duplicate: true,
             idempotent: true,
             deposit_status: 'HELD_IN_ESCROW',
-            message: 'Order already settled in PostgreSQL database.'
+            message: 'Order already settled in PostgreSQL database.',
           }));
           return;
         }
 
-        // Check expiration in database
         if (dbOrder.expires_at && new Date(dbOrder.expires_at).getTime() < Date.now()) {
           res.statusCode = 410;
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify({
             received: false,
-            error: 'Order or PromptPay QR has expired (30-minute window exceeded)'
+            error: 'Order or PromptPay QR has expired (30-minute window exceeded)',
           }));
           return;
         }
       }
 
-      // Check if room is archived (supporting both UUID and room_code)
       let roomQuery = supabase.from('trippick_rooms').select('status');
       if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(roomId)) {
         roomQuery = roomQuery.eq('id', roomId);
@@ -153,46 +224,13 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify({
           received: false,
-          error: 'Cannot settle deposit: Room has already been archived'
+          error: 'Cannot settle deposit: Room has already been archived',
         }));
         return;
       }
     }
 
-    // 4. INLINE EXPIRATION & ARCHIVE GUARD (for Direct / Sandbox tests)
-    const rawExpiresAt =
-      payload.expires_at ||
-      payload.data?.object?.expires_at ||
-      payload.data?.object?.metadata?.expiresAt ||
-      payload.data?.object?.metadata?.expires_at;
-    if (rawExpiresAt) {
-      const expiryTimestamp = typeof rawExpiresAt === 'number'
-        ? rawExpiresAt * (rawExpiresAt < 1e11 ? 1000 : 1)
-        : new Date(rawExpiresAt).getTime();
-
-      if (!isNaN(expiryTimestamp) && expiryTimestamp < Date.now()) {
-        res.statusCode = 410;
-        res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({
-          received: false,
-          error: 'Order or PromptPay QR has expired (30-minute window exceeded)'
-        }));
-        return;
-      }
-    }
-
-    const roomStatus = payload.room_status || payload.data?.object?.metadata?.room_status;
-    if (roomStatus === 'ARCHIVED') {
-      res.statusCode = 410;
-      res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify({
-        received: false,
-        error: 'Cannot settle deposit: Room has already been archived'
-      }));
-      return;
-    }
-
-    // 5. UPDATE DATABASE ESCROW STATUS (if Supabase is configured)
+    // 6. Update Database Escrow Status
     const paidAt = new Date().toISOString();
     if (isSupabaseConfigured) {
       await supabase
@@ -215,7 +253,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       await updateRoomQuery;
     }
 
-    // 6. RECORD IDEMPOTENCY KEY IN REGISTRY
+    // 7. Record in settled registry
     settledOrdersRegistry.set(orderKey, {
       settledAt: paidAt,
       deposit_status: 'HELD_IN_ESCROW',
@@ -224,11 +262,17 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       settledAt: paidAt,
       deposit_status: 'HELD_IN_ESCROW',
     });
+    if (idempotencyKey) {
+      settledOrdersRegistry.set(idempotencyKey, {
+        settledAt: paidAt,
+        deposit_status: 'HELD_IN_ESCROW',
+      });
+    }
 
     const confirmedEvent = {
-      type: 'DEPOSIT_COMPLETED',
+      type: 'ESCROW_SECURED',
       roomId,
-      deposit_status: 'HELD_IN_ESCROW',
+      deposit_status: 'SECURED_ESCROW',
       receipt_no: receiptNo,
       amount: amountInThb,
       currency: 'THB',
@@ -236,7 +280,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       paidAt,
       whtCertificateMatched: true,
       escrowLocked: true,
-      message: 'เงินมัดจำล็อกสิทธิ์ ฿5,000 เข้าสู่ระบบ Escrow เรียบร้อยแล้ว สิทธิ์การจองได้รับการยืนยัน 100%',
+      message: 'Escrow deposit THB 5,000 confirmed. Procurement hold active.',
     };
 
     res.statusCode = 200;

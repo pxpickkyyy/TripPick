@@ -163,8 +163,13 @@ export const ZeroGHeroDeck: React.FC<ZeroGHeroDeckProps> = ({
               {/* Bottom Caption inside Photo */}
               <div className="absolute bottom-3 left-4 right-4 flex flex-wrap items-end justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <span className="text-xs font-mono text-[#fab387] block">
-                    {activeVenue.category} · ★ {activeVenue.rating}
+                  <span className="text-xs font-mono text-[#fab387] flex items-center gap-1">
+                    <span>{activeVenue.category}</span>
+                    <span>·</span>
+                    <svg className="w-3 h-3 fill-current text-[#fab387]" viewBox="0 0 24 24">
+                      <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                    </svg>
+                    <span>{activeVenue.rating}</span>
                   </span>
                   <h2 className="text-lg sm:text-xl font-display font-bold text-[#cdd6f4] tracking-tight truncate">
                     {activeVenue.title}
@@ -369,7 +374,9 @@ export const ZeroGHeroDeck: React.FC<ZeroGHeroDeckProps> = ({
                   <span>{t.createRoomBtn}</span>
                 </span>
                 <span className="w-10 h-10 rounded-full bg-[#11111b] text-[#cba6f7] flex items-center justify-center transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5">
-                  ↗
+                  <svg className="w-4 h-4 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
+                  </svg>
                 </span>
               </motion.button>
 

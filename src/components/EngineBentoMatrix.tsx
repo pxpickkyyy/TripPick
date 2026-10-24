@@ -113,8 +113,9 @@ export const EngineBentoMatrix: React.FC<EngineBentoMatrixProps> = ({
                       <span className="px-2.5 py-0.5 rounded-full bg-[#11111b]/85 border border-[#313244] text-xs font-medium text-[#cba6f7]">
                         {venue.city}
                       </span>
-                      <span className="px-2 py-0.5 rounded-full bg-[#11111b]/85 border border-[#313244] text-xs font-mono text-[#a6e3a1] tabular-nums">
-                        ★ {venue.rating}
+                      <span className="px-2 py-0.5 rounded-full bg-[#11111b]/85 border border-[#313244] text-xs font-mono text-[#a6e3a1] tabular-nums flex items-center gap-1">
+                        <span aria-hidden="true" className="text-[11px] leading-none">★</span>
+                        <span>{venue.rating}</span>
                       </span>
                     </div>
                   </div>
@@ -513,7 +514,9 @@ export const EngineBentoMatrix: React.FC<EngineBentoMatrixProps> = ({
                 {lang === 'th' ? 'สร้างห้องคัดสรรสถานที่ทันที' : 'Launch Sanctuary Studio'}
               </span>
               <span className="w-9 h-9 rounded-full bg-[#11111b] text-[#cba6f7] flex items-center justify-center transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5">
-                ↗
+                <svg className="w-4 h-4 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
+                </svg>
               </span>
             </button>
           </div>

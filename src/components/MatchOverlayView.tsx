@@ -8,6 +8,20 @@ import { generatePromptPayPayload, generateQrSvgPath } from '../lib/promptpay';
 import { useAudioBriefing, VOICE_ENGINES, type VoiceEngine } from '../lib/audioConcierge';
 import { useLanguage } from '../lib/i18n';
 import { SubscriptionLockModal } from './SubscriptionLockModal';
+import { downloadCorporateRfpPdf } from '../utils/generatePdf';
+
+async function computeHmacSha256(message: string, secret: string = 'trippick_sandbox_secret'): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, enc.encode(message));
+  return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 interface MatchOverlayViewProps {
   matchedDestination: TravelDestination | null;
@@ -69,9 +83,52 @@ export function MatchOverlayView({
     spotOpacity.set(0);
   };
 
-  // Subscription Feature Lock Modal
+  // Subscription Feature Lock Modal & Pro State
   const [showSubModal, setShowSubModal] = useState(false);
   const [lockedFeatureName, setLockedFeatureName] = useState('');
+  const [isProMember, setIsProMember] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get('pro') === 'true') {
+        localStorage.setItem('trippick_demo_tier', 'pro');
+        return true;
+      }
+      return localStorage.getItem('trippick_demo_tier') === 'pro';
+    }
+    return false;
+  });
+
+  const handleSimulatePro = () => {
+    setIsProMember(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('trippick_demo_tier', 'pro');
+    }
+    setShowSubModal(false);
+    const tsvContent = `Procurement Line Items\tQuantity\tUnit Price (THB)\tTotal (THB)\nRoom Subtotal\t${teamSize * nights}\t${matchedDestination?.price_per_person || 0}\t${netTotal}\n10% Hotel Service Charge\t1\t${Math.round(netTotal * 0.1)}\t${Math.round(netTotal * 0.1)}\nVAT 7%\t1\t${vat7}\t${vat7}\nWHT 3%\t1\t-${wht3}\t-${wht3}\nNet Payable to Vendor\t1\t${netPayable}\t${netPayable}`;
+    navigator.clipboard.writeText(tsvContent).catch(() => {});
+    window.open('https://docs.google.com/spreadsheets/create', '_blank');
+  };
+
+  const handleExportSheetsClick = () => {
+    if (isProMember) {
+      const tsvContent = `Procurement Line Items\tQuantity\tUnit Price (THB)\tTotal (THB)\nRoom Subtotal\t${teamSize * nights}\t${matchedDestination?.price_per_person || 0}\t${netTotal}\n10% Hotel Service Charge\t1\t${Math.round(netTotal * 0.1)}\t${Math.round(netTotal * 0.1)}\nVAT 7%\t1\t${vat7}\t${vat7}\nWHT 3%\t1\t-${wht3}\t-${wht3}\nNet Payable to Vendor\t1\t${netPayable}\t${netPayable}`;
+      navigator.clipboard.writeText(tsvContent).catch(() => {});
+      window.open('https://docs.google.com/spreadsheets/create', '_blank');
+    } else {
+      setLockedFeatureName(language === 'th' ? 'ระบบสร้างและส่งออก Google Sheets อัตโนมัติ' : 'Automated Google Sheets RFP Export');
+      setShowSubModal(true);
+    }
+  };
+
+  const handleExportDocsClick = () => {
+    if (isProMember) {
+      handleExportAgenda();
+      window.open('https://docs.google.com/document/create', '_blank');
+    } else {
+      setLockedFeatureName(language === 'th' ? 'ระบบสร้างกำหนดการใน Google Docs อัตโนมัติ' : 'Automated Google Docs Agenda Sync');
+      setShowSubModal(true);
+    }
+  };
 
   // Live Sandbox Webhook & Checkout State
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -164,8 +221,27 @@ export function MatchOverlayView({
     day: 'numeric',
   });
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    if (!matchedDestination) return;
+    try {
+      await downloadCorporateRfpPdf({
+        proposalRef,
+        roomId,
+        companyName,
+        companyTaxId,
+        destinationTitle: matchedDestination.title,
+        destinationCity: matchedDestination.city,
+        headcount: teamSize,
+        nights,
+        ratePerHead: matchedDestination.price_per_person,
+        isEscrowLocked,
+        escrowReceiptNo: depositReceipt?.receiptNo || depositCode,
+        language: language === 'th' ? 'th' : 'en',
+      });
+    } catch (err) {
+      console.warn('PDF generation notice, falling back to browser window.print():', err);
+      window.print();
+    }
   };
 
   const handleCopySummary = async () => {
@@ -398,20 +474,29 @@ ${item.description}
     }
   };
 
-  // Simulate Live Banking App Scan & Webhook Callback (A real test flow that judges can trigger)
+  // Simulate Live Banking App Scan & Webhook Callback with HMAC-SHA256 signature
   const handleSimulateWebhookPayment = async () => {
     setIsSimulatingScan(true);
 
     try {
+      const payloadObj = {
+        roomId,
+        companyTaxId,
+        referenceNo: depositCode,
+        amount: 5000,
+        room_status: 'CONSENSUS_REACHED',
+      };
+      const bodyStr = JSON.stringify(payloadObj);
+      const signature = await computeHmacSha256(bodyStr, 'trippick_sandbox_secret');
+
       const response = await fetch('/api/deposit-webhook', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          roomId,
-          companyTaxId,
-          referenceNo: depositCode,
-          amount: 5000,
-        }),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-signature': signature,
+          'x-idempotency-key': depositCode,
+        },
+        body: bodyStr,
       });
 
       if (response.ok) {
@@ -553,7 +638,10 @@ ${item.description}
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <span className="px-2.5 py-1 rounded-full bg-[#11111b]/85 backdrop-blur-md border border-[#fab387]/40 text-[#fab387] text-xs font-semibold tabular-data font-mono flex items-center gap-1">
-                      <span>★ {googleData?.rating || matchedDestination.rating}</span>
+                      <svg className="w-3.5 h-3.5 fill-current text-[#fab387]" viewBox="0 0 24 24">
+                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                      </svg>
+                      <span>{googleData?.rating || matchedDestination.rating}</span>
                     </span>
                   </div>
                 </div>
@@ -577,17 +665,23 @@ ${item.description}
                     className="text-[10px] font-mono text-[#cba6f7] hover:underline flex items-center gap-0.5"
                   >
                     <span>{language === 'th' ? 'เปิดใน Google Maps' : 'Open in Google Maps'}</span>
-                    <span>↗</span>
+                    <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                    </svg>
                   </a>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 text-[11px] text-[#bac2de]">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[#fab387]">★</span>
+                    <svg className="w-3 h-3 fill-current text-[#fab387]" viewBox="0 0 24 24">
+                      <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                    </svg>
                     <span><strong className="text-[#cdd6f4]">{googleData?.rating || matchedDestination.rating}</strong> ({googleData?.userRatingCount.toLocaleString() || matchedDestination.reviews_count} {language === 'th' ? 'รีวิวบน Google Maps' : 'reviews on Google Maps'})</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span>🚗</span>
+                    <svg className="w-3.5 h-3.5 text-[#a6e3a1]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 17h8M8 17a2 2 0 100 4 2 2 0 000-4zm8 0a2 2 0 100 4 2 2 0 000-4zM4 11l2-6h12l2 6M4 11h16v6H4v-6z" />
+                    </svg>
                     <span className="text-[#a6e3a1]">
                       <strong>{formatAirportTravelTime(googleData?.airportTravelTime, language)}</strong> ({formatAirportName(googleData?.nearestAirport, language)})
                     </span>
@@ -680,10 +774,10 @@ ${item.description}
                             }`}
                             title={eng.description}
                           >
-                            {engKey === 'elevenlabs-hd' && '🎙️ Executive Studio (EN)'}
-                            {engKey === 'google-cloud-tts' && '☁️ Cloud Voice (TH/EN)'}
-                            {engKey === 'web-speech' && '⚡ Instant Voice (0ms)'}
-                            {engKey === 'synth-fallback' && '🛡️ Offline Fallback'}
+                            {engKey === 'elevenlabs-hd' && '[STUDIO] Executive Studio (EN)'}
+                            {engKey === 'google-cloud-tts' && '[CLOUD] Cloud Voice (TH/EN)'}
+                            {engKey === 'web-speech' && '[SPEED] Instant Voice (0ms)'}
+                            {engKey === 'synth-fallback' && '[OFFLINE] Offline Fallback'}
                           </button>
                         );
                       })}
@@ -764,7 +858,7 @@ ${item.description}
                         className="mt-2 p-2.5 rounded-xl bg-[#1e1e2e] border border-[#313244] text-[11px] text-[#bac2de] leading-relaxed font-sans"
                       >
                         <p className="font-semibold text-[#cdd6f4] mb-1">
-                          🎙️ {audioBriefing.language === 'th' ? 'บทบรรยายภาษาไทย (Thai Audio Briefing):' : 'English Audio Briefing (Native Accent):'}
+                          [TRANSCRIPT] {audioBriefing.language === 'th' ? 'บทบรรยายภาษาไทย (Thai Audio Briefing):' : 'English Audio Briefing (Native Accent):'}
                         </p>
                         <p className="italic bg-[#181825] p-2 rounded-lg border border-[#313244]">
                           "{audioBriefing.transcript}"
@@ -877,7 +971,7 @@ ${item.description}
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.08-1.64.222-2.426.234-.847 1.058-1.354 1.938-1.354h2.24z" />
                       </svg>
                       <span>
-                        {audioBriefing.isPlaying ? (language === 'th' ? '❚❚ หยุดเล่นเสียงสรุปผู้บริหาร' : '❚❚ Pause CFO Audio Memo') : (language === 'th' ? '🎧 ฟังเสียงสรุปผู้บริหาร (30s Audio Briefing)' : '🎧 Listen to 30s CFO Audio Memo')}
+                        {audioBriefing.isPlaying ? (language === 'th' ? '❚❚ หยุดเล่นเสียงสรุปผู้บริหาร' : '❚❚ Pause CFO Audio Memo') : (language === 'th' ? '[AUDIO] ฟังเสียงสรุปผู้บริหาร (30s Audio Briefing)' : '[AUDIO] Listen to 30s CFO Audio Memo')}
                       </span>
                     </button>
 
@@ -892,7 +986,7 @@ ${item.description}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <button
-                        onClick={() => setShowProposalModal(true)}
+                        onClick={handlePrint}
                         className="py-2.5 px-4 bg-[#181825] hover:bg-[#313244] border border-[#313244] text-[#cdd6f4] text-xs font-bold rounded-xl transition-colors cursor-pointer active:scale-95 flex items-center justify-center gap-1.5"
                       >
                         <svg className="w-3.5 h-3.5 text-[#cba6f7]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -903,17 +997,14 @@ ${item.description}
 
                       {/* Google Sheets Direct Export (Locked for Pro/Member) */}
                       <button
-                        onClick={() => {
-                          setLockedFeatureName(language === 'th' ? 'ระบบสร้างและส่งออก Google Sheets อัตโนมัติ' : 'Automated Google Sheets RFP Export');
-                          setShowSubModal(true);
-                        }}
+                        onClick={handleExportSheetsClick}
                         className="py-2.5 px-4 bg-[#cba6f7]/12 hover:bg-[#cba6f7]/20 border border-[#cba6f7]/35 text-[#cba6f7] text-xs font-bold rounded-xl transition-colors cursor-pointer active:scale-95 flex items-center justify-center gap-1.5"
                         title={language === 'th' ? 'เฉพาะสมาชิก Pro / Enterprise' : 'Pro / Enterprise Members Only'}
                       >
                         <svg className="w-3.5 h-3.5 text-[#cba6f7]" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H6v-2h6v2zm0-4H6v-2h6v2zm0-4H6V7h6v2zm6 8h-4v-2h4v2zm0-4h-4v-2h4v2zm0-4h-4V7h4v2z" />
                         </svg>
-                        <span>🔒 {t.exportSheetsBtn} (PRO)</span>
+                        <span>[PRO] {t.exportSheetsBtn}</span>
                       </button>
                     </div>
 
@@ -930,17 +1021,14 @@ ${item.description}
 
                       {/* Google Docs Direct Export (Locked for Pro/Member) */}
                       <button
-                        onClick={() => {
-                          setLockedFeatureName(language === 'th' ? 'ระบบสร้างและส่งออก Google Docs อัตโนมัติ' : 'Automated Google Docs RFP Export');
-                          setShowSubModal(true);
-                        }}
+                        onClick={handleExportDocsClick}
                         className="py-2 px-3 bg-[#fab387]/15 hover:bg-[#fab387]/25 border border-[#fab387]/35 text-[#fab387] text-[11px] font-semibold rounded-xl transition-colors cursor-pointer active:scale-95 flex items-center justify-center gap-1.5"
                         title={language === 'th' ? 'เฉพาะสมาชิก Pro / Enterprise' : 'Pro / Enterprise Members Only'}
                       >
                         <svg className="w-3 h-3 text-[#fab387]" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
                         </svg>
-                        <span>🔒 {t.exportDocsBtn} (PRO)</span>
+                        <span>[PRO] {t.exportDocsBtn}</span>
                       </button>
                     </div>
                   </div>
@@ -968,14 +1056,11 @@ ${item.description}
 
                     <div className="flex items-center gap-1.5">
                       <button
-                        onClick={() => {
-                          setLockedFeatureName(language === 'th' ? 'ระบบสร้างกำหนดการใน Google Docs อัตโนมัติ' : 'Automated Google Docs Agenda Sync');
-                          setShowSubModal(true);
-                        }}
+                        onClick={handleExportDocsClick}
                         className="py-1 px-2.5 bg-[#fab387]/15 hover:bg-[#fab387]/25 border border-[#fab387]/35 text-[#fab387] text-[11px] font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1 active:scale-95"
                         title={language === 'th' ? 'เฉพาะสมาชิก Pro / Enterprise' : 'Pro / Enterprise Members Only'}
                       >
-                        <span>🔒 {language === 'th' ? 'เปิดใน Docs (PRO)' : 'Open in Docs (PRO)'}</span>
+                        <span>[PRO] {language === 'th' ? 'เปิดใน Docs' : 'Open in Docs'}</span>
                       </button>
                       <button
                         onClick={handleExportAgenda}
@@ -1019,23 +1104,17 @@ ${item.description}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <button
-                      onClick={() => {
-                        setLockedFeatureName(language === 'th' ? 'ระบบสร้างกำหนดการใน Google Docs อัตโนมัติ' : 'Automated Google Docs Agenda Sync');
-                        setShowSubModal(true);
-                      }}
+                      onClick={handleExportDocsClick}
                       className="py-2.5 px-4 bg-[#fab387]/15 hover:bg-[#fab387]/25 border border-[#fab387]/35 text-[#fab387] text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98]"
                     >
-                      <span>🔒 {language === 'th' ? 'เปิดกำหนดการใน Google Docs ↗ (PRO)' : 'Open Agenda in Google Docs ↗ (PRO)'}</span>
+                      <span>[PRO] {language === 'th' ? 'เปิดกำหนดการใน Google Docs ->' : 'Open Agenda in Google Docs ->'}</span>
                     </button>
 
                     <button
-                      onClick={() => {
-                        setLockedFeatureName(language === 'th' ? 'ระบบสร้างตารางใน Google Sheets อัตโนมัติ' : 'Automated Google Sheets Agenda Sync');
-                        setShowSubModal(true);
-                      }}
+                      onClick={handleExportSheetsClick}
                       className="py-2.5 px-4 bg-[#cba6f7]/15 hover:bg-[#cba6f7]/25 border border-[#cba6f7]/35 text-[#cba6f7] text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98]"
                     >
-                      <span>🔒 {language === 'th' ? 'เปิดตารางใน Google Sheets ↗ (PRO)' : 'Open Sheet in Google Sheets ↗ (PRO)'}</span>
+                      <span>[PRO] {language === 'th' ? 'เปิดตารางใน Google Sheets ->' : 'Open Sheet in Google Sheets ->'}</span>
                     </button>
                   </div>
                 </motion.div>
@@ -1357,17 +1436,14 @@ ${item.description}
                     className="py-1 px-2.5 bg-[#cba6f7]/20 hover:bg-[#cba6f7]/30 border border-[#cba6f7]/40 text-[#cdd6f4] rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5"
                     title={language === 'th' ? 'ฟังเสียงสรุปสำหรับผู้บริหาร 30 วินาที' : 'Listen to 30-second Executive CFO Memo'}
                   >
-                    <span>{audioBriefing.isPlaying ? (language === 'th' ? '❚❚ หยุดเสียง' : '❚❚ Pause') : (language === 'th' ? '🎧 ฟังเสียงสรุป' : '🎧 Listen')}</span>
+                    <span>{audioBriefing.isPlaying ? (language === 'th' ? '❚❚ หยุดเสียง' : '❚❚ Pause') : (language === 'th' ? '[AUDIO] ฟังเสียงสรุป' : '[AUDIO] Listen')}</span>
                   </button>
                   <button
-                    onClick={() => {
-                      setLockedFeatureName(language === 'th' ? 'ระบบส่งออก Google Sheets อัตโนมัติ' : 'Automated Google Sheets RFP Export');
-                      setShowSubModal(true);
-                    }}
+                    onClick={handleExportSheetsClick}
                     className="py-1 px-3 bg-[#fab387]/10 hover:bg-[#fab387]/20 border border-[#fab387]/35 text-[#fab387] rounded-lg text-xs font-medium cursor-pointer transition-colors flex items-center gap-1"
                     title={language === 'th' ? 'เฉพาะสมาชิก Pro / Enterprise' : 'Pro / Enterprise Members Only'}
                   >
-                    <span>🔒 Sheets (PRO)</span>
+                    <span>[PRO] Sheets</span>
                   </button>
                   <button
                     onClick={handleDownloadCsv}
@@ -1457,10 +1533,10 @@ ${item.description}
                 {/* 30-Second Executive Audio Briefing Bar (Screen View) */}
                 <div className="no-print my-3 p-3.5 bg-[#1e1e2e] border border-[#cba6f7]/40 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs text-[#cdd6f4] shadow-[0_8px_24px_rgba(17,17,27,0.2)]">
                   <div className="flex items-center gap-2.5">
-                    <span className="text-lg">🎧</span>
+                    <span className="text-xs font-mono font-bold text-[#cba6f7]">[AUDIO]</span>
                     <div>
                       <span className="font-bold text-[#cdd6f4] block">
-                        {language === 'en' ? '🎧 30-Second CFO Audio Memo (Executive Audio Briefing)' : '🎧 สรุปเสียงสั้นสำหรับผู้บริหาร 30 วินาที (CFO Audio Memo)'}
+                        {language === 'en' ? '[AUDIO] 30-Second CFO Audio Memo (Executive Audio Briefing)' : '[AUDIO] สรุปเสียงสั้นสำหรับผู้บริหาร 30 วินาที (CFO Audio Memo)'}
                       </span>
                       <span className="text-[11px] text-[#cba6f7]">
                         {language === 'en'
@@ -1476,7 +1552,7 @@ ${item.description}
                     <span>
                       {audioBriefing.isPlaying
                         ? (language === 'en' ? '❚❚ Pause Audio' : '❚❚ หยุดเสียง')
-                        : (language === 'en' ? '▶ Play Memo' : '▶ ฟังเสียงสรุป')}
+                        : (language === 'en' ? '[PLAY] Play Memo' : '[PLAY] ฟังเสียงสรุป')}
                     </span>
                   </button>
                 </div>
@@ -1657,6 +1733,7 @@ ${item.description}
         isOpen={showSubModal}
         onClose={() => setShowSubModal(false)}
         featureName={lockedFeatureName}
+        onSimulatePro={handleSimulatePro}
       />
     </>
   );

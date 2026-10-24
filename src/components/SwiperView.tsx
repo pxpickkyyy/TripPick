@@ -191,7 +191,7 @@ export function SwiperView({
         >
           <div className="flex items-center justify-center gap-2 text-xs font-bold text-[#cba6f7]">
             <span className="w-2 h-2 rounded-full bg-[#cba6f7] animate-ping" />
-            <span>📢 {hostAnnouncement}</span>
+            <span>[ANNOUNCEMENT] {hostAnnouncement}</span>
           </div>
         </motion.div>
       )}
@@ -261,7 +261,7 @@ export function SwiperView({
                       data-testid="call-early-consensus-btn"
                       className="py-2.5 px-5 bg-[#cba6f7] hover:bg-[#b4befe] text-[#11111b] text-xs font-bold rounded-full transition-all cursor-pointer active:scale-95 shadow-[0_0_20px_rgba(203,166,247,0.3)]"
                     >
-                      {language === 'th' ? '⚡ สรุปผลฉันทามติเสียงส่วนใหญ่ทันที' : '⚡ Call Early Majority Consensus'}
+                      {language === 'th' ? '[QUORUM] สรุปผลฉันทามติเสียงส่วนใหญ่ทันที' : '[QUORUM] Call Early Majority Consensus'}
                     </button>
                   )}
                   {onRestartSession && (
@@ -320,8 +320,11 @@ export function SwiperView({
                     <span className="px-3 py-1 rounded-full bg-[#11111b]/85 backdrop-blur-md border border-[#313244] text-[#cdd6f4] text-[11px] font-medium">
                       {topCard.city}, {topCard.country}
                     </span>
-                    <span className="px-3 py-1 rounded-full bg-[#11111b]/85 backdrop-blur-md border border-[#fab387]/40 text-[#fab387] text-[11px] font-semibold tabular-data font-mono">
-                      ★ {topCard.rating} ({topCard.reviews_count})
+                    <span className="px-3 py-1 rounded-full bg-[#11111b]/85 backdrop-blur-md border border-[#fab387]/40 text-[#fab387] text-[11px] font-semibold tabular-data font-mono flex items-center gap-1">
+                      <svg className="w-3 h-3 fill-current text-[#fab387]" viewBox="0 0 24 24">
+                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                      </svg>
+                      <span>{topCard.rating} ({topCard.reviews_count})</span>
                     </span>
                   </div>
 
@@ -385,7 +388,7 @@ export function SwiperView({
                   style={{ opacity: likeBadgeOpacity }}
                   className="absolute top-5 right-5 px-3.5 py-1 rounded-full bg-[#a6e3a1] text-[#11111b] font-black text-xs uppercase rotate-6 pointer-events-none z-20 shadow-md"
                 >
-                  {language === 'th' ? 'ถูกใจ ↗' : 'LIKE ↗'}
+                  {language === 'th' ? 'ถูกใจ ->' : 'LIKE ->'}
                 </motion.div>
                 <motion.div
                   style={{ opacity: rejectBadgeOpacity }}
@@ -476,7 +479,7 @@ export function SwiperView({
                 {destinationsDeck[0] && (
                   <div className="w-full p-3.5 rounded-2xl bg-[#181825] border border-[#313244] text-left mb-4">
                     <div className="text-[10px] font-mono text-[#cba6f7] font-bold uppercase tracking-wider mb-1.5">
-                      ⭐ {language === 'th' ? 'สถานที่แนะนำอันดับ 1 ของ AI' : 'Top AI Recommended Venue'}
+                      [TOP PICK] {language === 'th' ? 'สถานที่แนะนำอันดับ 1 ของ AI' : 'Top AI Recommended Venue'}
                     </div>
                     <div className="flex items-center gap-3">
                       {destinationsDeck[0].hero_image && (
@@ -491,10 +494,10 @@ export function SwiperView({
                           {localizeDestination(destinationsDeck[0]).title}
                         </div>
                         <div className="text-[10px] text-[#a6adc8] truncate">
-                          📍 {destinationsDeck[0].city}, {destinationsDeck[0].country}
+                          {destinationsDeck[0].city}, {destinationsDeck[0].country}
                         </div>
                         <div className="text-[10px] font-mono text-[#fab387] mt-0.5 tabular-data">
-                          ฿{destinationsDeck[0].price_per_person.toLocaleString()}/คน • 📶 {destinationsDeck[0].wifi_speed_mbps} Mbps
+                          ฿{destinationsDeck[0].price_per_person.toLocaleString()}/คน • {destinationsDeck[0].wifi_speed_mbps} Mbps (Starlink SLA)
                         </div>
                       </div>
                     </div>

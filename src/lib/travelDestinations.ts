@@ -36,6 +36,10 @@ export interface TravelDestination {
   airport_travel_time?: string;
   nearest_airport?: string;
   google_verified?: boolean;
+  // Two-Tier Consensus & Compromise telemetry
+  isCompromiseMatch?: boolean;
+  compromiseLabel?: string;
+  vibe_category?: string;
 }
 
 export const ALL_AMENITIES: BusinessAmenity[] = [
