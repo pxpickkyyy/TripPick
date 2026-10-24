@@ -70,16 +70,19 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       process.env.VITE_GOOGLE_TTS_API_KEY ||
       '';
 
-    // 1. ElevenLabs High-Fidelity Studio Tier (Pure Professional English Voiceover)
+    // 1. ElevenLabs High-Fidelity Studio Tier (Pure Professional English Woman Voiceover - Sarah / Rachel)
     if (engine === 'elevenlabs-hd' && elevenLabsApiKey && elevenLabsApiKey !== 'your_elevenlabs_key_here') {
-      const BRIAN_EN_VOICE = 'nPczCjzI2devNBz1zQrb'; // Brian - Deep, Authoritative Corporate Executive
-      const ADAM_EN_VOICE = 'pNInz6obpgDQGcFmaJgB';  // Adam - Professional Corporate B2B
-      const LIAM_EN_VOICE = 'TX3LPaxmHKxFdv7VOQHJ';  // Liam - Energetic Tech Executive
+      const SARAH_EN_VOICE = 'EXAVITQu4vr4xnSDxMaL'; // Sarah - Confident, Professional Executive Concierge (Woman)
+      const RACHEL_EN_VOICE = '21m00Tcm4TlvDq8ikWAM'; // Rachel - Calm, Corporate Narrator (Woman)
+      const CHARLOTTE_EN_VOICE = 'XB0fDUnXU5powFXDhCwa'; // Charlotte - Dynamic Tech Executive (Woman)
+      const BRIAN_EN_VOICE = 'nPczCjzI2devNBz1zQrb';  // Brian - Male Fallback
 
-      const requestedVoice = payload.voiceId || BRIAN_EN_VOICE;
+      const requestedVoice = payload.voiceId || SARAH_EN_VOICE;
       const candidates = [requestedVoice];
-      if (!candidates.includes(ADAM_EN_VOICE)) candidates.push(ADAM_EN_VOICE);
-      if (!candidates.includes(LIAM_EN_VOICE)) candidates.push(LIAM_EN_VOICE);
+      if (!candidates.includes(SARAH_EN_VOICE)) candidates.push(SARAH_EN_VOICE);
+      if (!candidates.includes(RACHEL_EN_VOICE)) candidates.push(RACHEL_EN_VOICE);
+      if (!candidates.includes(CHARLOTTE_EN_VOICE)) candidates.push(CHARLOTTE_EN_VOICE);
+      if (!candidates.includes(BRIAN_EN_VOICE)) candidates.push(BRIAN_EN_VOICE);
 
       // Force English script for ElevenLabs
       const effectiveScript =
@@ -87,47 +90,59 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
           ? script
           : `Executive and Finance Briefing: The team has reached unanimous consensus on ${destinationTitle} in ${city} for our corporate offsite. Net procurement total is ${netPayable.toLocaleString()} Thai Baht, fully reconciled with 7% VAT and 3% withholding tax. Equipped with ${wifiSpeed} Mbps Starlink connectivity and a ${maxCapacity}-seat executive boardroom. Click to approve budget instantly.`;
 
-      for (const candidateId of candidates) {
-        try {
-          const elResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${candidateId}`, {
-            method: 'POST',
-            headers: {
-              'xi-api-key': elevenLabsApiKey,
-              'Content-Type': 'application/json',
-              Accept: 'audio/mpeg',
-            },
-            body: JSON.stringify({
-              text: effectiveScript,
-              model_id: 'eleven_multilingual_v2',
-              voice_settings: {
-                stability: 0.38,
-                similarity_boost: 0.85,
-                style: 0.40,
-                use_speaker_boost: true,
-              },
-            }),
-          });
+      const modelsToTry = ['eleven_v4', 'eleven_multilingual_v2'];
 
-          if (elResponse.ok) {
-            const buffer = await elResponse.arrayBuffer();
-            const base64Audio = Buffer.from(buffer).toString('base64');
-            res.statusCode = 200;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(
-              JSON.stringify({
-                success: true,
-                engine: 'elevenlabs-hd',
-                voiceId: candidateId,
-                language: 'en',
-                script: effectiveScript,
-                mimeType: 'audio/mpeg',
-                audioContent: base64Audio,
-              })
-            );
-            return;
+      for (const candidateId of candidates) {
+        for (const modelId of modelsToTry) {
+          try {
+            const elResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${candidateId}`, {
+              method: 'POST',
+              headers: {
+                'xi-api-key': elevenLabsApiKey,
+                'Content-Type': 'application/json',
+                Accept: 'audio/mpeg',
+              },
+              body: JSON.stringify({
+                text: effectiveScript,
+                model_id: modelId,
+                voice_settings:
+                  modelId === 'eleven_v4'
+                    ? {
+                        stability: 0.5,
+                        similarity_boost: 0.8,
+                      }
+                    : {
+                        stability: 0.38,
+                        similarity_boost: 0.85,
+                        style: 0.40,
+                        use_speaker_boost: true,
+                      },
+              }),
+            });
+
+            if (elResponse.ok) {
+              const buffer = await elResponse.arrayBuffer();
+              const base64Audio = Buffer.from(buffer).toString('base64');
+              res.statusCode = 200;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(
+                JSON.stringify({
+                  success: true,
+                  engine: 'elevenlabs-hd',
+                  model: modelId,
+                  voiceId: candidateId,
+                  voiceName: candidateId === SARAH_EN_VOICE ? 'Sarah (Woman)' : candidateId === RACHEL_EN_VOICE ? 'Rachel (Woman)' : 'ElevenLabs Voice',
+                  language: 'en',
+                  script: effectiveScript,
+                  mimeType: 'audio/mpeg',
+                  audioContent: base64Audio,
+                })
+              );
+              return;
+            }
+          } catch {
+            // Continue to next model/candidate
           }
-        } catch {
-          // Continue to next candidate
         }
       }
     }

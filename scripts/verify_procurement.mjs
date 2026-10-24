@@ -10,10 +10,14 @@ import { calculateRetreatPricing, DEMO_COMPANY_PRESETS } from '../src/types/proc
 import { generatePromptPayPayload, calculateCrc16, generateQrSvgPath } from '../src/lib/promptpay.ts';
 import { TRANSLATIONS, DESTINATION_LOCALIZATIONS, RETREAT_VIBES_TH, RETREAT_VIBES_EN } from '../src/lib/i18n.ts';
 import {
+  ELEVENLABS_SARAH_VOICE_ID,
+  ELEVENLABS_RACHEL_VOICE_ID,
+  ELEVENLABS_CHARLOTTE_VOICE_ID,
   ELEVENLABS_BRIAN_VOICE_ID,
   ELEVENLABS_ADAM_VOICE_ID,
   ELEVENLABS_LIAM_VOICE_ID,
   PRIMARY_ENGLISH_VOICE_ID,
+  ELEVENLABS_MODEL_ID,
   VOICE_ENGINES,
   generateCfoMemoScript,
   generateJackboxAnnouncerScript,
@@ -210,17 +214,21 @@ console.log('\n[Test 6] Verifying Bilingual Translation Dictionary Symmetry & Co
 // TEST 7: ElevenLabs Professional Corporate English Voice & Executive CFO Memo
 console.log('\n[Test 7] Verifying ElevenLabs English Voice Engine & 30s CFO Memo Synthesis...');
 {
-  // Voice ID Constants
+  // Voice ID Constants (Woman Executive Voices)
+  assert.equal(ELEVENLABS_SARAH_VOICE_ID, 'EXAVITQu4vr4xnSDxMaL', 'Sarah voice ID must match production woman voice');
+  assert.equal(ELEVENLABS_RACHEL_VOICE_ID, '21m00Tcm4TlvDq8ikWAM', 'Rachel voice ID must match production woman voice');
+  assert.equal(ELEVENLABS_CHARLOTTE_VOICE_ID, 'XB0fDUnXU5powFXDhCwa', 'Charlotte voice ID must match production woman voice');
   assert.equal(ELEVENLABS_BRIAN_VOICE_ID, 'nPczCjzI2devNBz1zQrb', 'Brian voice ID must match production');
   assert.equal(ELEVENLABS_ADAM_VOICE_ID, 'pNInz6obpgDQGcFmaJgB', 'Adam voice ID must match production');
   assert.equal(ELEVENLABS_LIAM_VOICE_ID, 'TX3LPaxmHKxFdv7VOQHJ', 'Liam voice ID must match production');
-  assert.equal(PRIMARY_ENGLISH_VOICE_ID, ELEVENLABS_BRIAN_VOICE_ID, 'Primary English voice must be Brian');
+  assert.equal(PRIMARY_ENGLISH_VOICE_ID, ELEVENLABS_SARAH_VOICE_ID, 'Primary English voice must be Sarah (Woman)');
+  assert.equal(ELEVENLABS_MODEL_ID, 'eleven_v4', 'ElevenLabs model must be eleven_v4 (latest model)');
 
   // Voice Engine Specification
   const elevenlabsEngine = VOICE_ENGINES['elevenlabs-hd'];
   assert.ok(elevenlabsEngine, 'ElevenLabs voice engine must be registered');
   assert.match(elevenlabsEngine.badge, /EN|English/i, 'ElevenLabs engine badge must designate English');
-  assert.match(elevenlabsEngine.description, /Brian/i, 'ElevenLabs description must highlight Brian corporate voice');
+  assert.match(elevenlabsEngine.description, /Sarah|eleven_v4/i, 'ElevenLabs description must highlight Sarah executive woman voice and eleven_v4');
 
   // CFO Memo Synthesis in Pure English
   const testSpecs = {

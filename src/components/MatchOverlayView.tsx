@@ -5,7 +5,7 @@ import type { RoomUser, Swipe, DepositReceipt } from '../hooks/useTripPick';
 import { generateExecutiveAgenda } from '../lib/ai';
 import { enrichDestinationWithGooglePlaces, formatAirportTravelTime, formatAirportName, type GooglePlaceData } from '../lib/googlePlaces';
 import { generatePromptPayPayload, generateQrSvgPath } from '../lib/promptpay';
-import { useAudioBriefing, VOICE_ENGINES, type VoiceEngine, ELEVENLABS_2MIN_PITCH_SCRIPT } from '../lib/audioConcierge';
+import { useAudioBriefing, VOICE_ENGINES, type VoiceEngine } from '../lib/audioConcierge';
 import { useLanguage } from '../lib/i18n';
 
 interface MatchOverlayViewProps {
@@ -130,28 +130,6 @@ export function MatchOverlayView({
 
   const audioBriefing = useAudioBriefing(audioSpecs);
   const [showTranscript, setShowTranscript] = useState(false);
-  const [showPitchModal, setShowPitchModal] = useState(false);
-  const [copiedPitchToast, setCopiedPitchToast] = useState(false);
-  const [isPitchPlaying, setIsPitchPlaying] = useState(false);
-
-  const handleTogglePitchAudio = () => {
-    if (typeof window === 'undefined') return;
-    if (isPitchPlaying) {
-      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-      setIsPitchPlaying(false);
-      return;
-    }
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(ELEVENLABS_2MIN_PITCH_SCRIPT);
-      utterance.lang = 'en-US';
-      utterance.rate = 1.05;
-      utterance.onend = () => setIsPitchPlaying(false);
-      utterance.onerror = () => setIsPitchPlaying(false);
-      setIsPitchPlaying(true);
-      window.speechSynthesis.speak(utterance);
-    }
-  };
 
   if (!matchedDestination) return null;
 
@@ -774,7 +752,7 @@ ${item.description}
                         </div>
                         <p className="text-[11px] text-[#a6adc8]">
                           {audioBriefing.engine === 'elevenlabs-hd'
-                            ? (language === 'th' ? 'เสียงพากย์ผู้บริหารภาษาอังกฤษระดับพรีเมียม (Brian / Adam Executive English)' : 'Premium Corporate English Executive Voiceover (Brian / Adam)')
+                            ? (language === 'th' ? 'เสียงพากย์ผู้บริหารหญิงภาษาอังกฤษระดับพรีเมียม (Sarah / Rachel Executive Woman Voice)' : 'Premium Corporate English Executive Voiceover (Sarah / Rachel Woman Voice)')
                             : t.cfoMemoSubtitle}
                         </p>
                       </div>
@@ -885,8 +863,8 @@ ${item.description}
                     </div>
                   </div>
 
-                  {/* Collapsible Transcript Toggle & 2-Min Pitch Script */}
-                  <div className="mt-2.5 pt-2 border-t border-[#313244]/60 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                  {/* Collapsible Transcript Toggle */}
+                  <div className="mt-2.5 pt-2 border-t border-[#313244]/60 flex items-center justify-between gap-2 text-[11px]">
                     <button
                       onClick={() => setShowTranscript((prev) => !prev)}
                       className="text-[#cba6f7] hover:underline cursor-pointer flex items-center gap-1 font-medium"
@@ -894,19 +872,6 @@ ${item.description}
                       <span>{showTranscript ? t.hideTranscriptBtn : t.viewTranscriptBtn}</span>
                       <span>{showTranscript ? '▲' : '▼'}</span>
                     </button>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setShowPitchModal(true)}
-                        className="text-[#89b4fa] hover:underline cursor-pointer flex items-center gap-1 font-mono text-[10px]"
-                        title={language === 'th' ? 'ดูและคัดลอกสคริปต์วิดีโอ 2 นาทีสำหรับ ElevenLabs (Prompt A)' : 'View and copy official 2-min ElevenLabs pitch script (Prompt A)'}
-                      >
-                        <span>{t.pitchScriptBtn}</span>
-                      </button>
-                      <span className="text-[#6c7086] font-mono text-[10px] hidden sm:inline">
-                        • Hybrid Voice Architecture
-                      </span>
-                    </div>
                   </div>
 
                   {showTranscript && (
@@ -1592,8 +1557,8 @@ ${item.description}
                       </span>
                       <span className="text-[11px] text-purple-700">
                         {language === 'en'
-                          ? 'Ultra-realistic executive voiceover (Modular Voice Adapter: ElevenLabs HD English - Brian / Google Cloud TTS)'
-                          : 'สรุปเสียงสั้นสำหรับผู้บริหารและฝ่ายบัญชี (Modular Voice Adapter: ElevenLabs HD English - Brian / Google Cloud TTS)'}
+                          ? 'Ultra-realistic executive voiceover (Modular Voice Adapter: ElevenLabs HD English - Sarah / Google Cloud TTS)'
+                          : 'สรุปเสียงสั้นสำหรับผู้บริหารและฝ่ายบัญชี (Modular Voice Adapter: ElevenLabs HD English - Sarah / Google Cloud TTS)'}
                       </span>
                     </div>
                   </div>
@@ -1780,73 +1745,6 @@ ${item.description}
         )}
       </AnimatePresence>
 
-      {/* 2-Minute Video Pitch Script Modal (ElevenLabs Prompt A) */}
-      <AnimatePresence>
-        {showPitchModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 overflow-y-auto no-print">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="w-full max-w-xl bg-[#181825] border border-[#313244] rounded-2xl shadow-2xl p-5 sm:p-6 text-left relative"
-            >
-              <div className="flex items-center justify-between pb-3 border-b border-[#313244] mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">🎙️</span>
-                  <div>
-                    <h3 className="text-sm font-bold text-[#cdd6f4]">
-                      ElevenLabs 2-Minute Video Pitch Script
-                    </h3>
-                    <p className="text-[11px] text-[#a6adc8]">
-                      Voice: Professional, Warm, Confident (Adam / Brian) | Lock-Timed: 1:55 min (115s)
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    if (isPitchPlaying && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-                      window.speechSynthesis.cancel();
-                      setIsPitchPlaying(false);
-                    }
-                    setShowPitchModal(false);
-                  }}
-                  className="text-[#a6adc8] hover:text-[#f38ba8] text-xs font-semibold cursor-pointer px-2 py-1"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="p-3.5 bg-[#11111b] border border-[#313244] rounded-xl text-xs text-[#bac2de] font-sans leading-relaxed whitespace-pre-wrap max-h-72 overflow-y-auto mb-4 select-text">
-                {ELEVENLABS_2MIN_PITCH_SCRIPT}
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-2 border-t border-[#313244]">
-                <button
-                  onClick={handleTogglePitchAudio}
-                  className="w-full sm:w-auto py-1.5 px-3 bg-[#cba6f7]/20 hover:bg-[#cba6f7]/30 border border-[#cba6f7]/40 text-[#cba6f7] rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center justify-center gap-1.5"
-                >
-                  <span>{isPitchPlaying ? (language === 'th' ? '❚❚ หยุดทดสอบเสียง' : '❚❚ Pause Voice') : (language === 'th' ? '▶ ทดสอบเสียงพากย์ (Voice Preview)' : '▶ Play Voice Preview')}</span>
-                </button>
-
-                <button
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(ELEVENLABS_2MIN_PITCH_SCRIPT);
-                      setCopiedPitchToast(true);
-                      setTimeout(() => setCopiedPitchToast(false), 2500);
-                    } catch {
-                      // Clipboard fallback
-                    }
-                  }}
-                  className="w-full sm:w-auto py-1.5 px-3 bg-[#a6e3a1] hover:bg-[#94e2d5] text-[#11111b] rounded-lg text-xs font-bold cursor-pointer transition-colors flex items-center justify-center gap-1"
-                >
-                  <span>{copiedPitchToast ? (language === 'th' ? '✓ คัดลอกสคริปต์แล้ว' : '✓ Copied Script') : (language === 'th' ? '📋 คัดลอกไปใส่ ElevenLabs' : '📋 Copy to ElevenLabs')}</span>
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </>
   );
 }

@@ -51,9 +51,9 @@ export const VOICE_ENGINES: Record<VoiceEngine, VoiceEngineInfo> = {
   'elevenlabs-hd': {
     id: 'elevenlabs-hd',
     name: 'ElevenLabs High-Fidelity Voice',
-    provider: 'ElevenLabs AI',
-    badge: 'Executive Studio Voice (EN)',
-    description: 'Ultra-realistic corporate English executive voiceover (Brian / Adam Professional Executive English)',
+    provider: 'ElevenLabs AI (eleven_v4)',
+    badge: 'Executive Studio Voice (EN - Sarah)',
+    description: 'Ultra-realistic corporate English executive voiceover (Sarah / Rachel Executive Woman Voice with eleven_v4)',
   },
   'web-speech': {
     id: 'web-speech',
@@ -73,16 +73,32 @@ export const VOICE_ENGINES: Record<VoiceEngine, VoiceEngineInfo> = {
 
 /**
  * ElevenLabs Dedicated Executive English Voice IDs:
- * Primary English: Brian - Deep, Authoritative Corporate Executive (nPczCjzI2devNBz1zQrb)
- * Secondary English: Adam - Professional Corporate B2B Narrator (pNInz6obpgDQGcFmaJgB)
- * Tertiary English: Liam - Energetic Tech Executive (TX3LPaxmHKxFdv7VOQHJ)
+ * Primary English (Woman): Sarah - Confident, Professional Corporate Executive (EXAVITQu4vr4xnSDxMaL)
+ * Secondary English (Woman): Rachel - Calm, Articulate Corporate Narrator (21m00Tcm4TlvDq8ikWAM)
+ * Tertiary English (Woman): Charlotte - Modern Conversational Executive (XB0fDUnXU5powFXDhCwa)
+ * Legacy Male Options (for backward compatibility):
+ * Brian - Deep, Authoritative Corporate Executive (nPczCjzI2devNBz1zQrb)
+ * Adam - Professional Corporate B2B Narrator (pNInz6obpgDQGcFmaJgB)
+ * Liam - Energetic Tech Executive (TX3LPaxmHKxFdv7VOQHJ)
  */
+export const ELEVENLABS_SARAH_VOICE_ID = 'EXAVITQu4vr4xnSDxMaL';
+export const ELEVENLABS_RACHEL_VOICE_ID = '21m00Tcm4TlvDq8ikWAM';
+export const ELEVENLABS_CHARLOTTE_VOICE_ID = 'XB0fDUnXU5powFXDhCwa';
 export const ELEVENLABS_BRIAN_VOICE_ID = 'nPczCjzI2devNBz1zQrb';
 export const ELEVENLABS_ADAM_VOICE_ID = 'pNInz6obpgDQGcFmaJgB';
 export const ELEVENLABS_LIAM_VOICE_ID = 'TX3LPaxmHKxFdv7VOQHJ';
-export const PRIMARY_ENGLISH_VOICE_ID = ELEVENLABS_BRIAN_VOICE_ID;
-export const SECONDARY_ENGLISH_VOICE_ID = ELEVENLABS_ADAM_VOICE_ID;
-export const DEFAULT_ENGLISH_VOICE_ID = ELEVENLABS_BRIAN_VOICE_ID;
+
+export const PRIMARY_ENGLISH_VOICE_ID = ELEVENLABS_SARAH_VOICE_ID;
+export const SECONDARY_ENGLISH_VOICE_ID = ELEVENLABS_RACHEL_VOICE_ID;
+export const DEFAULT_ENGLISH_VOICE_ID = ELEVENLABS_SARAH_VOICE_ID;
+
+/**
+ * Latest ElevenLabs TTS Model ID:
+ * eleven_v4 is the newest flagship model providing standard-setting emotional nuance and clarity.
+ * eleven_multilingual_v2 is the proven reliable fallback.
+ */
+export const ELEVENLABS_MODEL_ID = 'eleven_v4';
+export const ELEVENLABS_FALLBACK_MODEL_ID = 'eleven_multilingual_v2';
 
 // Preserved for legacy reference if needed
 export const REQUESTED_THAI_VOICE_ID = '7XW5JhaNn90bnFojQ5DA';
@@ -289,8 +305,9 @@ export interface ElevenLabsVoiceSettings {
 
 /**
  * ElevenLabs High-Fidelity Voice Synthesis (Direct REST API Fallback)
- * Configured with professional corporate English voices:
- * Brian (nPczCjzI2devNBz1zQrb) and Adam (pNInz6obpgDQGcFmaJgB) with executive cadence.
+ * Configured with professional corporate English voices prioritizing executive women:
+ * Sarah (EXAVITQu4vr4xnSDxMaL), Rachel (21m00Tcm4TlvDq8ikWAM), and Charlotte (XB0fDUnXU5powFXDhCwa)
+ * Powered by ElevenLabs eleven_v4 (latest) with eleven_multilingual_v2 fallback.
  */
 export async function fetchElevenLabsAudio(
   text: string,
@@ -306,45 +323,63 @@ export async function fetchElevenLabsAudio(
     return null;
   }
 
-  // Build candidate order: Brian (Executive) -> Adam (B2B) -> Liam (Tech Executive)
+  // Build candidate order: Voice requested -> Sarah (Woman) -> Rachel (Woman) -> Charlotte (Woman) -> Brian (Fallback)
   const candidates: string[] = [voiceId];
-  if (!candidates.includes(SECONDARY_ENGLISH_VOICE_ID)) {
-    candidates.push(SECONDARY_ENGLISH_VOICE_ID);
+  if (!candidates.includes(ELEVENLABS_SARAH_VOICE_ID)) {
+    candidates.push(ELEVENLABS_SARAH_VOICE_ID);
   }
-  if (!candidates.includes(ELEVENLABS_LIAM_VOICE_ID)) {
-    candidates.push(ELEVENLABS_LIAM_VOICE_ID);
+  if (!candidates.includes(ELEVENLABS_RACHEL_VOICE_ID)) {
+    candidates.push(ELEVENLABS_RACHEL_VOICE_ID);
   }
+  if (!candidates.includes(ELEVENLABS_CHARLOTTE_VOICE_ID)) {
+    candidates.push(ELEVENLABS_CHARLOTTE_VOICE_ID);
+  }
+  if (!candidates.includes(ELEVENLABS_BRIAN_VOICE_ID)) {
+    candidates.push(ELEVENLABS_BRIAN_VOICE_ID);
+  }
+
+  const modelsToTry = [ELEVENLABS_MODEL_ID, ELEVENLABS_FALLBACK_MODEL_ID];
 
   for (const candidateId of candidates) {
-    try {
-      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${candidateId}`, {
-        method: 'POST',
-        headers: {
-          'xi-api-key': apiKey,
-          'Content-Type': 'application/json',
-          Accept: 'audio/mpeg',
-        },
-        body: JSON.stringify({
+    for (const modelId of modelsToTry) {
+      try {
+        const payloadBody = {
           text,
-          model_id: 'eleven_multilingual_v2',
-          voice_settings: {
-            stability: settings?.stability ?? 0.38, // Executive calm & clarity
-            similarity_boost: settings?.similarity_boost ?? 0.85,
-            style: settings?.style ?? 0.40, // Authoritative corporate presence
-            use_speaker_boost: settings?.use_speaker_boost ?? true,
+          model_id: modelId,
+          voice_settings:
+            modelId === 'eleven_v4'
+              ? {
+                  stability: settings?.stability ?? 0.5,
+                  similarity_boost: settings?.similarity_boost ?? 0.8,
+                }
+              : {
+                  stability: settings?.stability ?? 0.38,
+                  similarity_boost: settings?.similarity_boost ?? 0.85,
+                  style: settings?.style ?? 0.40,
+                  use_speaker_boost: settings?.use_speaker_boost ?? true,
+                },
+        };
+
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${candidateId}`, {
+          method: 'POST',
+          headers: {
+            'xi-api-key': apiKey,
+            'Content-Type': 'application/json',
+            Accept: 'audio/mpeg',
           },
-        }),
-      });
+          body: JSON.stringify(payloadBody),
+        });
 
-      if (!response.ok) {
-        console.warn(`ElevenLabs voice ${candidateId} returned non-OK status: ${response.status}`);
-        continue;
+        if (!response.ok) {
+          console.warn(`ElevenLabs voice ${candidateId} (${modelId}) returned non-OK status: ${response.status}`);
+          continue;
+        }
+
+        const blob = await response.blob();
+        return URL.createObjectURL(blob);
+      } catch (err) {
+        console.warn(`ElevenLabs fetch error for ${candidateId} (${modelId}):`, err);
       }
-
-      const blob = await response.blob();
-      return URL.createObjectURL(blob);
-    } catch (err) {
-      console.warn(`ElevenLabs fetch error for ${candidateId}:`, err);
     }
   }
 
@@ -720,9 +755,9 @@ export function useAudioBriefing(specs: AudioConciergeSpecs) {
         return;
       }
 
-      // 2. Direct ElevenLabs High-Fidelity Tier (Pure Corporate English)
+      // 2. Direct ElevenLabs High-Fidelity Tier (Pure Corporate English Woman Voice)
       if (engine === 'elevenlabs-hd') {
-        const voiceId = PRIMARY_ENGLISH_VOICE_ID; // Brian (Executive English)
+        const voiceId = PRIMARY_ENGLISH_VOICE_ID; // Sarah (Woman Executive English)
         const audioUrl = await fetchElevenLabsAudio(transcript, voiceId, {
           stability: 0.38,
           similarity_boost: 0.85,
