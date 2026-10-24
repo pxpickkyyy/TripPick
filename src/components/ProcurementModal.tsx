@@ -63,6 +63,7 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
     roomId,
     depositStatus,
     depositReceipt,
+    language,
     onConfirmDeposit,
   });
 

@@ -298,8 +298,8 @@ export async function fetchElevenLabsAudio(
   settings?: ElevenLabsVoiceSettings
 ): Promise<string | null> {
   const apiKey =
-    localStorage.getItem('trippick_elevenlabs_key') ||
-    import.meta.env.VITE_ELEVENLABS_API_KEY ||
+    (typeof localStorage !== 'undefined' ? localStorage.getItem('trippick_elevenlabs_key') : null) ||
+    import.meta.env?.VITE_ELEVENLABS_API_KEY ||
     '';
 
   if (!apiKey || apiKey === 'your_elevenlabs_key_here') {
@@ -359,8 +359,8 @@ export async function fetchGoogleCloudTtsAudio(
   lang: BriefingLanguage
 ): Promise<string | null> {
   const apiKey =
-    localStorage.getItem('trippick_google_tts_key') ||
-    import.meta.env.VITE_GOOGLE_TTS_API_KEY ||
+    (typeof localStorage !== 'undefined' ? localStorage.getItem('trippick_google_tts_key') : null) ||
+    import.meta.env?.VITE_GOOGLE_TTS_API_KEY ||
     '';
 
   if (!apiKey) {

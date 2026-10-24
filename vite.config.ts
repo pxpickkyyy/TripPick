@@ -2,13 +2,24 @@ import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { generatePromptPayPayload } from './src/lib/promptpay.ts';
+import discoverDestinationsHandler from './api/discover-destinations.ts';
+import placePhotoHandler from './api/place-photo.ts';
+
+import type { Connect } from 'vite';
 
 function b2bDepositApiPlugin(): Plugin {
-  return {
-    name: 'b2b-deposit-api',
-    configureServer(server) {
-      server.middlewares.use(async (req, res, next) => {
-        const url = req.url?.split('?')[0];
+  const handler: Connect.NextHandleFunction = async (req, res, next) => {
+    const url = req.url?.split('?')[0];
+
+        if (url === '/api/discover-destinations') {
+          await discoverDestinationsHandler(req, res);
+          return;
+        }
+
+        if (url === '/api/place-photo') {
+          await placePhotoHandler(req, res);
+          return;
+        }
 
         if (url === '/api/create-deposit-checkout' && req.method === 'POST') {
           let bodyText = '';
@@ -159,7 +170,15 @@ function b2bDepositApiPlugin(): Plugin {
         }
 
         next();
-      });
+  };
+
+  return {
+    name: 'b2b-deposit-api',
+    configureServer(server) {
+      server.middlewares.use(handler);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(handler);
     },
   };
 }

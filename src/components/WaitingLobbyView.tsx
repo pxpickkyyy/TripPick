@@ -12,7 +12,8 @@ interface WaitingLobbyViewProps {
     vibe: string,
     minBudget?: number,
     maxBudget?: number,
-    categoryFilter?: string
+    categoryFilter?: string,
+    discoveryMode?: 'rapid' | 'infinite'
   ) => Promise<boolean>;
   onLeave: () => void;
   loading: boolean;
@@ -37,6 +38,7 @@ export function WaitingLobbyView({
   const [customVibe, setCustomVibe] = useState('');
   const [minBudget, setMinBudget] = useState(3000);
   const [maxBudget, setMaxBudget] = useState(8000);
+  const [discoveryMode, setDiscoveryMode] = useState<'rapid' | 'infinite'>('rapid');
 
   const handleCopyLink = () => {
     const url = `${window.location.origin}?room=${roomId}`;
@@ -56,7 +58,7 @@ export function WaitingLobbyView({
 
   const handleStart = async () => {
     const activeVibe = customVibe.trim() ? customVibe : (vibesList[selectedVibeIndex] || vibesList[0]);
-    await onStartSession(activeVibe, minBudget, maxBudget);
+    await onStartSession(activeVibe, minBudget, maxBudget, undefined, discoveryMode);
   };
 
   return (
@@ -247,6 +249,60 @@ export function WaitingLobbyView({
                       className="w-full accent-[#cba6f7] cursor-pointer"
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Discovery Mode Switcher: Rapid Consensus vs Infinite Discovery */}
+              <div className="p-3.5 rounded-xl bg-[#181825] border border-[#313244]">
+                <label className="text-xs font-semibold text-[#bac2de] block mb-2 font-mono uppercase tracking-wider text-[11px]">
+                  {t.modeLabel}
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setDiscoveryMode('rapid')}
+                    data-testid="mode-rapid-btn"
+                    className={`p-3 rounded-xl text-left border transition-all cursor-pointer ${
+                      discoveryMode === 'rapid'
+                        ? 'bg-[#313244] border-[#a6e3a1] shadow-sm'
+                        : 'bg-[#1e1e2e] border-[#313244] hover:border-[#45475a]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`text-xs font-bold ${discoveryMode === 'rapid' ? 'text-[#a6e3a1]' : 'text-[#cdd6f4]'}`}>
+                        {t.rapidConsensusMode}
+                      </span>
+                      {discoveryMode === 'rapid' && (
+                        <span className="w-2 h-2 rounded-full bg-[#a6e3a1] animate-pulse" />
+                      )}
+                    </div>
+                    <p className="text-[10px] text-[#a6adc8] leading-relaxed">
+                      {t.rapidConsensusDesc}
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDiscoveryMode('infinite')}
+                    data-testid="mode-infinite-btn"
+                    className={`p-3 rounded-xl text-left border transition-all cursor-pointer ${
+                      discoveryMode === 'infinite'
+                        ? 'bg-[#313244] border-[#cba6f7] shadow-sm'
+                        : 'bg-[#1e1e2e] border-[#313244] hover:border-[#45475a]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`text-xs font-bold ${discoveryMode === 'infinite' ? 'text-[#cba6f7]' : 'text-[#cdd6f4]'}`}>
+                        {t.infiniteDiscoveryMode}
+                      </span>
+                      {discoveryMode === 'infinite' && (
+                        <span className="w-2 h-2 rounded-full bg-[#cba6f7] animate-pulse" />
+                      )}
+                    </div>
+                    <p className="text-[10px] text-[#a6adc8] leading-relaxed">
+                      {t.infiniteDiscoveryDesc}
+                    </p>
+                  </button>
                 </div>
               </div>
 

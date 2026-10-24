@@ -25,6 +25,7 @@ function App() {
     destinationsDeck,
     unswipedDestinations,
     isWaitingForOthers,
+    peersStillSwiping,
     matchedDestination,
     depositStatus,
     depositReceipt,
@@ -44,6 +45,10 @@ function App() {
     leaveRoom,
     reenterSession,
     resetRoomSession,
+    selectDestination,
+    discoveryMode,
+    isFetchingMore,
+    discoveryStatus,
   } = useTripPick();
 
   const [isConciergeOpen, setIsConciergeOpen] = useState(false);
@@ -113,6 +118,7 @@ function App() {
             destinationsDeck={destinationsDeck}
             unswipedDestinations={unswipedDestinations}
             isWaitingForOthers={isWaitingForOthers}
+            peersStillSwiping={peersStillSwiping}
             onSubmitSwipe={submitSwipe}
             onLeave={leaveRoom}
             roomId={roomId || ''}
@@ -120,8 +126,12 @@ function App() {
             sendBroadcastEmoji={sendBroadcastEmoji}
             isHost={isHost}
             onRestartSession={resetRoomSession}
+            onSelectDestination={selectDestination}
             users={users}
             swipes={swipes}
+            discoveryMode={discoveryMode}
+            isFetchingMore={isFetchingMore}
+            discoveryStatus={discoveryStatus}
           />
         );
       case 'matched':

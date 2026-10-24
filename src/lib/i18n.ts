@@ -52,6 +52,11 @@ export interface Translations {
   vibeLabel: string;
   vibeCustomPlaceholder: string;
   budgetLabel: string;
+  modeLabel: string;
+  rapidConsensusMode: string;
+  rapidConsensusDesc: string;
+  infiniteDiscoveryMode: string;
+  infiniteDiscoveryDesc: string;
   startSessionBtn: string;
   startingSessionBtn: string;
   waitingForHost: string;
@@ -61,6 +66,9 @@ export interface Translations {
   // Swiper View
   swipeDeckProgress: string;
   realtimeRadar: string;
+  discoveringLiveVenues: string;
+  infiniteDeckNotice: string;
+  deckRefilledSuccess: string;
   swipePass: string;
   swipeVeto: string;
   swipeLike: string;
@@ -72,6 +80,12 @@ export interface Translations {
   waitingPeersTitle: string;
   waitingPeersDesc: string;
   restartSessionBtn: string;
+  roundCompleteTitle: string;
+  roundCompletePassedDesc: string;
+  roundCompleteNoConsensusDesc: string;
+  confirmTopAiVenueBtn: string;
+  restartRoundBtn: string;
+  waitingForPeersRemaining: string;
   amenitiesHeading: string;
   highlightsHeading: string;
 
@@ -213,6 +227,11 @@ export const TRANSLATIONS: Record<AppLanguage, Translations> = {
     vibeLabel: 'ธีมและบรรยากาศการจัดออฟไซต์ (Retreat Vibe)',
     vibeCustomPlaceholder: 'หรือพิมพ์ธีมเฉพาะ เช่น แฮกกาธอน 48 ชม. ริมทะเล...',
     budgetLabel: 'ช่วงงบประมาณต่อคนต่อคืน (THB)',
+    modeLabel: 'โหมดการค้นหาสถานที่ (Discovery Mode)',
+    rapidConsensusMode: '⚡ Rapid Consensus Mode (โหมดเดโม 5–10 ใบ)',
+    rapidConsensusDesc: 'สุ่มสถานที่คัดสรรพิเศษ 5–10 แห่ง เพื่อการันตี Match ฉันทามติภายใน 60–90 วินาที เหมาะสำหรับการพรีเซนต์สด',
+    infiniteDiscoveryMode: '🌐 Infinite Discovery Mode (สำรวจไม่สิ้นสุด)',
+    infiniteDiscoveryDesc: 'ระบบ AI + Google Places ดึงสถานที่สดไม่จำกัดแบบเรียลไทม์ เหมาะสำหรับการสำรวจโรงแรมทั่วโลก',
     startSessionBtn: 'เริ่มเซสชันการปัดเลือก (Start Swiping)',
     startingSessionBtn: 'กำลังประมวลผลสถานที่...',
     waitingForHost: 'รอ Host เริ่มเซสชันการปัดเลือก...',
@@ -222,6 +241,9 @@ export const TRANSLATIONS: Record<AppLanguage, Translations> = {
     // Swiper View
     swipeDeckProgress: 'ความคืบหน้าการโหวต',
     realtimeRadar: 'Zero-Latency Realtime',
+    discoveringLiveVenues: '⚡ AI Concierge กำลังค้นหาสถานที่สดจาก Google Maps...',
+    infiniteDeckNotice: 'โหมดสำรวจไม่สิ้นสุด (Infinite Discovery)',
+    deckRefilledSuccess: 'เพิ่มสถานที่ใหม่จาก Google Maps เรียบร้อยแล้ว',
     swipePass: 'ผ่าน',
     swipeVeto: 'Veto',
     swipeLike: 'ถูกใจ',
@@ -233,6 +255,12 @@ export const TRANSLATIONS: Record<AppLanguage, Translations> = {
     waitingPeersTitle: 'คุณปัดเลือกครบทุกสถานที่แล้ว!',
     waitingPeersDesc: 'ระบบกำลังรอสมาชิกท่านอื่นในทีมปัดเลือกให้ครบ เพื่อคำนวณฉันทามติเอกฉันท์แบบเรียลไทม์',
     restartSessionBtn: 'เริ่มรอบการโหวตใหม่',
+    roundCompleteTitle: 'สิ้นสุดรอบการโหวต',
+    roundCompletePassedDesc: 'คุณปัดผ่านครบทุกสถานที่ในรอบนี้โดยยังไม่ได้กดถูกใจสถานที่ใด',
+    roundCompleteNoConsensusDesc: 'สมาชิกทุกคนปัดเลือกครบแล้ว แต่ยังไม่มีสถานที่ที่ได้ฉันทามติเอกฉันท์',
+    confirmTopAiVenueBtn: '🎯 เลือกสถานที่แนะนำอันดับ 1 ของ AI',
+    restartRoundBtn: '🔄 เริ่มรอบการโหวตใหม่ / ปรับตัวกรอง',
+    waitingForPeersRemaining: 'กำลังรอสมาชิกอีก',
     amenitiesHeading: 'สิ่งอำนวยความสะดวกสำหรับธุรกิจ & สัมมนา (MICE)',
     highlightsHeading: 'กิจกรรมกระชับมิตร & ท่องเที่ยวในพื้นที่',
 
@@ -373,6 +401,11 @@ export const TRANSLATIONS: Record<AppLanguage, Translations> = {
     vibeLabel: 'Offsite Vibe & Strategic Purpose',
     vibeCustomPlaceholder: 'Or enter custom theme: e.g. 48-Hour Beachfront AI Hackathon...',
     budgetLabel: 'Nightly Budget Per Head (THB)',
+    modeLabel: 'Venue Discovery Mode',
+    rapidConsensusMode: '⚡ Rapid Consensus Mode (5–10 Cards Demo)',
+    rapidConsensusDesc: 'Curated 5–10 verified venues guaranteeing unanimous consensus match within 60–90 seconds for live demos.',
+    infiniteDiscoveryMode: '🌐 Infinite Discovery Mode (Uncapped AI & Google Places)',
+    infiniteDiscoveryDesc: 'Continuous AI + Google Places live venue streaming on demand for worldwide exploration.',
     startSessionBtn: 'Start Swiping Session',
     startingSessionBtn: 'Synthesizing Curated Venues...',
     waitingForHost: 'Waiting for Room Host to launch swiping...',
@@ -382,6 +415,9 @@ export const TRANSLATIONS: Record<AppLanguage, Translations> = {
     // Swiper View
     swipeDeckProgress: 'Voting Progress',
     realtimeRadar: 'Zero-Latency Realtime',
+    discoveringLiveVenues: '⚡ AI Concierge discovering live venues via Google Maps...',
+    infiniteDeckNotice: 'Infinite Discovery Active',
+    deckRefilledSuccess: 'New venues added from Google Maps',
     swipePass: 'Pass',
     swipeVeto: 'Veto',
     swipeLike: 'Like',
@@ -393,6 +429,12 @@ export const TRANSLATIONS: Record<AppLanguage, Translations> = {
     waitingPeersTitle: 'You have voted on all venues!',
     waitingPeersDesc: 'Waiting for remaining team members to finish voting to calculate unanimous real-time consensus.',
     restartSessionBtn: 'Restart Voting Session',
+    roundCompleteTitle: 'Voting Round Complete',
+    roundCompletePassedDesc: 'You have passed all destinations in this round without liking any.',
+    roundCompleteNoConsensusDesc: 'All teammates have finished voting, but no single destination achieved unanimous consensus.',
+    confirmTopAiVenueBtn: '🎯 Confirm Top AI Recommended Venue',
+    restartRoundBtn: '🔄 Start New Voting Round / Adjust Filters',
+    waitingForPeersRemaining: 'Waiting for',
     amenitiesHeading: 'MICE Business & Conference Facilities',
     highlightsHeading: 'Team Bonding & Local Attractions',
 

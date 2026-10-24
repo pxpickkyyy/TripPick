@@ -18,6 +18,7 @@ export interface UseProcurementOptions {
   roomId?: string;
   depositStatus?: 'UNPAID' | 'PENDING' | 'SECURED_ESCROW';
   depositReceipt?: DepositReceipt | null;
+  language?: 'th' | 'en';
   onConfirmDeposit?: (
     receiptNo: string,
     taxId: string,
@@ -35,6 +36,7 @@ export function useProcurement({
   roomId = 'TRIP',
   depositStatus = 'UNPAID',
   depositReceipt = null,
+  language = 'th',
   onConfirmDeposit,
 }: UseProcurementOptions) {
   // Configurable Parameters
@@ -141,21 +143,56 @@ export function useProcurement({
     // Trigger parent callback which broadcasts ESCROW_LOCKED
     onConfirmDeposit?.(receiptNo, finalTaxId, amount, finalCompanyName, escrowPayload);
 
-    showToast('🎉 วางเงินมัดจำ Escrow ฿5,000 สำเร็จ (ล็อกห้องสัมมนาเรียบร้อย)');
-  }, [isEscrowLocked, depositCode, roomId, companyName, defaultPreset.companyName, companyTaxId, defaultPreset.companyTaxId, onConfirmDeposit, showToast]);
+    showToast(language === 'en' ? '🎉 Escrow deposit ฿5,000 secured (Venue locked)' : '🎉 วางเงินมัดจำ Escrow ฿5,000 สำเร็จ (ล็อกห้องสัมมนาเรียบร้อย)');
+  }, [isEscrowLocked, depositCode, roomId, companyName, defaultPreset.companyName, companyTaxId, defaultPreset.companyTaxId, onConfirmDeposit, showToast, language]);
 
   // Export to Google Sheets Compatible CSV (UTF-8 BOM \uFEFF)
   const exportToCsv = useCallback(() => {
-    const issueDate = new Date().toLocaleDateString('th-TH', {
+    const isEn = language === 'en';
+    const issueDate = new Date().toLocaleDateString(isEn ? 'en-US' : 'th-TH', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
 
-    const destinationTitle = destination?.title || 'TripPick Corporate Retreat';
+    const destinationTitle = destination?.title || (isEn ? 'TripPick Corporate Retreat' : 'TripPick สัมมนาองค์กร');
     const destinationLocation = destination ? `${destination.city}, ${destination.country}` : 'Thailand';
 
-    const csvLines = [
+    const csvLines = isEn ? [
+      '\uFEFF"TripPick - B2B Executive Procurement RFP & Escrow Quotation"',
+      `"Reference Document No.","${proposalRef}"`,
+      `"Issue Date","${issueDate}"`,
+      `"Consensus Status","100% Unanimous Consensus Approved"`,
+      `"Escrow Deposit Status","${isEscrowLocked ? `Escrow Secured & Locked (${escrowDeposit.receiptNo})` : 'Pending Escrow Deposit'}"`,
+      `"Room Code","#${roomId}"`,
+      `"Client Legal Entity","${companyName}"`,
+      `"Tax ID (13-digit)","${companyTaxId}"`,
+      `"Approver Email","${approverEmail}"`,
+      `"Venue","${destinationTitle}"`,
+      `"Location","${destinationLocation}"`,
+      `"Attendees","${pricing.headcount} guests"`,
+      `"Duration","${pricing.nights} nights"`,
+      `"Rate per Guest per Night (THB)","${pricing.ratePerHeadPerNight}"`,
+      `""`,
+      `"Line","Procurement Line Items","Quantity","Unit Rate (THB)","Total (THB)"`,
+      `"1","MICE Accommodation & Executive Retreat Package ${destinationTitle}","${pricing.headcount * pricing.nights} guest/nights","${pricing.ratePerHeadPerNight}","${pricing.subtotalBeforeVat}"`,
+      `"2","Starlink Business SLA Dedicated Network","1 system","Included","0"`,
+      `"3","24/7 Corporate Concierge Coordination Service","1 system","Included","0"`,
+      `""`,
+      `"Tax Compliance per Thai Revenue Dept (Tor.Por. 4/2528)","Amount (THB)"`,
+      `"1. Net Subtotal (Before VAT)","${pricing.subtotalBeforeVat}"`,
+      `"2. Value Added Tax 7% (VAT 7%)","${pricing.vat7Percent}"`,
+      `"3. Gross Invoice Total (Subtotal + VAT 7%)","${pricing.grossTotalWithVat}"`,
+      `"4. Withholding Tax 3% (WHT 3% calculated on pre-VAT Subtotal)","-${pricing.wht3Percent}"`,
+      `"5. Net Payable to Vendor (Gross Total - WHT 3%)","${pricing.netPayableToVendor}"`,
+      `""`,
+      `"TripPick Platform Commission (${pricing.tripPickTakeRatePercent}%)","${pricing.tripPickRevenue}"`,
+      `"Escrow Lock Deposit","5000"`,
+      `""`,
+      `"Payment Terms","Net 30 or Corporate Credit Card / PromptPay B2B"`,
+      `"Issued By","TripPick Business Travel Solutions Co., Ltd. (Headquarters)"`,
+      `"Issuer Tax ID","0-1055-69018-92-4"`,
+    ] : [
       '\uFEFF"TripPick - ใบเสนอราคาและงบประมาณจัดซื้อจัดจ้างทริปองค์กร (B2B Procurement RFP)"',
       `"เลขที่เอกสารอ้างอิง","${proposalRef}"`,
       `"วันที่ออกเอกสาร","${issueDate}"`,
@@ -202,7 +239,7 @@ export function useProcurement({
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    showToast('✓ ดาวน์โหลดไฟล์ .CSV สำหรับ Google Sheets สำเร็จ');
+    showToast(isEn ? '✓ CSV file downloaded for ERP / SAP / Excel' : '✓ ดาวน์โหลดไฟล์ .CSV สำหรับ Google Sheets สำเร็จ');
   }, [
     proposalRef,
     isEscrowLocked,
@@ -214,20 +251,52 @@ export function useProcurement({
     destination,
     pricing,
     showToast,
+    language,
   ]);
 
   // 1-Click Export to Google Sheets (TSV clipboard + open Google Sheets)
   const exportToGoogleSheetsTsv = useCallback(async () => {
-    const issueDate = new Date().toLocaleDateString('th-TH', {
+    const isEn = language === 'en';
+    const issueDate = new Date().toLocaleDateString(isEn ? 'en-US' : 'th-TH', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
 
-    const destinationTitle = destination?.title || 'TripPick Corporate Retreat';
+    const destinationTitle = destination?.title || (isEn ? 'TripPick Corporate Retreat' : 'TripPick สัมมนาองค์กร');
     const destinationLocation = destination ? `${destination.city}, ${destination.country}` : 'Thailand';
 
-    const tsvRows = [
+    const tsvRows = isEn ? [
+      ['TripPick - B2B Executive Procurement RFP & Escrow Quotation'],
+      ['Reference Document No.', proposalRef],
+      ['Issue Date', issueDate],
+      ['Consensus Status', '100% Unanimous Consensus Approved'],
+      ['Escrow Deposit Status', isEscrowLocked ? `Escrow Secured & Locked (${escrowDeposit.receiptNo})` : 'Pending Escrow Deposit'],
+      ['Room Code', `#${roomId}`],
+      ['Client Legal Entity', companyName],
+      ['Tax ID (13-digit)', companyTaxId],
+      ['Approver Email', approverEmail],
+      ['Venue', destinationTitle],
+      ['Location', destinationLocation],
+      ['Attendees', `${pricing.headcount} guests`],
+      ['Duration', `${pricing.nights} nights`],
+      ['Rate per Guest per Night (THB)', pricing.ratePerHeadPerNight],
+      [''],
+      ['Line', 'Procurement Line Items', 'Quantity', 'Unit Rate (THB)', 'Total (THB)'],
+      ['1', `MICE Accommodation & Executive Retreat Package ${destinationTitle}`, `${pricing.headcount * pricing.nights} guest/nights`, pricing.ratePerHeadPerNight, pricing.subtotalBeforeVat],
+      ['2', 'Starlink Business SLA Dedicated Network', '1 system', 'Included', 0],
+      ['3', '24/7 Corporate Concierge Coordination Service', '1 service', 'Included', 0],
+      [''],
+      ['Tax Compliance per Thai Revenue Dept (Tor.Por. 4/2528)', 'Amount (THB)'],
+      ['1. Net Subtotal (Before VAT)', pricing.subtotalBeforeVat],
+      ['2. Value Added Tax 7% (VAT 7%)', pricing.vat7Percent],
+      ['3. Gross Invoice Total (Subtotal + VAT 7%)', pricing.grossTotalWithVat],
+      ['4. Withholding Tax 3% (WHT 3% calculated on pre-VAT Subtotal)', -pricing.wht3Percent],
+      ['5. Net Payable to Vendor (Gross Total - WHT 3%)', pricing.netPayableToVendor],
+      [''],
+      [`TripPick Platform Commission (${pricing.tripPickTakeRatePercent}%)`, pricing.tripPickRevenue],
+      ['Escrow Lock Deposit', 5000],
+    ] : [
       ['TripPick - ใบเสนอราคาและงบประมาณจัดซื้อจัดจ้างทริปองค์กร (B2B Procurement RFP)'],
       ['เลขที่เอกสารอ้างอิง', proposalRef],
       ['วันที่ออกเอกสาร', issueDate],
@@ -267,7 +336,7 @@ export function useProcurement({
       // Clipboard fallback
     }
 
-    showToast('✓ คัดลอกข้อมูลตาราง TSV แล้ว พร้อมวางใน Google Sheets (Ctrl+V)');
+    showToast(isEn ? '✓ TSV table copied! Ready to paste into Google Sheets (Ctrl+V)' : '✓ คัดลอกข้อมูลตาราง TSV แล้ว พร้อมวางใน Google Sheets (Ctrl+V)');
     window.open('https://docs.google.com/spreadsheets/create', '_blank', 'noopener,noreferrer');
   }, [
     destination,
@@ -280,11 +349,13 @@ export function useProcurement({
     approverEmail,
     pricing,
     showToast,
+    language,
   ]);
 
   // 1-Click Export to Google Docs (Markdown synthesis + clipboard + open Google Docs)
   const generateGoogleDocsMarkdown = useCallback(async () => {
-    const destinationTitle = destination?.title || 'TripPick Corporate Retreat';
+    const isEn = language === 'en';
+    const destinationTitle = destination?.title || (isEn ? 'TripPick Corporate Retreat' : 'TripPick สัมมนาองค์กร');
     const destinationLocation = destination ? `${destination.city}, ${destination.country}` : 'Thailand';
 
     const markdown = `# ${destinationTitle} — B2B Executive Procurement RFP & Escrow Dossier
@@ -300,21 +371,21 @@ export function useProcurement({
 
 ---
 
-## 1. การคำนวณภาษีและงบประมาณจัดซื้อจัดจ้าง (Tax & Accounting Breakdown)
+## 1. ${isEn ? 'Tax & Accounting Breakdown' : 'การคำนวณภาษีและงบประมาณจัดซื้อจัดจ้าง (Tax & Accounting Breakdown)'}
 *Compliant with Thai Revenue Department Order Tor.Por. 4/2528 (คำสั่งกรมสรรพากรที่ ท.ป. 4/2528)*
 
-- **มูลค่ารวมก่อนภาษี (Net Subtotal)**: ฿${pricing.subtotalBeforeVat.toLocaleString()} THB
-- **ภาษีมูลค่าเพิ่ม 7% (VAT 7%)**: +฿${pricing.vat7Percent.toLocaleString()} THB
-- **ยอดรวมทั้งสิ้น (Gross Invoice Total)**: ฿${pricing.grossTotalWithVat.toLocaleString()} THB
-- **ภาษีหัก ณ ที่จ่าย 3% (WHT 3% หมวดบริการ คิดจากยอดก่อน VAT)**: -฿${pricing.wht3Percent.toLocaleString()} THB
-- **ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable to Vendor)**: ฿${pricing.netPayableToVendor.toLocaleString()} THB
+- **${isEn ? 'Net Subtotal (Before VAT)' : 'มูลค่ารวมก่อนภาษี (Net Subtotal)'}**: ฿${pricing.subtotalBeforeVat.toLocaleString()} THB
+- **${isEn ? 'Value Added Tax 7% (VAT 7%)' : 'ภาษีมูลค่าเพิ่ม 7% (VAT 7%)'}**: +฿${pricing.vat7Percent.toLocaleString()} THB
+- **${isEn ? 'Gross Invoice Total' : 'ยอดรวมทั้งสิ้น (Gross Invoice Total)'}**: ฿${pricing.grossTotalWithVat.toLocaleString()} THB
+- **${isEn ? 'Withholding Tax 3% (WHT 3% calculated on Subtotal before VAT)' : 'ภาษีหัก ณ ที่จ่าย 3% (WHT 3% หมวดบริการ คิดจากยอดก่อน VAT)'}**: -฿${pricing.wht3Percent.toLocaleString()} THB
+- **${isEn ? 'Net Payable to Vendor' : 'ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable to Vendor)'}**: ฿${pricing.netPayableToVendor.toLocaleString()} THB
 
 ---
 
-## 2. โครงสร้างผลตอบแทนทางธุรกิจ (Business Model & Platform Take-Rate)
+## 2. ${isEn ? 'Business Model & Platform Take-Rate' : 'โครงสร้างผลตอบแทนทางธุรกิจ (Business Model & Platform Take-Rate)'}
 - **Gross Booking Value (GBV)**: ฿${pricing.grossBookingValue.toLocaleString()} THB
 - **TripPick Platform Commission (${pricing.tripPickTakeRatePercent}%)**: ฿${pricing.tripPickRevenue.toLocaleString()} THB
-- **เงินมัดจำล็อกสิทธิ์ (Escrow Lock)**: ฿5,000.00 THB (${isEscrowLocked ? 'ชำระแล้ว - ได้รับการคุ้มครอง 100%' : 'รอการชำระ'})
+- **${isEn ? 'Escrow Lock Deposit' : 'เงินมัดจำล็อกสิทธิ์ (Escrow Lock)'}**: ฿5,000.00 THB (${isEscrowLocked ? (isEn ? 'Paid & 100% Protected' : 'ชำระแล้ว - ได้รับการคุ้มครอง 100%') : (isEn ? 'Pending Payment' : 'รอการชำระ')})
 
 ---
 
@@ -328,7 +399,7 @@ export function useProcurement({
       // Clipboard fallback
     }
 
-    showToast('✓ คัดลอกเอกสาร Markdown แล้ว พร้อมวางใน Google Docs (Ctrl+V)');
+    showToast(isEn ? '✓ Markdown RFP copied! Ready to paste into Google Docs (Ctrl+V)' : '✓ คัดลอกเอกสาร Markdown แล้ว พร้อมวางใน Google Docs (Ctrl+V)');
     window.open('https://docs.google.com/document/create', '_blank', 'noopener,noreferrer');
   }, [
     destination,
@@ -341,6 +412,7 @@ export function useProcurement({
     isEscrowLocked,
     escrowDeposit.receiptNo,
     showToast,
+    language,
   ]);
 
   const printQuotation = useCallback(() => {

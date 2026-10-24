@@ -16,8 +16,13 @@ interface SwiperViewProps {
   sendBroadcastEmoji?: (emoji: string) => void;
   isHost?: boolean;
   onRestartSession?: () => Promise<boolean>;
+  onSelectDestination?: (destination: TravelDestination) => void;
   users?: RoomUser[];
   swipes?: Swipe[];
+  peersStillSwiping?: RoomUser[];
+  discoveryMode?: 'rapid' | 'infinite';
+  isFetchingMore?: boolean;
+  discoveryStatus?: string | null;
 }
 
 export function SwiperView({
@@ -30,8 +35,13 @@ export function SwiperView({
   sendBroadcastEmoji,
   isHost = false,
   onRestartSession,
+  onSelectDestination,
   users = [],
   swipes = [],
+  peersStillSwiping = [],
+  discoveryMode = 'rapid',
+  isFetchingMore = false,
+  discoveryStatus = null,
 }: SwiperViewProps) {
   const { language, t, localizeDestination, localizeAmenity } = useLanguage();
 
@@ -113,18 +123,28 @@ export function SwiperView({
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100dvh-5rem)] px-3 sm:px-6 py-3 sm:py-5 relative select-none z-20">
       {/* Top HUD Bar */}
-      <div className="w-full max-w-md flex items-center justify-between mb-3 px-1">
+      <div className="w-full max-w-md flex items-center justify-between mb-2 px-1">
         <div className="flex items-center gap-2">
           <span className="text-xs font-mono font-bold text-[#cba6f7] bg-[#181825] border border-[#313244] px-2.5 py-0.5 rounded-lg tabular-data">
             #{roomId}
           </span>
           <span className="text-xs font-mono text-[#89dceb] font-medium px-2 py-0.5 rounded-lg bg-[#313244] border border-[#45475a] tabular-data">
-            {destinationsDeck.length - unswipedDestinations.length + 1} / {destinationsDeck.length}
+            {Math.min(destinationsDeck.length, destinationsDeck.length - unswipedDestinations.length + (unswipedDestinations.length > 0 ? 1 : 0))} / {destinationsDeck.length}
           </span>
-          <div className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#181825] border border-[#a6e3a1]/30 text-[#a6e3a1] text-[10px] font-mono">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#a6e3a1] animate-pulse" />
-            <span>{t.realtimeRadar}</span>
-          </div>
+          {discoveryMode === 'infinite' ? (
+            <span
+              data-testid="infinite-discovery-badge"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#181825] border border-[#a6e3a1]/40 text-[#a6e3a1] text-[10px] font-mono"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-[#a6e3a1] animate-pulse" />
+              <span>{t.infiniteDeckNotice}</span>
+            </span>
+          ) : (
+            <div className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#181825] border border-[#a6e3a1]/30 text-[#a6e3a1] text-[10px] font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#a6e3a1] animate-pulse" />
+              <span>{t.realtimeRadar}</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 font-mono text-xs">
@@ -136,6 +156,24 @@ export function SwiperView({
           </span>
         </div>
       </div>
+
+      {/* Non-blocking Live Discovery Pre-fetch Status Badge */}
+      <AnimatePresence>
+        {isFetchingMore && (
+          <motion.div
+            initial={{ opacity: 0, y: -6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            className="w-full max-w-md mb-2 px-3 py-1.5 rounded-xl bg-[#181825]/90 border border-[#89b4fa]/40 backdrop-blur-md flex items-center justify-between text-xs text-[#89b4fa] shadow-lg shadow-[#89b4fa]/5"
+          >
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#89b4fa] animate-ping" />
+              <span className="font-medium text-[11px] sm:text-xs">{discoveryStatus || t.discoveringLiveVenues}</span>
+            </div>
+            <span className="text-[10px] font-mono text-[#a6adc8] bg-[#313244] px-1.5 py-0.5 rounded">Google Places</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Host Consensus Banner / Announcement Toast */}
       {hostAnnouncement && (
@@ -178,20 +216,42 @@ export function SwiperView({
         {isWaitingForOthers ? (
           <div className="w-full h-full p-2 rounded-[2rem] bg-[#181825] border border-[#313244] shadow-2xl flex items-center justify-center">
             <div className="w-full h-full rounded-[calc(2rem-0.5rem)] p-6 bg-[#1e1e2e] border border-[#313244] flex flex-col items-center justify-center text-center">
-              <div className="w-12 h-12 rounded-xl bg-[#a6e3a1]/15 border border-[#a6e3a1]/30 flex items-center justify-center text-[#a6e3a1] mb-3">
-                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <div className="w-12 h-12 rounded-xl bg-[#cba6f7]/15 border border-[#cba6f7]/30 flex items-center justify-center text-[#cba6f7] mb-3">
+                <svg className="w-6 h-6 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
                 </svg>
               </div>
               <h3 className="text-xl font-bold text-[#cdd6f4] mb-2 tracking-tight">
                 {t.waitingPeersTitle}
               </h3>
-              <p className="text-xs text-[#a6adc8] leading-relaxed mb-5 max-w-xs text-balance">
-                {t.waitingPeersDesc}
-              </p>
+              {peersStillSwiping && peersStillSwiping.length > 0 ? (
+                <div className="space-y-2 mb-4">
+                  <p className="text-xs text-[#a6adc8]">
+                    {language === 'th'
+                      ? `ระบบกำลังรอสมาชิกอีก ${peersStillSwiping.length} ท่านปัดเลือกให้ครบ:`
+                      : `Waiting for ${peersStillSwiping.length} teammate(s) to finish voting:`}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 justify-center max-w-xs mx-auto">
+                    {peersStillSwiping.map(p => (
+                      <span key={p.id} className="text-[11px] font-mono font-semibold px-2.5 py-1 rounded-lg bg-[#313244] text-[#cba6f7] border border-[#45475a] flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#cba6f7] animate-ping" />
+                        {p.user_name}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-[#6c7086]">
+                    {language === 'th' ? 'ระบบจะคำนวณฉันทามติเอกฉันท์ทันทีเมื่อทุกคนปัดเลือกครบ' : 'Consensus will compute in real time once everyone finishes.'}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-[#a6adc8] leading-relaxed mb-5 max-w-xs text-balance">
+                  {t.waitingPeersDesc}
+                </p>
+              )}
               {isHost && onRestartSession && (
                 <button
                   onClick={onRestartSession}
+                  data-testid="restart-session-btn"
                   className="py-2.5 px-5 bg-[#313244] hover:bg-[#45475a] border border-[#45475a] text-[#cdd6f4] text-xs font-semibold rounded-xl transition-colors cursor-pointer active:scale-95"
                 >
                   {t.restartSessionBtn}
@@ -199,28 +259,27 @@ export function SwiperView({
               )}
             </div>
           </div>
-        ) : (
+        ) : topCard ? (
           <AnimatePresence mode="popLayout">
-            {topCard ? (
-              <motion.div
-                key={rawTopCard?.id}
-                style={{ x, rotate, opacity }}
-                drag="x"
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.65}
-                initial={{ scale: 0.96, opacity: 0, y: 10 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.92, opacity: 0, transition: { duration: 0.15 } }}
-                transition={{ type: 'spring', stiffness: 350, damping: 28 }}
-                onDragEnd={(_e, info) => {
-                  if (info.offset.x > 90) {
-                    handleSwipe(topCard.id, true, false);
-                  } else if (info.offset.x < -90) {
-                    handleSwipe(topCard.id, false, false);
-                  }
-                }}
-                className="absolute inset-0 p-2 rounded-[2rem] bg-[#181825] border border-[#313244] shadow-2xl cursor-grab active:cursor-grabbing flex flex-col will-change-transform select-none [transform:translateZ(0)]"
-              >
+            <motion.div
+              key={rawTopCard?.id}
+              style={{ x, rotate, opacity }}
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.65}
+              initial={{ scale: 0.96, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, pointerEvents: 'none', transition: { duration: 0.15 } }}
+              transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+              onDragEnd={(_e, info) => {
+                if (info.offset.x > 90) {
+                  handleSwipe(topCard.id, true, false);
+                } else if (info.offset.x < -90) {
+                  handleSwipe(topCard.id, false, false);
+                }
+              }}
+              className="absolute inset-0 p-2 rounded-[2rem] bg-[#181825] border border-[#313244] shadow-2xl cursor-grab active:cursor-grabbing flex flex-col will-change-transform select-none [transform:translateZ(0)]"
+            >
                 <div className="w-full h-full rounded-[calc(2rem-0.5rem)] overflow-hidden bg-[#1e1e2e] flex flex-col border border-[#313244]">
                   {/* Top Photo Viewport */}
                   <div className="relative w-full h-[235px] bg-[#11111b] overflow-hidden shrink-0">
@@ -378,13 +437,80 @@ export function SwiperView({
                   </div>
                 </div>
               </motion.div>
-            ) : (
-              <div className="text-center text-[#a6adc8] text-sm">
-                {language === 'th' ? 'ไม่พบสถานที่เพิ่มเติมในตัวกรองนี้' : 'No further venues available in this filter.'}
+            </AnimatePresence>
+          ) : (
+            <div className="w-full h-full p-2 rounded-[2rem] bg-[#181825] border border-[#313244] shadow-2xl flex items-center justify-center">
+              <div className="w-full h-full rounded-[calc(2rem-0.5rem)] p-5 bg-[#1e1e2e] border border-[#313244] flex flex-col items-center justify-between text-center overflow-y-auto">
+                <div className="w-full">
+                  <div className="w-12 h-12 rounded-xl bg-[#cba6f7]/15 border border-[#cba6f7]/30 flex items-center justify-center text-[#cba6f7] mx-auto mb-2">
+                    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.504-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.004 0H9.496m5.004 0a3 3 0 002.996-2.67V6.75A3.75 3.75 0 0013.75 3h-3.5A3.75 3.75 0 006.5 6.75v5.955a3 3 0 002.996 2.67" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-bold text-[#cdd6f4] mb-1 tracking-tight">
+                    {t.roundCompleteTitle}
+                  </h3>
+                  <p className="text-xs text-[#a6adc8] leading-relaxed mb-4 max-w-xs mx-auto">
+                    {t.roundCompletePassedDesc}
+                  </p>
+
+                  {/* Featured Top AI Recommendation Preview */}
+                  {destinationsDeck[0] && (
+                    <div className="w-full p-3 rounded-xl bg-[#181825] border border-[#313244] text-left mb-4">
+                      <div className="text-[10px] font-mono text-[#a6e3a1] font-bold uppercase mb-1">
+                        ⭐ {language === 'th' ? 'สถานที่แนะนำอันดับ 1 ของ AI' : 'Top AI Recommended Venue'}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {destinationsDeck[0].hero_image && (
+                          <img
+                            src={destinationsDeck[0].hero_image}
+                            alt={destinationsDeck[0].title}
+                            className="w-16 h-16 rounded-lg object-cover border border-[#45475a] shrink-0"
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold text-xs text-[#cdd6f4] truncate">
+                            {localizeDestination(destinationsDeck[0]).title}
+                          </div>
+                          <div className="text-[10px] text-[#a6adc8] truncate">
+                            📍 {destinationsDeck[0].city}, {destinationsDeck[0].country}
+                          </div>
+                          <div className="text-[10px] font-mono text-[#cba6f7] mt-0.5">
+                            ฿{destinationsDeck[0].price_per_person.toLocaleString()}/คน • 📶 {destinationsDeck[0].wifi_speed_mbps} Mbps
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="w-full space-y-2 pt-2">
+                  {destinationsDeck[0] && onSelectDestination && (
+                    <button
+                      onClick={() => onSelectDestination(destinationsDeck[0])}
+                      data-testid="select-top-venue-btn"
+                      className="w-full py-3 px-4 bg-[#a6e3a1] hover:bg-[#94e2d5] text-[#11111b] font-bold text-xs rounded-xl shadow-lg transition-transform active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <span>{t.confirmTopAiVenueBtn}</span>
+                      <svg className="w-4 h-4 stroke-[2.5]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                      </svg>
+                    </button>
+                  )}
+
+                  {isHost && onRestartSession && (
+                    <button
+                      onClick={onRestartSession}
+                      data-testid="restart-round-btn"
+                      className="w-full py-2.5 px-4 bg-[#313244] hover:bg-[#45475a] border border-[#45475a] text-[#cdd6f4] text-xs font-semibold rounded-xl transition-colors cursor-pointer active:scale-95"
+                    >
+                      {t.restartRoundBtn}
+                    </button>
+                  )}
+                </div>
               </div>
-            )}
-          </AnimatePresence>
-        )}
+            </div>
+          )}
       </div>
 
       {/* Swipe Action Island Bar */}
