@@ -454,6 +454,10 @@ export function useTripPick() {
     } else if (type === 'SESSION_STARTED') {
       if (payload.room) {
         setRoom(payload.room);
+        setSwipes([]);
+        swipesRef.current = [];
+        setMatchedDestination(null);
+        matchedDestinationRef.current = null;
         if (payload.room.discovery_mode) {
           setDiscoveryMode(payload.room.discovery_mode);
           discoveryModeRef.current = payload.room.discovery_mode;
@@ -526,8 +530,8 @@ export function useTripPick() {
           is_veto: Boolean(payload.is_veto),
         };
         setSwipes(prev => {
-          if (prev.some(s => s.id === newSwipe.id)) return prev;
-          return [...prev, newSwipe];
+          const filtered = prev.filter(s => !(s.user_id === newSwipe.user_id && s.destination_id === newSwipe.destination_id));
+          return [...filtered, newSwipe];
         });
 
         // If host receives peer swipe in infinite mode, check pre-fetch trigger
@@ -545,10 +549,19 @@ export function useTripPick() {
         }
       }
     } else if (type === 'MATCH_FOUND') {
-      // Idempotent lock: Only accept first match to prevent split-brain conflicts
+      // Idempotent lock: Only accept match if quorum is verified to prevent premature single-user match
       if (payload.destination && !matchedDestinationRef.current) {
-        setMatchedDestination(payload.destination);
-        setStep('matched');
+        const totalInRoom = Math.max(1, usersRef.current.length);
+        const currentLikes = swipesRef.current.filter(s => s.destination_id === payload.destination?.id && s.is_like);
+        const distinctLikers = new Set(currentLikes.map(s => s.user_id));
+        const required = totalInRoom <= 2 ? totalInRoom : Math.max(2, Math.ceil(totalInRoom * 0.6));
+
+        // Accept if local quorum is reached or if within 1 vote of unanimous agreement from peer
+        if (totalInRoom <= 1 || (distinctLikers.size + 1) >= required) {
+          matchedDestinationRef.current = payload.destination;
+          setMatchedDestination(payload.destination);
+          setStep('matched');
+        }
       }
     } else if (type === 'CHAT_MESSAGE') {
       if (payload.id && typeof payload.message_text === 'string') {
@@ -675,8 +688,12 @@ export function useTripPick() {
       }
 
       if (payload.matchedDestination && !matchedDestinationRef.current) {
-        setMatchedDestination(payload.matchedDestination);
-        setStep('matched');
+        // Only accept matchedDestination during sync if room is legitimately in matched state
+        if (payload.room?.status === 'matched') {
+          matchedDestinationRef.current = payload.matchedDestination;
+          setMatchedDestination(payload.matchedDestination);
+          setStep('matched');
+        }
       }
     }
   }, [broadcastEvent, roomId]);
@@ -736,7 +753,22 @@ export function useTripPick() {
               const winningDestId = payload.new.winning_destination_id;
               const allVenues = [...(roomRef.current?.destinations_deck || []), ...CURATED_DESTINATIONS];
               const winner = allVenues.find(d => d.id.toString() === winningDestId || d.google_place_id === winningDestId);
+
+              // Validate against quorum: Never allow 1 player to trigger consensus if 2 or more players are in the room!
+              const totalInRoom = Math.max(1, usersRef.current.length);
+              const currentLikes = swipesRef.current.filter(s => 
+                (s.destination_id === winner?.id || String(s.destination_id) === winningDestId) && s.is_like
+              );
+              const distinctLikers = new Set(currentLikes.map(s => s.user_id));
+              const required = totalInRoom <= 2 ? totalInRoom : Math.max(2, Math.ceil(totalInRoom * 0.6));
+
+              if (totalInRoom > 1 && distinctLikers.size < required) {
+                // Ignore premature server event if votes have not reached required quorum
+                return;
+              }
+
               if (winner && !matchedDestinationRef.current) {
+                matchedDestinationRef.current = winner;
                 setMatchedDestination(winner);
                 setStep('matched');
                 broadcastEvent('MATCH_FOUND', { destination: winner });
@@ -879,12 +911,12 @@ export function useTripPick() {
         })).catch(() => {});
       }
 
-      // Periodically prune dead peers if inactive > 30s (except self and simulated)
+      // Prune inactive peers only after prolonged silence (>120s) to tolerate mobile backgrounding (except self and simulated)
       setUsers(prev => prev.filter(u => {
         if (u.id === currentUser.id) return true;
         if (u.isSimulated) return true;
         const lastSeen = u.lastHeartbeat || u.joinedAt || 0;
-        return (now - lastSeen) < 30000;
+        return (now - lastSeen) < 120000;
       }));
 
       // Periodic state sync request if in lobby
@@ -961,52 +993,38 @@ export function useTripPick() {
       }
 
       setCurrentTime(now);
-
-      // Automatically prune inactive peers (>25s silent) during active sessions (except self and simulated)
-      if (stepRef.current === 'swiping' || stepRef.current === 'matched') {
-        setUsers(prev => {
-          const alive = prev.filter(u => {
-            if (u.id === currentUser.id) return true;
-            if (u.isSimulated) return true;
-            const diff = now - (u.lastHeartbeat || u.joinedAt || now);
-            return diff < 25000;
-          });
-          return alive.length !== prev.length ? alive : prev;
-        });
-      }
     }, 2500);
 
     return () => clearInterval(watchdogInterval);
   }, [roomId, step, currentUser, broadcastEvent]);
 
-  // Consensus Calculation supporting 1 to 20+ team members with atomic lock
+  // Consensus Calculation supporting 1 to 20+ team members with strict multi-user agreement
   useEffect(() => {
     if (step !== 'swiping' || !room?.destinations_deck || matchedDestination) return;
 
     const deck = room.destinations_deck;
-    const now = Date.now();
-    // Count active teammates (received heartbeat within last 15s, self, or simulated)
-    const activeTeammates = users.filter(u => {
-      if (u.id === currentUser?.id) return true;
-      if (u.isSimulated) return true;
-      const lastSeen = u.lastHeartbeat || u.joinedAt || 0;
-      return (now - lastSeen) < 15000;
-    });
-    const activeCount = Math.max(1, activeTeammates.length);
+    // Total registered members in room (minimum 1)
+    const totalMembers = Math.max(1, users.length);
 
-    // Consensus rule:
-    // 1 person -> 1 like (solo demo)
-    // 2 people -> 2 likes (both must like - unanimous)
-    // 3 to 20+ people -> at least 60% of active teammates must like it
-    const requiredLikes = activeCount <= 2
-      ? Math.max(1, activeCount)
-      : Math.max(2, Math.ceil(activeCount * 0.6));
+    // Strict Quorum Rules:
+    // 1 person -> 1 like (solo demo only)
+    // 2 people -> 2 DISTINCT likes from both players (100% unanimous agreement required!)
+    // 3 to 20+ people -> at least 60% of all members in the room must like it (and 0 vetoes)
+    const requiredLikes = totalMembers <= 2
+      ? totalMembers
+      : Math.max(2, Math.ceil(totalMembers * 0.6));
 
     for (const destination of deck) {
-      const likesForDest = swipes.filter(s => s.destination_id === destination.id && s.is_like);
+      // Find all DISTINCT user IDs who swiped LIKE on this destination
+      const distinctLikers = new Set(
+        swipes
+          .filter(s => s.destination_id === destination.id && s.is_like)
+          .map(s => s.user_id)
+      );
       const isVetoed = swipes.some(s => s.destination_id === destination.id && s.is_veto);
 
-      if (!isVetoed && likesForDest.length >= requiredLikes) {
+      // Must have zero vetoes and reach the strict required unique likes threshold
+      if (!isVetoed && distinctLikers.size >= requiredLikes) {
         // Atomic guard: Lock local match first
         if (matchedDestinationRef.current) return;
 
@@ -1027,27 +1045,33 @@ export function useTripPick() {
     }
 
     // Fallback Majority Consensus Check:
-    // If all active users have swiped all cards, or if >= 80% have finished in a large group (>=4):
-    const finishedUsers = activeTeammates.filter(u => {
+    // Only triggers when ALL members in the room have swiped all cards, or in large groups (>=4) if >=80% finished
+    const finishedUsers = users.filter(u => {
       const userSwipes = swipes.filter(s => s.user_id === u.id);
       return deck.every(dest => userSwipes.some(s => s.destination_id === dest.id));
     });
 
     const isConsensusReady =
-      (activeTeammates.length > 0 && finishedUsers.length === activeTeammates.length) ||
-      (activeTeammates.length >= 4 && (finishedUsers.length / activeTeammates.length) >= 0.8);
+      (totalMembers > 1 && finishedUsers.length === totalMembers) ||
+      (totalMembers >= 4 && (finishedUsers.length / totalMembers) >= 0.8);
 
     if (isConsensusReady && !matchedDestinationRef.current) {
       const nonVetoed = deck.filter(dest => !swipes.some(s => s.destination_id === dest.id && s.is_veto));
       if (nonVetoed.length > 0) {
-        const scored = nonVetoed.map(dest => ({
-          dest,
-          likes: swipes.filter(s => s.destination_id === dest.id && s.is_like).length
-        }));
-        scored.sort((a, b) => b.likes - a.likes);
+        const scored = nonVetoed.map(dest => {
+          const uniqueLikers = new Set(
+            swipes.filter(s => s.destination_id === dest.id && s.is_like).map(s => s.user_id)
+          );
+          return {
+            dest,
+            uniqueLikes: uniqueLikers.size
+          };
+        });
+        scored.sort((a, b) => b.uniqueLikes - a.uniqueLikes);
 
-        // If the top destination received at least 1 positive vote, award majority consensus!
-        if (scored[0].likes > 0) {
+        // For 2 players: Both must agree (2 likes). Never declare consensus on 1 like when 2 people are in the room!
+        const minLikesNeeded = totalMembers <= 2 ? 2 : Math.max(2, Math.ceil(totalMembers * 0.5));
+        if (scored[0].uniqueLikes >= minLikesNeeded) {
           const winner = scored[0].dest;
           queueMicrotask(() => {
             if (matchedDestinationRef.current) return;
@@ -1444,6 +1468,31 @@ export function useTripPick() {
 
       setRoom(updatedRoom);
       setStep('swiping');
+      setSwipes([]);
+      swipesRef.current = [];
+      setMatchedDestination(null);
+      matchedDestinationRef.current = null;
+
+      // Reset room state in Supabase so previous matches/votes don't trigger immediate consensus
+      if (isSupabaseConfigured && roomId) {
+        Promise.resolve(
+          supabase
+            .from('trippick_rooms')
+            .update({
+              status: 'ACTIVE',
+              winning_destination_id: null,
+              updated_at: new Date().toISOString()
+            })
+            .or(`room_code.eq.${roomId},id.eq.${roomId}`)
+        ).catch(() => {});
+
+        Promise.resolve(
+          supabase
+            .from('room_votes')
+            .delete()
+            .or(`room_id.eq.${roomId}`)
+        ).catch(() => {});
+      }
 
       // Populate seen place IDs
       const initialSeen = new Set<string>();
@@ -1509,12 +1558,15 @@ export function useTripPick() {
       is_veto: isVeto,
     };
 
-    setSwipes(prev => [...prev, swipe]);
+    setSwipes(prev => {
+      const filtered = prev.filter(s => !(s.user_id === swipe.user_id && s.destination_id === swipe.destination_id));
+      return [...filtered, swipe];
+    });
 
     // Broadcast swipe to all connected teammates
     broadcastEvent('SWIPE_SUBMITTED', swipe);
 
-    // Database Atomic Consensus Execution (Pillar 1 & Critical Fix 2)
+    // Database Atomic Consensus Execution with Strict Local Quorum Guard
     if (isSupabaseConfigured) {
       Promise.resolve(
         supabase.rpc('record_vote_and_check_consensus', {
@@ -1524,13 +1576,25 @@ export function useTripPick() {
           p_vote_type: isVeto ? 'VETO' : isLike ? 'LIKE' : 'DISLIKE',
         })
       ).then((res: unknown) => {
-        const response = res as { data?: { matched?: boolean; winning_destination_id?: string }; error?: unknown };
+        const response = res as { data?: { matched?: boolean; winning_destination_id?: string; already_settled?: boolean }; error?: unknown };
         if (!response.error && response.data?.matched && response.data?.winning_destination_id) {
           const allVenues = [...(roomRef.current?.destinations_deck || []), ...CURATED_DESTINATIONS];
           const winningDest = allVenues.find(d => d.id.toString() === response.data?.winning_destination_id || d.google_place_id === response.data?.winning_destination_id);
-          if (winningDest && !matchedDestinationRef.current) {
+
+          // QUORUM GUARD: In multi-user rooms (>= 2 players), NEVER trigger consensus on 1 like!
+          const totalInRoom = Math.max(1, usersRef.current.length);
+          const currentSwipesForDest = [...swipesRef.current, swipe].filter(s => 
+            (s.destination_id === winningDest?.id || String(s.destination_id) === response.data?.winning_destination_id) && s.is_like
+          );
+          const distinctLikers = new Set(currentSwipesForDest.map(s => s.user_id));
+          const required = totalInRoom <= 2 ? totalInRoom : Math.max(2, Math.ceil(totalInRoom * 0.6));
+
+          // In a 2-player room, distinctLikers MUST be 2. If only 1 liked, ignore premature server consensus!
+          if (distinctLikers.size >= required && winningDest && !matchedDestinationRef.current) {
+            matchedDestinationRef.current = winningDest;
             setMatchedDestination(winningDest);
             setStep('matched');
+            broadcastEvent('MATCH_FOUND', { destination: winningDest });
           }
         }
       }).catch((err: unknown) => {
@@ -1590,12 +1654,33 @@ export function useTripPick() {
   const resetRoomSession = useCallback(async (): Promise<boolean> => {
     if (!roomId) return false;
     setSwipes([]);
+    swipesRef.current = [];
     setMatchedDestination(null);
+    matchedDestinationRef.current = null;
     setStep('lobby');
     setDeckBatchVersion(1);
     deckBatchVersionRef.current = 1;
     lastFetchedBatchVersionRef.current = 1;
     setRoom(prev => prev ? { ...prev, status: 'waiting', destinations_deck: null, deck_batch_version: 1 } : null);
+
+    if (isSupabaseConfigured && roomId) {
+      Promise.resolve(
+        supabase
+          .from('trippick_rooms')
+          .update({
+            status: 'ACTIVE',
+            winning_destination_id: null,
+            updated_at: new Date().toISOString()
+          })
+          .or(`room_code.eq.${roomId},id.eq.${roomId}`)
+      ).catch(() => {});
+      Promise.resolve(
+        supabase
+          .from('room_votes')
+          .delete()
+          .or(`room_id.eq.${roomId}`)
+      ).catch(() => {});
+    }
 
     broadcastEvent('SESSION_RESET', {
       roomId,
