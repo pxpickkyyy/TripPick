@@ -42,7 +42,6 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Adjust initial message during render if language changes
   const [prevLanguage, setPrevLanguage] = useState(language);
   if (prevLanguage !== language) {
     setPrevLanguage(language);
@@ -107,8 +106,9 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
         data-testid="concierge-trigger"
         whileHover={{ scale: 1.03 }}
         whileTap={{ scale: 0.97 }}
+        transition={{ type: 'spring', mass: 0.8, stiffness: 280, damping: 24 }}
         onClick={onToggle}
-        className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-4 sm:left-5 z-50 py-2 px-3 sm:px-3.5 rounded-full bg-[#cba6f7] hover:bg-[#b4befe] text-[#11111b] text-xs font-extrabold flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-xl transition-all border border-[#b4befe]/40 no-print select-none"
+        className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-4 sm:left-5 z-40 py-2 px-3 sm:px-3.5 rounded-full bg-gradient-to-r from-[#cba6f7] to-[#fab387] text-[#11111b] text-xs font-extrabold flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-[0_10px_28px_rgba(203,166,247,0.3)] transition-all border border-[#cdd6f4]/20 no-print select-none"
         title="Open TripPick AI Concierge"
       >
         <svg className="w-4 h-4 text-[#11111b] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -119,7 +119,7 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
         <span className="w-1.5 h-1.5 rounded-full bg-[#11111b] animate-pulse shrink-0" />
       </motion.button>
 
-      {/* Drawer Backdrop Overlay (Click outside to close) */}
+      {/* Drawer Backdrop Overlay */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -130,25 +130,25 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={onToggle}
-            className="fixed inset-0 bg-black/60 z-40 no-print cursor-pointer"
+            className="fixed inset-0 bg-[#11111b]/70 backdrop-blur-sm z-[55] no-print cursor-pointer"
           />
         )}
       </AnimatePresence>
 
-      {/* Drawer Overlay (Solid Fast Rendering on Low-End Hardware) */}
+      {/* Drawer Overlay (Catppuccin Mocha Mantle + Base) */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, x: 340 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 340 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed top-0 right-0 bottom-0 w-full sm:w-[380px] bg-[#181825] border-l border-[#313244] z-50 flex flex-col shadow-2xl"
+            transition={{ type: 'spring', mass: 0.8, stiffness: 280, damping: 24 }}
+            className="fixed top-0 right-0 bottom-0 w-full sm:w-[380px] bg-[#181825]/98 backdrop-blur-[24px] border-l border-[#313244] z-[60] flex flex-col shadow-[0_0_64px_rgba(17,17,27,0.9)]"
           >
             {/* Header */}
             <div className="p-4 bg-[#11111b] border-b border-[#313244] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[#313244] text-[#cba6f7] flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-lg bg-[#cba6f7]/15 border border-[#cba6f7]/30 text-[#cba6f7] flex items-center justify-center font-bold">
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
                   </svg>
@@ -168,7 +168,7 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
                 data-testid="concierge-close-btn"
                 onClick={onToggle}
                 aria-label={language === 'th' ? 'ปิดแชท' : 'Close chat'}
-                className="w-7 h-7 rounded-lg bg-[#313244] hover:bg-[#45475a] border border-[#45475a] text-[#cdd6f4] flex items-center justify-center cursor-pointer transition-colors"
+                className="w-7 h-7 rounded-lg bg-[#1e1e2e] hover:bg-[#313244] border border-[#313244] text-[#cdd6f4] flex items-center justify-center cursor-pointer transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -177,7 +177,7 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
             </div>
 
             {/* Live Context Banner */}
-            <div className="px-3.5 py-1.5 bg-[#1e1e2e] border-b border-[#313244] text-[10px] text-[#a6adc8] flex items-center justify-between font-mono">
+            <div className="px-3.5 py-1.5 bg-[#181825] border-b border-[#313244] text-[10px] text-[#a6adc8] flex items-center justify-between font-mono">
               <span className="text-[#cba6f7] font-semibold uppercase tracking-wider">FOCUS:</span>
               <span className="text-[#cdd6f4] truncate max-w-[200px]">
                 {roomContext.current?.currentDestination?.title || (language === 'th' ? 'อยู่ในหน้าล็อบบี้' : 'In Waiting Lobby')}
@@ -185,7 +185,7 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
             </div>
 
             {/* Messages Chat List */}
-            <div className="flex-1 overflow-y-auto p-3.5 space-y-3 bg-[#181825]">
+            <div className="flex-1 overflow-y-auto p-3.5 space-y-3 bg-[#1e1e2e]">
               {messages.map((m) => (
                 <div
                   key={m.id}
@@ -195,7 +195,7 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
                     className={`max-w-[85%] px-3.5 py-2.5 rounded-xl text-xs leading-relaxed whitespace-pre-wrap ${
                       m.sender === 'user'
                         ? 'bg-[#cba6f7] text-[#11111b] font-medium'
-                        : 'bg-[#1e1e2e] border border-[#313244] text-[#cdd6f4]'
+                        : 'bg-[#181825] border border-[#313244] text-[#cdd6f4]'
                     }`}
                   >
                     {m.text}
@@ -205,7 +205,7 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
               ))}
 
               {isTyping && (
-                <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1e1e2e] border border-[#313244] w-fit text-xs text-[#a6adc8]">
+                <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#181825] border border-[#313244] w-fit text-xs text-[#bac2de]">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#cba6f7] animate-ping" />
                   <span className="text-[11px]">{language === 'th' ? 'กำลังประมวลผลคำตอบ...' : 'Generating response...'}</span>
                 </div>
@@ -214,7 +214,7 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
             </div>
 
             {/* Quick Prompts */}
-            <div className="p-2.5 bg-[#11111b] border-t border-[#313244] flex flex-wrap gap-1.5">
+            <div className="p-2.5 bg-[#181825] border-t border-[#313244] flex flex-wrap gap-1.5">
               {quickPrompts.map((prompt) => (
                 <button
                   key={prompt}
@@ -240,7 +240,7 @@ export function ConciergeDrawer({ roomContext, isOpen, onToggle }: ConciergeDraw
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   placeholder={t.conciergeInputPlaceholder}
-                  className="flex-1 py-2 px-3 bg-[#181825] border border-[#313244] rounded-xl text-[#cdd6f4] text-xs placeholder:text-[#6c7086] focus:outline-none focus:border-[#cba6f7] transition-colors"
+                  className="flex-1 py-2 px-3 bg-[#1e1e2e] border border-[#313244] rounded-xl text-[#cdd6f4] text-xs placeholder:text-[#6c7086] focus:outline-none focus:border-[#cba6f7] transition-colors"
                 />
                 <button
                   type="submit"

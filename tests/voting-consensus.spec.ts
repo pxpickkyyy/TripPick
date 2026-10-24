@@ -80,7 +80,20 @@ test.describe('Voting & Consensus Engine Suite', () => {
 
     // Verify Match Overlay appeared
     await expect(page.locator('text=บรรลุฉันทามติเอกฉันท์ 100%!')).toBeVisible({ timeout: 5000 });
-    console.log('✓ Solo liking triggers immediate 100% consensus match');
+
+    // Open Corporate Deposit Modal inside MatchOverlayView and verify it occludes the sticky header (no z-20 stacking context trap)
+    const depositBtn = page.locator('button:has-text("฿5,000")').first();
+    await expect(depositBtn).toBeVisible();
+    await depositBtn.click();
+    await expect(page.locator('text=THAI QR PAYMENT')).toBeVisible({ timeout: 5000 });
+    const isHeaderOccluded = await page.evaluate(() => {
+      const header = document.querySelector('header');
+      if (!header) return false;
+      const topEl = document.elementFromPoint(180, 20);
+      return topEl !== null && !header.contains(topEl);
+    });
+    expect(isHeaderOccluded).toBe(true);
+    console.log('✓ Solo liking triggers immediate 100% consensus match & Deposit Modal properly occludes sticky header');
   });
 
   test('Reset session returns room to lobby and resets swipes cleanly', async ({ page }) => {

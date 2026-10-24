@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  /* Catppuccin Mocha Official Palette */
+  /* CATPPUCCIN MOCHA — AUTHENTIC ARCHITECTURAL PALETTE */
   --ctp-rosewater: #f5e0dc;
   --ctp-flamingo: #f2cdcd;
   --ctp-pink: #f5c2e7;
@@ -29,18 +29,34 @@
   --ctp-mantle: #181825;
   --ctp-crust: #11111b;
 
-  --bg: #11111b;
-  --surface: #1e1e2e;
+  /* Semantic Surface & Chromatic Roles */
+  --bg: #1e1e2e;
+  --surface: #181825;
   --surface-raised: #313244;
   --ink: #cdd6f4;
   --muted: #a6adc8;
   --accent: #cba6f7;
-  --accent-hover: #b4befe;
-  --border: #313244;
+  --accent-secondary: #b4befe;
+  --accent-warm: #fab387;
+  --accent-verified: #a6e3a1;
+  --border: rgba(205, 214, 244, 0.09);
 
-  background-color: var(--bg);
-  color: var(--ink);
-  font-family: 'Plus Jakarta Sans', 'Prompt', -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Typography Stack — Awwwards Editorial + Bilingual Thai Precision */
+  --font-display: 'Syne', 'Prompt', 'Plus Jakarta Sans', sans-serif;
+  --font-serif: 'Instrument Serif', 'Prompt', Georgia, serif;
+  --font-sans: 'Plus Jakarta Sans', 'Prompt', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Fluid Type Scale Clamps */
+  --text-hero: clamp(2.5rem, 5.2vw + 1rem, 4.75rem);
+  --text-section: clamp(1.75rem, 3vw + 0.75rem, 3rem);
+  --text-card-title: clamp(1.125rem, 1.2vw + 0.65rem, 1.5rem);
+  --text-body: clamp(0.875rem, 0.4vw + 0.75rem, 1.0625rem);
+  --text-telemetry: clamp(0.6875rem, 0.2vw + 0.6rem, 0.75rem);
+
+  background-color: var(--ctp-base);
+  color: var(--ctp-text);
+  font-family: var(--font-sans);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
@@ -55,14 +71,24 @@ body {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background-color: #11111b;
-  /* Linear-tier ethereal ambient lighting mesh */
-  background-image: 
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(203, 166, 247, 0.08), transparent),
-    radial-gradient(circle at 10% 20%, rgba(203, 166, 247, 0.04), transparent 45%),
-    radial-gradient(circle at 90% 80%, rgba(116, 199, 236, 0.05), transparent 45%);
+  background-color: #1e1e2e;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -15%, rgba(203, 166, 247, 0.11), transparent 70%),
+    radial-gradient(circle at 12% 24%, rgba(180, 190, 254, 0.07), transparent 45%),
+    radial-gradient(circle at 88% 78%, rgba(250, 179, 135, 0.06), transparent 50%);
   overflow-x: hidden;
   color: #cdd6f4;
+}
+
+/* Fixed GPU-Safe Editorial Film Grain Overlay */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 45;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
 }
 
 #root {
@@ -70,20 +96,37 @@ body {
   min-height: 100dvh;
 }
 
-/* Custom minimal ultra-light scrollbar */
+/* Display, Editorial Serif & Tabular Typography Classes */
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.035em;
+}
+
+.font-editorial {
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
+}
+
+.font-telemetry {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+}
+
+/* Custom minimal Catppuccin Mocha scrollbar */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #181825;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(203, 166, 247, 0.2);
+  background: #45475a;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(203, 166, 247, 0.35);
+  background: #cba6f7;
 }
 
 /* Tabular figures for data and currency */
@@ -92,9 +135,44 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Double-Bezel (Doppelrand) Machined Catppuccin Mocha Surfaces */
+.double-bezel-shell {
+  background: rgba(24, 24, 37, 0.75);
+  border: 1px solid rgba(205, 214, 244, 0.08);
+  box-shadow:
+    0 24px 64px -16px rgba(17, 17, 27, 0.75),
+    0 0 0 1px rgba(203, 166, 247, 0.04);
+}
+
+.double-bezel-core {
+  background: #1e1e2e;
+  border: 1px solid rgba(205, 214, 244, 0.09);
+  box-shadow: inset 0 1px 0 rgba(245, 224, 220, 0.08);
+}
+
+.glass-elevation-plate {
+  background: rgba(24, 24, 37, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(205, 214, 244, 0.09);
+  box-shadow:
+    inset 0 1px 0 rgba(245, 224, 220, 0.08),
+    0 20px 50px -12px rgba(17, 17, 27, 0.7);
+}
+
+.glass-floating-interactive {
+  background: rgba(30, 30, 46, 0.90);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(205, 214, 244, 0.11);
+  box-shadow:
+    inset 0 1px 0 rgba(245, 224, 220, 0.10),
+    0 28px 80px -16px rgba(17, 17, 27, 0.85);
+}
+
 /* Custom spring cubic-bezier for physics transitions */
 .ease-spring {
-  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 /* Reduced motion preference support for low-end and battery conservation */
@@ -119,7 +197,7 @@ body {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
-  header, nav, .no-print, [data-non-printable] {
+  body::before, header, nav, .no-print, [data-non-printable] {
     display: none !important;
   }
   .print-only {

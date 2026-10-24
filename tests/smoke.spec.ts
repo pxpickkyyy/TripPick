@@ -286,7 +286,19 @@ test.describe('TripPick UI Overlap, i18n & Voice Engine Smoke Suite', () => {
     await expect(page.locator('text=VAT 7%').first()).toBeVisible();
     await expect(page.locator('text=Withholding Tax 3%').first()).toBeVisible();
     await expect(page.locator('text=Net Payable to Vendor').first()).toBeVisible();
-    console.log('✓ Verified: Procurement Modal renders full English statutory tax table');
+
+    // Verify <main> does not trap descendant modals in a z-20 stacking context and modal occludes Concierge Trigger
+    const mainZIndex = await page.locator('main').evaluate((el) => window.getComputedStyle(el).zIndex);
+    expect(mainZIndex).toBe('auto');
+    const isConciergeOccluded = await page.evaluate(() => {
+      const trigger = document.querySelector('[data-testid="concierge-trigger"]');
+      if (!trigger) return false;
+      const rect = trigger.getBoundingClientRect();
+      const topEl = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      return topEl !== null && !trigger.contains(topEl);
+    });
+    expect(isConciergeOccluded).toBe(true);
+    console.log('✓ Verified: Procurement Modal renders full English statutory tax table & properly occludes HUD/Concierge');
   });
 
   test('9. Concierge Drawer bilingual chat & language switch preserves chat history and responds in active language', async ({ page }) => {
@@ -354,4 +366,118 @@ test.describe('TripPick UI Overlap, i18n & Voice Engine Smoke Suite', () => {
     await expect(page.locator('text=Check WiFi speeds and boardroom specs').first()).toBeVisible({ timeout: 5000 });
     await expect(page.locator('text=Hello! I am the TripPick AI Concierge').first()).toBeVisible({ timeout: 5000 });
   });
+
+  test('10. Awwwards Catppuccin Mocha Hero Studio, 4-Card Bento Matrix, Curated Collection Strip, CTA Dock, and Ambient Particle Field handle interactions & edge cases', async ({ page }) => {
+    // Simulate Safari/Firefox where navigator.deviceMemory is undefined
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'deviceMemory', {
+        get: () => undefined,
+        configurable: true,
+      });
+    });
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/');
+
+    // Phase 2.1: Verify Navigation Capsule route stage pill and magnetic CTA
+    await expect(page.locator('[data-testid="nav-route-stage-pill"]')).toContainText(/Curated Retreats|คอลเลกชันทริปองค์กร/);
+    await expect(page.locator('[data-testid="nav-magnetic-cta"]')).toBeVisible();
+
+    // Phase 5: Verify Ambient Particle Field canvas exists and has valid dimensions
+    const canvas = page.locator('[data-testid="particle-gravity-field"]');
+    await expect(canvas).toBeAttached();
+    const canvasWidth = await canvas.evaluate((el: HTMLCanvasElement) => el.width);
+    expect(canvasWidth).toBeGreaterThan(0);
+
+    // Phase 3: Verify Hero Studio Card 3D preserve-3d tilt responds to mouse movement even when deviceMemory is undefined
+    const heroCard = page.locator('[data-testid="zero-g-hero-card"]');
+    await expect(heroCard).toBeVisible();
+    const cardBox = await heroCard.boundingBox();
+    expect(cardBox).not.toBeNull();
+    if (cardBox) {
+      await page.mouse.move(cardBox.x + 40, cardBox.y + 30);
+      await page.waitForTimeout(150);
+      const transformStyle = await heroCard.evaluate((el: HTMLElement) => el.style.transform);
+      expect(transformStyle).toContain('rotateX');
+      expect(transformStyle).not.toContain('rotateX(0deg) rotateY(0deg)');
+    }
+
+    // Verify invalid <4-char room code guard and alphanumeric sanitization
+    await expect(page.locator('text=Consensus Studio').first()).toBeVisible();
+    const joinBtn = page.locator('button[type="submit"]');
+    await expect(joinBtn).toBeDisabled();
+
+    const codeInput = page.locator('input[maxlength="8"]');
+    await codeInput.fill('  tr-1p ');
+    await expect(codeInput).toHaveValue('TR1P');
+    await expect(joinBtn).toBeEnabled();
+
+    // Phase 2.4 & Phase 4: Verify Curated Collection Strip displays verified venues and ratings
+    const telemetryStrip = page.locator('[data-testid="telemetry-deck-strip"]');
+    await expect(telemetryStrip).toBeVisible();
+    await expect(telemetryStrip).toContainText('★');
+    await expect(telemetryStrip).toContainText('฿');
+
+    // Verify all 4 asymmetric Bento Matrix cards render
+    await expect(page.locator('[data-testid="bento-card-state-sync"]')).toBeVisible();
+    await expect(page.locator('[data-testid="bento-card-telemetry-gauge"]')).toBeVisible();
+    await expect(page.locator('[data-testid="bento-card-latency-pipeline"]')).toBeVisible();
+    await expect(page.locator('[data-testid="bento-card-terminal-portal"]')).toBeVisible();
+
+    // Verify statutory tax summary copy button works
+    const copyBtn = page.locator('[data-testid="copy-terminal-cmd-btn"]');
+    await expect(copyBtn).toBeVisible();
+    await copyBtn.click();
+    await expect(copyBtn).toContainText(/Copied|คัดลอกแล้ว/i);
+
+    // Phase 2.5: Verify Call-To-Action Portal dock and brief copy trigger
+    const ctaPortal = page.locator('[data-testid="cta-portal-dock"]');
+    await expect(ctaPortal).toBeVisible();
+    const copyFlagsBtn = page.locator('[data-testid="copy-portal-flags-btn"]');
+    await copyFlagsBtn.click();
+    await expect(copyFlagsBtn).toContainText(/Copied|คัดลอกแล้ว/i);
+
+    // Verify clean cross-platform language switcher labels (no broken Windows flag emojis)
+    const langThText = await page.locator('[data-testid="lang-th-btn"]').textContent();
+    const langEnText = await page.locator('[data-testid="lang-en-btn"]').textContent();
+    expect(langThText?.trim()).toBe('TH · ไทย');
+    expect(langEnText?.trim()).toBe('EN');
+
+    // Verify telemetry-deck-strip renders 4 full architectural destination photo cards
+    await expect(telemetryStrip.locator('img')).toHaveCount(4);
+
+    // Verify zero H1 or document horizontal overflow on 390px and 320px ultra-narrow viewports (Thai & English)
+    for (const width of [390, 320]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.waitForTimeout(100);
+      const thOverflow = await page.evaluate(() => {
+        const h1 = document.querySelector('h1');
+        const h1Right = h1 ? h1.getBoundingClientRect().right : 0;
+        const h1ScrollWidth = h1 ? h1.scrollWidth : 0;
+        const h1ClientWidth = h1 ? h1.clientWidth : 0;
+        const wideEls = Array.from(document.querySelectorAll('*'))
+          .filter((el) => el.getBoundingClientRect().right > window.innerWidth + 1)
+          .slice(0, 5)
+          .map((el) => ({
+            tag: el.tagName,
+            cls: (el as HTMLElement).className?.toString?.().slice(0, 50),
+            right: Math.round(el.getBoundingClientRect().right),
+          }));
+        return {
+          innerWidth: window.innerWidth,
+          h1Right: Math.round(h1Right),
+          h1ScrollWidth,
+          h1ClientWidth,
+          wideEls,
+          h1Overflows: h1Right > window.innerWidth + 1,
+          docOverflows: document.documentElement.scrollWidth > window.innerWidth + 1,
+        };
+      });
+      console.log(`Viewport ${width}:`, JSON.stringify(thOverflow));
+      expect(thOverflow.h1Overflows).toBe(false);
+      expect(thOverflow.docOverflows).toBe(false);
+    }
+  });
 });
+
+
