@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { generatePromptPayPayload } from '../src/lib/promptpay';
+import { generatePromptPayPayload } from '../src/lib/promptpay.ts';
 
 interface RequestBody {
   roomId?: string;
@@ -76,10 +76,12 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         roomId,
         clientTaxId: companyTaxId,
         destinationId: String(destinationId),
+        referenceNo,
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
         whtCategory: 'Section 3 Tredecim (Tor.Por. 4/2528) Services 3%',
         escrowProtection: '100% Refundable 14-day B2B Guarantee',
       },
-      expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       createdAt: new Date().toISOString(),
     };
 

@@ -86,7 +86,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     res.statusCode = 200;
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Length', buffer.length.toString());
-    res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800');
+    res.setHeader('Cache-Control', 'public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400');
     res.end(buffer);
   } catch (err) {
     console.warn('Place Photo Proxy fallback triggered:', err);

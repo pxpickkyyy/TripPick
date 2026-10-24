@@ -9,6 +9,8 @@ import type {
 } from '../types/procurement';
 import { calculateRetreatPricing, DEMO_COMPANY_PRESETS } from '../types/procurement';
 import type { DepositReceipt } from './useTripPick';
+import { downloadRfpPdf } from '../services/pdfReportGenerator';
+import { ensureValidThaiTaxId } from '../utils/taxCompliance';
 
 export interface UseProcurementOptions {
   destination: TravelDestination | null;
@@ -53,10 +55,11 @@ export function useProcurement({
   // Enterprise / Company Information
   const defaultPreset = DEMO_COMPANY_PRESETS[0];
   const [companyName, setCompanyName] = useState<string>(defaultPreset.companyName);
-  const [companyTaxId, setCompanyTaxId] = useState<string>(defaultPreset.companyTaxId);
+  const [companyTaxId, setCompanyTaxId] = useState<string>(ensureValidThaiTaxId(defaultPreset.companyTaxId));
   const [approverEmail, setApproverEmail] = useState<string>(defaultPreset.approverEmail);
   const [hasAppliedDemoPreset, setHasAppliedDemoPreset] = useState<boolean>(true);
   const [currentPresetIndex, setCurrentPresetIndex] = useState<number>(0);
+  const [hotelServiceChargePercent, setHotelServiceChargePercent] = useState<number>(0);
 
   // Payment Method
   const [paymentMethod, setPaymentMethod] = useState<EscrowPaymentMethod>('PROMPTPAY_QR');
@@ -78,10 +81,10 @@ export function useProcurement({
   // Rate per head per night
   const ratePerHead = destination?.price_per_person ?? 6000;
 
-  // Real-time Pricing Model strictly compliant with ท.ป. 4/2528
+  // Real-time Pricing Model strictly compliant with ท.ป. 4/2528 & Hotel Service Charge
   const pricing: RetreatPricingModel = useMemo(() => {
-    return calculateRetreatPricing(headcount, nights, ratePerHead, takeRatePercent);
-  }, [headcount, nights, ratePerHead, takeRatePercent]);
+    return calculateRetreatPricing(headcount, nights, ratePerHead, takeRatePercent, hotelServiceChargePercent);
+  }, [headcount, nights, ratePerHead, takeRatePercent, hotelServiceChargePercent]);
 
   // External or Internal Escrow Lock Status
   const isEscrowLocked = Boolean(
@@ -89,7 +92,7 @@ export function useProcurement({
   );
 
   const effectiveCompanyName = companyName.trim() || defaultPreset.companyName;
-  const effectiveTaxId = companyTaxId.trim() || defaultPreset.companyTaxId;
+  const effectiveTaxId = companyTaxId.trim() || ensureValidThaiTaxId(defaultPreset.companyTaxId);
   const effectiveApproverEmail = approverEmail.trim() || defaultPreset.approverEmail;
 
   // Escrow Deposit Details
@@ -115,7 +118,7 @@ export function useProcurement({
 
     const preset: DemoCompanyPreset = DEMO_COMPANY_PRESETS[nextIndex];
     setCompanyName(preset.companyName);
-    setCompanyTaxId(preset.companyTaxId);
+    setCompanyTaxId(ensureValidThaiTaxId(preset.companyTaxId));
     setApproverEmail(preset.approverEmail);
     setCurrentPresetIndex(nextIndex);
     setHasAppliedDemoPreset(true);
@@ -181,10 +184,19 @@ export function useProcurement({
       `""`,
       `"Tax Compliance per Thai Revenue Dept (Tor.Por. 4/2528)","Amount (THB)"`,
       `"1. Net Subtotal (Before VAT)","${pricing.subtotalBeforeVat}"`,
-      `"2. Value Added Tax 7% (VAT 7%)","${pricing.vat7Percent}"`,
-      `"3. Gross Invoice Total (Subtotal + VAT 7%)","${pricing.grossTotalWithVat}"`,
-      `"4. Withholding Tax 3% (WHT 3% calculated on pre-VAT Subtotal)","-${pricing.wht3Percent}"`,
-      `"5. Net Payable to Vendor (Gross Total - WHT 3%)","${pricing.netPayableToVendor}"`,
+      ...(pricing.hotelServiceChargeAmount && pricing.hotelServiceChargeAmount > 0 ? [
+        `"2. Hotel Service Charge (10%)","${pricing.hotelServiceChargeAmount}"`,
+        `"3. Pre-VAT Service Fee Base","${pricing.serviceFeeBase}"`,
+        `"4. Value Added Tax 7% (VAT 7%)","${pricing.vat7Percent}"`,
+        `"5. Gross Invoice Total (Base + VAT 7%)","${pricing.grossTotalWithVat}"`,
+        `"6. Withholding Tax 3% (WHT 3% calculated on pre-VAT Base)","-${pricing.wht3Percent}"`,
+        `"7. Net Payable to Vendor (Gross Total - WHT 3%)","${pricing.netPayableToVendor}"`,
+      ] : [
+        `"2. Value Added Tax 7% (VAT 7%)","${pricing.vat7Percent}"`,
+        `"3. Gross Invoice Total (Subtotal + VAT 7%)","${pricing.grossTotalWithVat}"`,
+        `"4. Withholding Tax 3% (WHT 3% calculated on pre-VAT Subtotal)","-${pricing.wht3Percent}"`,
+        `"5. Net Payable to Vendor (Gross Total - WHT 3%)","${pricing.netPayableToVendor}"`,
+      ]),
       `""`,
       `"Escrow Lock Deposit","5000"`,
       `""`,
@@ -214,10 +226,19 @@ export function useProcurement({
       `""`,
       `"สรุปภาษีตามระเบียบกรมสรรพากร (ท.ป. 4/2528)","จำนวนเงิน (THB)"`,
       `"1. มูลค่าบริการก่อนภาษี (Net Subtotal)","${pricing.subtotalBeforeVat}"`,
-      `"2. ภาษีมูลค่าเพิ่ม 7% (VAT 7%)","${pricing.vat7Percent}"`,
-      `"3. ยอดรวมทั้งสิ้นรวมภาษี (Gross Invoice Total)","${pricing.grossTotalWithVat}"`,
-      `"4. ภาษีหัก ณ ที่จ่าย 3% (Withholding Tax 3% คำนวณจากยอดก่อน VAT)","-${pricing.wht3Percent}"`,
-      `"5. ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable to Vendor)","${pricing.netPayableToVendor}"`,
+      ...(pricing.hotelServiceChargeAmount && pricing.hotelServiceChargeAmount > 0 ? [
+        `"2. ค่าบริการโรงแรม 10% (Hotel 10% Service Charge)","${pricing.hotelServiceChargeAmount}"`,
+        `"3. ฐานค่าบริการรวมก่อนภาษี (Service Fee Base)","${pricing.serviceFeeBase}"`,
+        `"4. ภาษีมูลค่าเพิ่ม 7% (VAT 7%)","${pricing.vat7Percent}"`,
+        `"5. ยอดรวมทั้งสิ้นรวมภาษี (Gross Invoice Total)","${pricing.grossTotalWithVat}"`,
+        `"6. ภาษีหัก ณ ที่จ่าย 3% (Withholding Tax 3% คำนวณจากยอดก่อน VAT)","-${pricing.wht3Percent}"`,
+        `"7. ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable to Vendor)","${pricing.netPayableToVendor}"`,
+      ] : [
+        `"2. ภาษีมูลค่าเพิ่ม 7% (VAT 7%)","${pricing.vat7Percent}"`,
+        `"3. ยอดรวมทั้งสิ้นรวมภาษี (Gross Invoice Total)","${pricing.grossTotalWithVat}"`,
+        `"4. ภาษีหัก ณ ที่จ่าย 3% (Withholding Tax 3% คำนวณจากยอดก่อน VAT)","-${pricing.wht3Percent}"`,
+        `"5. ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable to Vendor)","${pricing.netPayableToVendor}"`,
+      ]),
       `""`,
       `"เงินมัดจำล็อกสิทธิ์ (Escrow Deposit)","5000"`,
       `""`,
@@ -287,10 +308,19 @@ export function useProcurement({
       [''],
       ['Tax Compliance per Thai Revenue Dept (Tor.Por. 4/2528)', 'Amount (THB)'],
       ['1. Net Subtotal (Before VAT)', pricing.subtotalBeforeVat],
-      ['2. Value Added Tax 7% (VAT 7%)', pricing.vat7Percent],
-      ['3. Gross Invoice Total (Subtotal + VAT 7%)', pricing.grossTotalWithVat],
-      ['4. Withholding Tax 3% (WHT 3% calculated on pre-VAT Subtotal)', -pricing.wht3Percent],
-      ['5. Net Payable to Vendor (Gross Total - WHT 3%)', pricing.netPayableToVendor],
+      ...(pricing.hotelServiceChargeAmount && pricing.hotelServiceChargeAmount > 0 ? [
+        ['2. Hotel Service Charge (10%)', pricing.hotelServiceChargeAmount],
+        ['3. Pre-VAT Service Fee Base', pricing.serviceFeeBase],
+        ['4. Value Added Tax 7% (VAT 7%)', pricing.vat7Percent],
+        ['5. Gross Invoice Total (Base + VAT 7%)', pricing.grossTotalWithVat],
+        ['6. Withholding Tax 3% (WHT 3% calculated on pre-VAT Base)', -pricing.wht3Percent],
+        ['7. Net Payable to Vendor (Gross Total - WHT 3%)', pricing.netPayableToVendor],
+      ] : [
+        ['2. Value Added Tax 7% (VAT 7%)', pricing.vat7Percent],
+        ['3. Gross Invoice Total (Subtotal + VAT 7%)', pricing.grossTotalWithVat],
+        ['4. Withholding Tax 3% (WHT 3% calculated on pre-VAT Subtotal)', -pricing.wht3Percent],
+        ['5. Net Payable to Vendor (Gross Total - WHT 3%)', pricing.netPayableToVendor],
+      ]),
       [''],
       ['Escrow Lock Deposit', 5000],
     ] : [
@@ -316,10 +346,19 @@ export function useProcurement({
       [''],
       ['สรุปภาษีตามระเบียบกรมสรรพากร (ท.ป. 4/2528)', 'จำนวนเงิน (THB)'],
       ['1. มูลค่ารวมก่อนภาษี (Net Subtotal)', pricing.subtotalBeforeVat],
-      ['2. ภาษีมูลค่าเพิ่ม 7% (VAT 7%)', pricing.vat7Percent],
-      ['3. ยอดรวมทั้งสิ้นรวมภาษี (Gross Invoice Total)', pricing.grossTotalWithVat],
-      ['4. ภาษีหัก ณ ที่จ่าย 3% (Withholding Tax 3% คิดจากยอดก่อน VAT)', -pricing.wht3Percent],
-      ['5. ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable to Vendor)', pricing.netPayableToVendor],
+      ...(pricing.hotelServiceChargeAmount && pricing.hotelServiceChargeAmount > 0 ? [
+        ['2. ค่าบริการโรงแรม 10% (Hotel 10% Service Charge)', pricing.hotelServiceChargeAmount],
+        ['3. ฐานค่าบริการรวมก่อนภาษี (Service Fee Base)', pricing.serviceFeeBase],
+        ['4. ภาษีมูลค่าเพิ่ม 7% (VAT 7%)', pricing.vat7Percent],
+        ['5. ยอดรวมทั้งสิ้นรวมภาษี (Gross Invoice Total)', pricing.grossTotalWithVat],
+        ['6. ภาษีหัก ณ ที่จ่าย 3% (Withholding Tax 3% คิดจากยอดก่อน VAT)', -pricing.wht3Percent],
+        ['7. ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable to Vendor)', pricing.netPayableToVendor],
+      ] : [
+        ['2. ภาษีมูลค่าเพิ่ม 7% (VAT 7%)', pricing.vat7Percent],
+        ['3. ยอดรวมทั้งสิ้นรวมภาษี (Gross Invoice Total)', pricing.grossTotalWithVat],
+        ['4. ภาษีหัก ณ ที่จ่าย 3% (Withholding Tax 3% คิดจากยอดก่อน VAT)', -pricing.wht3Percent],
+        ['5. ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable to Vendor)', pricing.netPayableToVendor],
+      ]),
       [''],
       ['เงินมัดจำล็อกสิทธิ์ (Escrow Deposit)', 5000],
     ];
@@ -371,16 +410,21 @@ export function useProcurement({
 *Compliant with Thai Revenue Department Order Tor.Por. 4/2528 (คำสั่งกรมสรรพากรที่ ท.ป. 4/2528)*
 
 - **${isEn ? 'Net Subtotal (Before VAT)' : 'มูลค่ารวมก่อนภาษี (Net Subtotal)'}**: ฿${pricing.subtotalBeforeVat.toLocaleString()} THB
-- **${isEn ? 'Value Added Tax 7% (VAT 7%)' : 'ภาษีมูลค่าเพิ่ม 7% (VAT 7%)'}**: +฿${pricing.vat7Percent.toLocaleString()} THB
+${pricing.hotelServiceChargeAmount && pricing.hotelServiceChargeAmount > 0 ? `- **${isEn ? 'Hotel 10% Service Charge' : 'ค่าบริการโรงแรม 10% (Hotel Service Charge)'}**: +฿${pricing.hotelServiceChargeAmount.toLocaleString()} THB
+- **${isEn ? 'Pre-VAT Service Fee Base' : 'ฐานค่าบริการรวมก่อนภาษี (Service Fee Base)'}**: ฿${pricing.serviceFeeBase.toLocaleString()} THB
+- **${isEn ? 'Value Added Tax 7% (VAT 7% on Service Fee Base)' : 'ภาษีมูลค่าเพิ่ม 7% (VAT 7% คิดจากฐานค่าบริการ)'}**: +฿${pricing.vat7Percent.toLocaleString()} THB
 - **${isEn ? 'Gross Invoice Total' : 'ยอดรวมทั้งสิ้น (Gross Invoice Total)'}**: ฿${pricing.grossTotalWithVat.toLocaleString()} THB
-- **${isEn ? 'Withholding Tax 3% (WHT 3% calculated on Subtotal before VAT)' : 'ภาษีหัก ณ ที่จ่าย 3% (WHT 3% หมวดบริการ คิดจากยอดก่อน VAT)'}**: -฿${pricing.wht3Percent.toLocaleString()} THB
+- **${isEn ? 'Withholding Tax 3% (WHT 3% on pre-VAT Base)' : 'ภาษีหัก ณ ที่จ่าย 3% (WHT 3% หมวดบริการ คิดจากฐานก่อน VAT)'}**: -฿${pricing.wht3Percent.toLocaleString()} THB` : `- **${isEn ? 'Value Added Tax 7% (VAT 7%)' : 'ภาษีมูลค่าเพิ่ม 7% (VAT 7%)'}**: +฿${pricing.vat7Percent.toLocaleString()} THB
+- **${isEn ? 'Gross Invoice Total' : 'ยอดรวมทั้งสิ้น (Gross Invoice Total)'}**: ฿${pricing.grossTotalWithVat.toLocaleString()} THB
+- **${isEn ? 'Withholding Tax 3% (WHT 3% calculated on Subtotal before VAT)' : 'ภาษีหัก ณ ที่จ่าย 3% (WHT 3% หมวดบริการ คิดจากยอดก่อน VAT)'}**: -฿${pricing.wht3Percent.toLocaleString()} THB`}
 - **${isEn ? 'Net Payable to Vendor' : 'ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable to Vendor)'}**: ฿${pricing.netPayableToVendor.toLocaleString()} THB
 
 ---
 
 ## 2. ${isEn ? 'Corporate Procurement & Escrow Status' : 'สถานะการจัดซื้อจัดจ้างและเงินมัดจำ (Corporate Escrow)'}
 - **${isEn ? 'Net Subtotal (Before VAT)' : 'มูลค่างานรวมก่อนภาษี (Subtotal)'}**: ฿${pricing.subtotalBeforeVat.toLocaleString()} THB
-- **${isEn ? 'Net Payable to Vendor' : 'ยอดสุทธิที่ต้องชำระจริง (Net Payable)'}**: ฿${pricing.netPayableToVendor.toLocaleString()} THB
+${pricing.hotelServiceChargeAmount && pricing.hotelServiceChargeAmount > 0 ? `- **${isEn ? 'Pre-VAT Service Fee Base' : 'ฐานค่าบริการรวมก่อนภาษี (Service Fee Base)'}**: ฿${pricing.serviceFeeBase.toLocaleString()} THB
+` : ''}- **${isEn ? 'Net Payable to Vendor' : 'ยอดสุทธิที่ต้องชำระจริง (Net Payable)'}**: ฿${pricing.netPayableToVendor.toLocaleString()} THB
 - **${isEn ? 'Escrow Lock Deposit' : 'เงินมัดจำล็อกสิทธิ์ (Escrow Lock)'}**: ฿5,000.00 THB (${isEscrowLocked ? (isEn ? 'Paid & 100% Protected' : 'ชำระแล้ว - ได้รับการคุ้มครอง 100%') : (isEn ? 'Pending Payment' : 'รอการชำระ')})
 
 ---
@@ -411,9 +455,66 @@ export function useProcurement({
     language,
   ]);
 
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
+
+  const downloadPdf = useCallback(async () => {
+    try {
+      setIsGeneratingPdf(true);
+      const isEn = language === 'en';
+      const destinationTitle = destination?.title || (isEn ? 'TripPick Corporate Retreat' : 'TripPick สัมมนาองค์กร');
+      const destinationLocation = destination ? `${destination.city}, ${destination.country}` : 'Thailand';
+
+      await downloadRfpPdf({
+        proposalRef,
+        issueDate: new Date().toLocaleDateString(isEn ? 'en-US' : 'th-TH', { year: 'numeric', month: 'long', day: 'numeric' }),
+        roomId,
+        companyName: effectiveCompanyName,
+        companyTaxId: effectiveTaxId,
+        approverEmail: effectiveApproverEmail,
+        destinationTitle,
+        destinationCity: destinationLocation,
+        headcount: pricing.headcount,
+        nights: pricing.nights,
+        ratePerHeadPerNight: pricing.ratePerHeadPerNight,
+        subtotalBeforeVat: pricing.subtotalBeforeVat,
+        hotelServiceChargePercent: pricing.hotelServiceChargePercent || 0,
+        hotelServiceChargeAmount: pricing.hotelServiceChargeAmount || 0,
+        serviceFeeBase: pricing.serviceFeeBase,
+        vat7Percent: pricing.vat7Percent,
+        grossTotalWithVat: pricing.grossTotalWithVat,
+        wht3Percent: pricing.wht3Percent,
+        netPayableToVendor: pricing.netPayableToVendor,
+        isEscrowLocked,
+        escrowReceiptNo: escrowDeposit.receiptNo,
+        escrowAmount: escrowDeposit.amount,
+        language,
+      });
+
+      showToast(isEn ? '✓ Official PDF RFP downloaded successfully' : '✓ ดาวน์โหลดเอกสาร PDF จัดซื้อจัดจ้างสำเร็จ');
+    } catch (err) {
+      console.warn('PDF generation failed, falling back to window.print():', err);
+      window.print();
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  }, [
+    proposalRef,
+    roomId,
+    effectiveCompanyName,
+    effectiveTaxId,
+    effectiveApproverEmail,
+    destination,
+    pricing,
+    isEscrowLocked,
+    escrowDeposit.receiptNo,
+    escrowDeposit.amount,
+    language,
+    showToast,
+  ]);
+
   const printQuotation = useCallback(() => {
-    window.print();
-  }, []);
+    downloadPdf();
+  }, [downloadPdf]);
 
   return {
     headcount,
@@ -440,6 +541,10 @@ export function useProcurement({
     exportToGoogleSheetsTsv,
     generateGoogleDocsMarkdown,
     printQuotation,
+    downloadPdf,
+    isGeneratingPdf,
+    hotelServiceChargePercent,
+    setHotelServiceChargePercent,
     toastMessage,
   };
 }

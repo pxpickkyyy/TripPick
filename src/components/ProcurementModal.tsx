@@ -7,6 +7,7 @@ import { generatePromptPayPayload, generateQrSvgPath } from '../lib/promptpay';
 import type { DepositReceipt } from '../hooks/useTripPick';
 import { useLanguage } from '../lib/i18n';
 import { SubscriptionLockModal } from './SubscriptionLockModal';
+import { validateThaiTaxId, formatThaiTaxId } from '../utils/taxCompliance';
 
 export interface ProcurementModalProps {
   isOpen: boolean;
@@ -53,6 +54,9 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
     confirmEscrow,
     exportToCsv,
     printQuotation,
+    isGeneratingPdf,
+    hotelServiceChargePercent,
+    setHotelServiceChargePercent,
     toastMessage,
   } = useProcurement({
     destination: matchedDestination,
@@ -71,14 +75,19 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
 
   const [activeTab, setActiveTab] = useState<'invoice' | 'escrow'>('invoice');
 
+  // Compute Modulus 11 Real-Time Validation
+  const taxValidation = useMemo(() => {
+    return validateThaiTaxId(companyTaxId);
+  }, [companyTaxId]);
+
   // Compute 100% offline EMVCo PromptPay QR Code Payload
   const promptPayPayload = useMemo(() => {
     return generatePromptPayPayload({
-      target: companyTaxId || '0105558123456',
+      target: taxValidation.digits || '0105558123456',
       amount: 5000,
       referenceNo: escrowDeposit.receiptNo || depositCode,
     });
-  }, [companyTaxId, escrowDeposit.receiptNo, depositCode]);
+  }, [taxValidation.digits, escrowDeposit.receiptNo, depositCode]);
 
   // Generate deterministic SVG QR Matrix
   const qrSvgPath = useMemo(() => {
@@ -379,6 +388,36 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                   </span>
                 </div>
 
+                {/* Hotel 10% Service Charge Awareness Card (Strategic Addition 3) */}
+                <div className="p-3 rounded-xl bg-[#11111b] border border-[#313244] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2.5">
+                    <input
+                      type="checkbox"
+                      id="hotel-service-charge-toggle"
+                      checked={hotelServiceChargePercent === 10}
+                      onChange={(e) => setHotelServiceChargePercent(e.target.checked ? 10 : 0)}
+                      className="w-4 h-4 accent-[#a6e3a1] rounded cursor-pointer"
+                    />
+                    <label htmlFor="hotel-service-charge-toggle" className="cursor-pointer">
+                      <span className="font-bold text-[#cdd6f4] block">
+                        {language === 'en'
+                          ? 'Hotel 10% Service Charge Awareness (Hospitality MICE Standard)'
+                          : 'รวมค่าบริการโรงแรม 10% (Hospitality MICE Service Charge)'}
+                      </span>
+                      <span className="text-[10px] text-[#a6adc8] block">
+                        {language === 'en'
+                          ? 'Per Revenue Dept rules: WHT 3% applies to service charge before VAT 7% (Unified Base)'
+                          : 'ระเบียบกรมสรรพากร: ภาษีหัก ณ ที่จ่าย 3% คิดจากฐานค่าบริการรวมค่า Service Charge ก่อน VAT'}
+                      </span>
+                    </label>
+                  </div>
+                  <div className="text-right font-mono text-xs font-bold text-[#cba6f7]">
+                    {hotelServiceChargePercent === 10
+                      ? `+฿${pricing.hotelServiceChargeAmount?.toLocaleString()} THB (10%)`
+                      : '0% (Optional MICE)'}
+                  </div>
+                </div>
+
                 {/* Tabular Financial Breakdown */}
                 <div className="rounded-xl border border-[#313244] overflow-hidden bg-[#11111b]">
                   <table className="w-full text-xs text-left">
@@ -406,16 +445,51 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                         </td>
                       </tr>
 
+                      {/* Optional Hotel 10% Service Charge */}
+                      {Boolean(pricing.hotelServiceChargeAmount && pricing.hotelServiceChargeAmount > 0) && (
+                        <>
+                          <tr className="hover:bg-[#181825]/50 transition-colors bg-[#1e2a3a]/20">
+                            <td className="py-3 px-4 font-sans text-[#cdd6f4]">
+                              <strong>{language === 'en' ? '2. Hotel Service Charge (10%)' : '2. ค่าบริการโรงแรม 10% (Hotel Service Charge)'}</strong>
+                              <span className="block text-[11px] text-[#a6adc8] font-sans">
+                                {language === 'en' ? 'Luxury MICE hotel service fee (10% of subtotal)' : 'ค่าบริการมาตรฐานโรงแรม MICE (10% ของยอดที่พัก)'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-center text-[#a6adc8] text-[11px]">
+                              Subtotal × 0.10
+                            </td>
+                            <td className="py-3 px-4 text-right font-semibold text-[#cba6f7]">
+                              +฿{pricing.hotelServiceChargeAmount?.toLocaleString()}
+                            </td>
+                          </tr>
+
+                          <tr className="hover:bg-[#181825]/50 transition-colors bg-[#181825]/80">
+                            <td className="py-3 px-4 font-sans text-[#cdd6f4]">
+                              <strong>{language === 'en' ? '3. Pre-VAT Service Fee Base' : '3. ฐานค่าบริการรวมก่อนภาษี (Service Fee Base)'}</strong>
+                              <span className="block text-[11px] text-[#a6adc8] font-sans">
+                                {language === 'en' ? 'Base for statutory VAT 7% and pre-VAT WHT 3%' : 'ฐานภาษีมูลค่าเพิ่มและภาษีหัก ณ ที่จ่าย'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-center text-[#a6adc8] text-[11px]">
+                              Subtotal + Service Charge
+                            </td>
+                            <td className="py-3 px-4 text-right font-bold text-[#cdd6f4]">
+                              ฿{pricing.serviceFeeBase.toLocaleString()}
+                            </td>
+                          </tr>
+                        </>
+                      )}
+
                       {/* VAT 7% */}
                       <tr className="hover:bg-[#181825]/50 transition-colors">
                         <td className="py-3 px-4 font-sans text-[#cdd6f4]">
-                          <strong>{language === 'en' ? '2. Value Added Tax 7% (VAT 7%)' : '2. ภาษีมูลค่าเพิ่ม 7% (VAT 7%)'}</strong>
+                          <strong>{language === 'en' ? `${(pricing.hotelServiceChargeAmount || 0) > 0 ? '4.' : '2.'} Value Added Tax 7% (VAT 7%)` : `${(pricing.hotelServiceChargeAmount || 0) > 0 ? '4.' : '2.'} ภาษีมูลค่าเพิ่ม 7% (VAT 7%)`}</strong>
                           <span className="block text-[11px] text-[#a6adc8] font-sans">
-                            {language === 'en' ? 'Calculated on Net Subtotal base before tax' : 'คำนวณจากฐานภาษีมูลค่ารวมก่อนภาษี (Net Subtotal)'}
+                            {language === 'en' ? 'Calculated on Service Fee Base before tax' : 'คำนวณจากฐานค่าบริการรวมก่อนภาษี'}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-center text-[#a6adc8] text-[11px]">
-                          Subtotal × 0.07
+                          {(pricing.hotelServiceChargeAmount || 0) > 0 ? 'Base × 0.07' : 'Subtotal × 0.07'}
                         </td>
                         <td className="py-3 px-4 text-right font-semibold text-[#89dceb]">
                           +฿{pricing.vat7Percent.toLocaleString()}
@@ -425,10 +499,10 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                       {/* Gross Total */}
                       <tr className="bg-[#181825] border-y border-[#313244]">
                         <td className="py-3 px-4 font-sans text-[#cdd6f4]">
-                          <strong>{language === 'en' ? '3. Gross Invoice Total' : '3. ยอดรวมทั้งสิ้นรวมภาษี (Gross Invoice Total)'}</strong>
+                          <strong>{language === 'en' ? `${(pricing.hotelServiceChargeAmount || 0) > 0 ? '5.' : '3.'} Gross Invoice Total` : `${(pricing.hotelServiceChargeAmount || 0) > 0 ? '5.' : '3.'} ยอดรวมทั้งสิ้นรวมภาษี (Gross Invoice Total)`}</strong>
                         </td>
                         <td className="py-3 px-4 text-center text-[#a6adc8] text-[11px]">
-                          Subtotal + VAT 7%
+                          {(pricing.hotelServiceChargeAmount || 0) > 0 ? 'Base + VAT 7%' : 'Subtotal + VAT 7%'}
                         </td>
                         <td className="py-3 px-4 text-right font-bold text-[#cdd6f4] text-sm">
                           ฿{pricing.grossTotalWithVat.toLocaleString()}
@@ -438,15 +512,15 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                       {/* WHT 3% */}
                       <tr className="hover:bg-[#181825]/50 transition-colors">
                         <td className="py-3 px-4 font-sans text-[#cdd6f4]">
-                          <strong className="text-[#f38ba8]">{language === 'en' ? '4. Withholding Tax 3% (WHT 3%)' : '4. ภาษีหัก ณ ที่จ่าย 3% (Withholding Tax 3%)'}</strong>
+                          <strong className="text-[#f38ba8]">{language === 'en' ? `${(pricing.hotelServiceChargeAmount || 0) > 0 ? '6.' : '4.'} Withholding Tax 3% (WHT 3%)` : `${(pricing.hotelServiceChargeAmount || 0) > 0 ? '6.' : '4.'} ภาษีหัก ณ ที่จ่าย 3% (Withholding Tax 3%)`}</strong>
                           <span className="block text-[11px] text-[#f38ba8]/90 font-sans">
                             {language === 'en'
-                              ? `* Revenue Dept: Must be calculated from Subtotal before VAT (฿${pricing.subtotalBeforeVat.toLocaleString()}), never Gross!`
-                              : `* กรมสรรพากรระบุ: ต้องคิดจากยอดก่อน VAT (฿${pricing.subtotalBeforeVat.toLocaleString()}) ห้ามคิดจาก Gross!`}
+                              ? `* Revenue Dept: Must be calculated from Subtotal / Base before VAT (฿${pricing.serviceFeeBase.toLocaleString()}), never Gross!`
+                              : `* กรมสรรพากรระบุ: ต้องคิดจากยอดก่อน VAT (฿${pricing.serviceFeeBase.toLocaleString()}) ห้ามคิดจาก Gross!`}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-center text-[#f38ba8] text-[11px]">
-                          Subtotal × 0.03
+                          {(pricing.hotelServiceChargeAmount || 0) > 0 ? 'Base × 0.03' : 'Subtotal × 0.03'}
                         </td>
                         <td className="py-3 px-4 text-right font-semibold text-[#f38ba8]">
                           -฿{pricing.wht3Percent.toLocaleString()}
@@ -457,10 +531,10 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                       <tr className="bg-[#1e2a3a]/40 border-t-2 border-[#a6e3a1]">
                         <td className="py-3.5 px-4 font-sans text-[#cdd6f4]">
                           <strong className="text-sm text-[#a6e3a1]">
-                            {language === 'en' ? '5. Net Payable to Vendor' : '5. ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable to Vendor)'}
+                            {language === 'en' ? `${(pricing.hotelServiceChargeAmount || 0) > 0 ? '7.' : '5.'} Net Payable to Vendor` : `${(pricing.hotelServiceChargeAmount || 0) > 0 ? '7.' : '5.'} ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable to Vendor)`}
                           </strong>
                           <span className="block text-[11px] text-[#a6adc8] font-sans">
-                            {language === 'en' ? 'Net statutory amount after withholding tax (Subtotal × 1.04)' : 'ยอดหลังหัก ณ ที่จ่ายตามกฎหมาย (Subtotal × 1.04)'}
+                            {language === 'en' ? 'Net statutory amount after withholding tax (Base × 1.04)' : 'ยอดหลังหัก ณ ที่จ่ายตามกฎหมาย (Base × 1.04)'}
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-center text-[#a6e3a1] text-[11px]">
@@ -510,15 +584,52 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="text-[10px] text-[#a6adc8] block mb-1 font-mono">{language === 'en' ? 'Tax ID (13 Digits):' : 'เลขผู้เสียภาษี (Tax ID 13 หลัก):'}</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] text-[#a6adc8] font-mono">{language === 'en' ? 'Tax ID (13 Digits):' : 'เลขผู้เสียภาษี (Tax ID 13 หลัก):'}</label>
+                        {taxValidation.isValid && (
+                          <span className="text-[9px] font-mono font-bold text-[#a6e3a1]">✓ DBD VERIFIED</span>
+                        )}
+                      </div>
                       <input
                         type="text"
                         value={companyTaxId}
-                        onChange={(e) => setCompanyTaxId(e.target.value)}
-                        placeholder="0105558123456"
+                        onChange={(e) => {
+                          const formatted = formatThaiTaxId(e.target.value);
+                          setCompanyTaxId(formatted);
+                        }}
+                        placeholder="X-XXXX-XXXXX-XX-X"
                         maxLength={17}
-                        className="w-full py-2 px-3 rounded-xl bg-[#1e1e2e] border border-[#313244] text-xs text-[#cdd6f4] placeholder-[#585b70] font-mono focus:outline-none focus:border-[#cba6f7]"
+                        className={`w-full py-2 px-3 rounded-xl bg-[#1e1e2e] border text-xs text-[#cdd6f4] placeholder-[#585b70] font-mono focus:outline-none transition-colors ${
+                          taxValidation.isValid
+                            ? 'border-[#a6e3a1] focus:border-[#a6e3a1]'
+                            : taxValidation.isComplete
+                              ? 'border-[#f38ba8] focus:border-[#f38ba8]'
+                              : taxValidation.digits.length > 0
+                                ? 'border-[#f9e2af] focus:border-[#f9e2af]'
+                                : 'border-[#313244] focus:border-[#cba6f7]'
+                        }`}
                       />
+                      {/* Validation warning indicator (Strategic Addition 2) */}
+                      {taxValidation.digits.length > 0 && (
+                        <div className="mt-1 text-[10px] font-mono">
+                          {taxValidation.isValid ? (
+                            <span className="text-[#a6e3a1] flex items-center gap-1">
+                              <span>✓</span>
+                              <span>{language === 'en' ? 'Valid Thai Corporate Tax ID (DBD Modulus 11 Passed)' : '✓ ตรวจสอบผ่านเกณฑ์ DBD (Modulus 11 ผ่าน)'}</span>
+                            </span>
+                          ) : taxValidation.isComplete ? (
+                            <span className="text-[#f38ba8] flex items-center gap-1">
+                              <span>❌</span>
+                              <span>{language === 'en' ? 'Checksum Failed: Invalid Modulus 11 check digit' : taxValidation.error}</span>
+                            </span>
+                          ) : (
+                            <span className="text-[#f9e2af] flex items-center gap-1">
+                              <span>⚠️</span>
+                              <span>{language === 'en' ? `Incomplete: ${taxValidation.digits.length}/13 digits` : taxValidation.error}</span>
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -646,7 +757,12 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                 {!isEscrowLocked ? (
                   <button
                     onClick={confirmEscrow}
-                    className="w-full py-3.5 px-5 bg-[#a6e3a1] hover:bg-[#94e2d5] text-[#11111b] text-sm font-extrabold rounded-xl transition-all cursor-pointer shadow-lg active:scale-[0.98] flex items-center justify-center gap-2"
+                    disabled={!taxValidation.isValid}
+                    className={`w-full py-3.5 px-5 text-sm font-extrabold rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 ${
+                      taxValidation.isValid
+                        ? 'bg-[#a6e3a1] hover:bg-[#94e2d5] text-[#11111b] cursor-pointer active:scale-[0.98]'
+                        : 'bg-[#313244] text-[#6c7086] cursor-not-allowed opacity-60'
+                    }`}
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
@@ -712,12 +828,13 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
 
               <button
                 onClick={printQuotation}
-                className="py-1.5 px-3.5 bg-[#a6e3a1] hover:bg-[#94e2d5] text-[#11111b] rounded-lg text-xs font-bold cursor-pointer transition-colors flex items-center gap-1.5 shadow"
+                disabled={isGeneratingPdf}
+                className="py-1.5 px-3.5 bg-[#a6e3a1] hover:bg-[#94e2d5] text-[#11111b] rounded-lg text-xs font-bold cursor-pointer transition-colors flex items-center gap-1.5 shadow disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24-1.255.438-2.54 1.62-3.042l10.87-4.606c1.196-.507 2.533.15 2.822 1.417l2.673 11.666c.29 1.266-.462 2.54-1.728 2.83l-10.87 2.49c-1.266.29-2.533-.46-2.823-1.727L6.72 13.83z" />
                 </svg>
-                <span>{t.printRfpBtn}</span>
+                <span>{isGeneratingPdf ? (language === 'en' ? 'Generating PDF...' : 'กำลังสร้าง PDF...') : t.printRfpBtn}</span>
               </button>
             </div>
           </div>

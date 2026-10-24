@@ -1,7 +1,22 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const getEnvVar = (key: string): string => {
+  try {
+    const meta = typeof import.meta !== 'undefined' ? (import.meta as unknown as { env?: Record<string, string> }) : null;
+    if (meta?.env && meta.env[key]) {
+      return meta.env[key];
+    }
+  } catch {
+    // Ignore in environments without import.meta
+  }
+  if (typeof process !== 'undefined' && process.env && process.env[key]) {
+    return process.env[key] || '';
+  }
+  return '';
+};
+
+const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
+const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
 
 let supabaseInstance: SupabaseClient | null = null;
 

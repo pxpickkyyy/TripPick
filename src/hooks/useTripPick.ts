@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { fetchAiRecommendations, fetchAiCommentary } from '../lib/ai';
 import type { RoomContextInfo } from '../lib/ai';
-import type { TravelDestination } from '../lib/travelDestinations';
+import { CURATED_DESTINATIONS, type TravelDestination } from '../lib/travelDestinations';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { EscrowBroadcastPayload } from '../types/procurement';
@@ -674,6 +674,32 @@ export function useTripPick() {
         .on('broadcast', { event: 'ESCROW_LOCKED' }, ({ payload }: { payload: unknown }) => handleIncomingEvent('ESCROW_LOCKED', payload))
         .on('broadcast', { event: 'DECK_EXPANDED' }, ({ payload }: { payload: unknown }) => handleIncomingEvent('DECK_EXPANDED', payload))
         .on('broadcast', { event: 'LEADER_PROMOTED' }, ({ payload }: { payload: unknown }) => handleIncomingEvent('LEADER_PROMOTED', payload))
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'trippick_rooms',
+            filter: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(roomId)
+              ? `id=eq.${roomId}`
+              : `room_code=eq.${roomId}`,
+          },
+          (payload: { new?: { status?: string; winning_destination_id?: string } }) => {
+            if (payload.new?.status === 'CONSENSUS_REACHED' && payload.new.winning_destination_id) {
+              const winningDestId = payload.new.winning_destination_id;
+              const allVenues = [...(roomRef.current?.destinations_deck || []), ...CURATED_DESTINATIONS];
+              const winner = allVenues.find(d => d.id.toString() === winningDestId || d.google_place_id === winningDestId);
+              if (winner && !matchedDestinationRef.current) {
+                setMatchedDestination(winner);
+                setStep('matched');
+                broadcastEvent('MATCH_FOUND', { destination: winner });
+              }
+            } else if (payload.new?.status === 'LOCKED_ESCROW') {
+              setDepositStatus('SECURED_ESCROW');
+              broadcastEvent('ESCROW_LOCKED', { roomId, timestamp: Date.now() });
+            }
+          }
+        )
         .on('presence', { event: 'leave' }, ({ leftPresences }: { leftPresences: PresenceItem[] }) => {
           const leftIds = new Set<string>();
           leftPresences.forEach(p => {
@@ -753,7 +779,7 @@ export function useTripPick() {
         supabaseChannelRef.current = null;
       }
     };
-  }, [roomId, handleIncomingEvent]);
+  }, [roomId, handleIncomingEvent, broadcastEvent]);
 
   // Dynamic Host Failover & Resilient Heartbeat Watchdog
   useEffect(() => {
@@ -769,6 +795,14 @@ export function useTripPick() {
         isHost: isHostRef.current,
         timestamp: now
       });
+
+      // Refresh participant presence in PostgreSQL authoritative ledger
+      if (isSupabaseConfigured && roomId && currentUser.id) {
+        Promise.resolve(supabase.rpc('touch_participant_heartbeat', {
+          p_room_id: roomId,
+          p_user_id: currentUser.id,
+        })).catch(() => {});
+      }
 
       // Periodic state sync request if in lobby
       if (stepRef.current === 'lobby') {
@@ -1072,8 +1106,12 @@ export function useTripPick() {
     setLoading(true);
     try {
       const isActuallyHost = Boolean(isHostRef.current);
+      const generatedUserId = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+        ? crypto.randomUUID()
+        : 'user_' + Math.random().toString(36).substring(2, 9);
+
       const user: RoomUser = {
-        id: 'user_' + Math.random().toString(36).substring(2, 9),
+        id: generatedUserId,
         room_id: roomId,
         user_name: name.trim(),
         role: role || 'Team Member',
@@ -1104,6 +1142,14 @@ export function useTripPick() {
       });
 
       localStorage.setItem('trippick_user_id', user.id);
+
+      // Register presence in PostgreSQL authoritative participant ledger
+      if (isSupabaseConfigured && roomId && user.id) {
+        Promise.resolve(supabase.rpc('touch_participant_heartbeat', {
+          p_room_id: roomId,
+          p_user_id: user.id,
+        })).catch(() => {});
+      }
 
       // 1. Broadcast join to other peers
       broadcastEvent('USER_JOINED', user);
@@ -1350,6 +1396,30 @@ export function useTripPick() {
 
     // Broadcast swipe to all connected teammates
     broadcastEvent('SWIPE_SUBMITTED', swipe);
+
+    // Database Atomic Consensus Execution (Pillar 1 & Critical Fix 2)
+    if (isSupabaseConfigured) {
+      Promise.resolve(
+        supabase.rpc('record_vote_and_check_consensus', {
+          p_room_id: roomId,
+          p_destination_id: String(destinationId),
+          p_user_id: currentUser.id,
+          p_vote_type: isVeto ? 'VETO' : isLike ? 'LIKE' : 'DISLIKE',
+        })
+      ).then((res: unknown) => {
+        const response = res as { data?: { matched?: boolean; winning_destination_id?: string }; error?: unknown };
+        if (!response.error && response.data?.matched && response.data?.winning_destination_id) {
+          const allVenues = [...(roomRef.current?.destinations_deck || []), ...CURATED_DESTINATIONS];
+          const winningDest = allVenues.find(d => d.id.toString() === response.data?.winning_destination_id || d.google_place_id === response.data?.winning_destination_id);
+          if (winningDest && !matchedDestinationRef.current) {
+            setMatchedDestination(winningDest);
+            setStep('matched');
+          }
+        }
+      }).catch((err: unknown) => {
+        console.warn('TripPick: Supabase consensus RPC fallback to local consensus:', err);
+      });
+    }
 
     // Infinite Mode Pre-fetch Trigger:
     if (discoveryModeRef.current === 'infinite' && isHostRef.current && !isFetchingMoreRef.current) {

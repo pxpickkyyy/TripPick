@@ -29,6 +29,11 @@ import { CURATED_DESTINATIONS } from '../src/lib/travelDestinations.ts';
 import { discoverVenuesWithLLM } from '../src/services/llmDiscoveryService.ts';
 import { CURATED_RESERVE_CATALOG } from '../src/lib/reserveCatalog.ts';
 import { fetchNextBatchDestinations } from '../src/services/discoveryService.ts';
+import { validateThaiTaxId, formatThaiTaxId, calculateStatutoryB2BTax, ensureValidThaiTaxId } from '../src/utils/taxCompliance.ts';
+import { generateRfpPdf } from '../src/services/pdfReportGenerator.ts';
+import fs from 'node:fs';
+import path from 'node:path';
+import webhookHandler from '../api/deposit-webhook.ts';
 
 console.log('=== REAL TEST SUITE: B2B PROCUREMENT & TAX ENGINE (NO MOCKS) ===');
 
@@ -431,5 +436,215 @@ console.log('\n[Test 10] Verifying Infinite Live Discovery Engine & Layered Fall
   console.log(`✓ Test 10 passed: Infinite Live Discovery Engine, Layered Fallback Shield (${llmResult.engine}), 0% duplicate Place IDs, /api/place-photo proxy, and ท.ป. 4/2528 compliance verified.`);
 }
 
-console.log('\n=== ALL 10 REAL TESTS PASSED DIRECTLY AGAINST REAL SOURCE CODE! ===');
+// TEST 11: Thai 13-Digit Tax ID Modulus 11 Checksum, Keystroke Formatting & Hotel 10% Service Charge Awareness
+console.log('\n[Test 11] Verifying Thai Tax ID Modulus 11 & Hotel 10% Service Charge...');
+{
+  // 11a. Valid Corporate Tax IDs
+  const ptt = validateThaiTaxId('0107544000108');
+  assert.equal(ptt.isValid, true, 'PTT Tax ID must pass Modulus 11');
+  assert.equal(ptt.formatted, '0-1075-44000-10-8', 'PTT Tax ID formatted with hyphens');
+
+  const scg = validateThaiTaxId('0-1075-37000-11-4');
+  assert.equal(scg.isValid, true, 'SCG Tax ID must pass Modulus 11');
+
+  const demoValid = validateThaiTaxId('0105558123451');
+  assert.equal(demoValid.isValid, true, 'Valid check digit 1 must pass');
+
+  // 11b. Invalid check digits
+  const badCheck = validateThaiTaxId('0105558123456');
+  assert.equal(badCheck.isValid, false, 'Invalid check digit 6 must fail');
+  assert.equal(badCheck.expectedCheckDigit, 1, 'Expected check digit must be 1');
+
+  const invalidSeq = validateThaiTaxId('1234567890123');
+  assert.equal(invalidSeq.isValid, false, 'Random 1234567890123 must fail checksum');
+
+  // 11c. Incomplete and repeating patterns
+  const incomplete = validateThaiTaxId('010555812');
+  assert.equal(incomplete.isValid, false);
+  assert.equal(incomplete.isComplete, false);
+  assert.equal(incomplete.formatted, '0-1055-5812');
+
+  const repeating = validateThaiTaxId('0000000000000');
+  assert.equal(repeating.isValid, false, 'Repeating digits must be rejected');
+
+  // 11d. Keystroke auto-formatter
+  assert.equal(formatThaiTaxId('0'), '0');
+  assert.equal(formatThaiTaxId('01055'), '0-1055');
+  assert.equal(formatThaiTaxId('0105558123'), '0-1055-58123');
+  assert.equal(formatThaiTaxId('010555812345'), '0-1055-58123-45');
+  assert.equal(formatThaiTaxId('0105558123451'), '0-1055-58123-45-1');
+
+  // 11e. Ensure valid check digit sanitizer
+  const sanitizedTaxId = ensureValidThaiTaxId('0105558123456');
+  assert.equal(sanitizedTaxId, '0-1055-58123-45-1');
+  assert.equal(validateThaiTaxId(sanitizedTaxId).isValid, true, 'Sanitized preset tax ID must pass Modulus 11');
+
+  // 11f. Hotel 10% Service Charge Awareness (Strategic Addition 3)
+  const taxWithServiceCharge = calculateStatutoryB2BTax(15, 3, 6000, 12, true);
+  assert.equal(taxWithServiceCharge.subtotalBeforeVat, 270000);
+  assert.equal(taxWithServiceCharge.hotelServiceChargeAmount, 27000, 'Hotel 10% service charge must be 27,000');
+  assert.equal(taxWithServiceCharge.serviceFeeBase, 297000, 'Service Fee Base must be 297,000');
+  assert.equal(taxWithServiceCharge.vat7Percent, Math.round(297000 * 0.07), 'VAT 7% must be on Service Fee Base');
+  assert.equal(taxWithServiceCharge.grossTotal, 297000 + 20790, 'Gross Total must be 317,790');
+  assert.equal(taxWithServiceCharge.wht3Percent, Math.round(297000 * 0.03), 'WHT 3% must be on Service Fee Base before VAT');
+  assert.equal(taxWithServiceCharge.netPayable, 297000 + 20790 - 8910, 'Net Payable must be Gross - WHT (308,880)');
+  assert.equal(taxWithServiceCharge.netPayable, 297000 * 1.04, 'Net Payable must equal Service Fee Base * 1.04');
+
+  console.log('✓ Test 11 passed: Thai Tax ID Modulus 11 & Hotel 10% Service Charge calculations verified.');
+}
+
+// TEST 12: Production PDF Report Engine with Fontkit & Thai Sarabun Font (Zero WinAnsi Crash)
+console.log('\n[Test 12] Verifying Real PDF Report Engine & Unicode Thai Font (No WinAnsi Crash)...');
+{
+  const pdfBytes = await generateRfpPdf({
+    proposalRef: 'RFP-TP-AUDIT-2026',
+    roomId: 'MICE',
+    companyName: 'บริษัท บีทูบี เทคเวนเจอร์ จำกัด',
+    companyTaxId: '0-1055-58123-45-1',
+    approverEmail: 'cfo-approval@techventure.co.th',
+    destinationTitle: 'โรงแรมตรีสรา (Trisara Phuket Resort)',
+    destinationCity: 'ภูเก็ต',
+    headcount: 20,
+    nights: 3,
+    ratePerHeadPerNight: 8500,
+    subtotalBeforeVat: 510000,
+    hotelServiceChargePercent: 10,
+    hotelServiceChargeAmount: 51000,
+    serviceFeeBase: 561000,
+    vat7Percent: 39270,
+    grossTotalWithVat: 600270,
+    wht3Percent: 16830,
+    netPayableToVendor: 583440,
+    isEscrowLocked: true,
+    escrowReceiptNo: 'DEP-TP-999888',
+    language: 'th',
+  });
+
+  assert.ok(pdfBytes, 'PDF bytes must be returned');
+  assert.ok(pdfBytes.length > 50000, `PDF size must be >50KB with embedded font (got ${pdfBytes.length} bytes)`);
+
+  const header = Buffer.from(pdfBytes).slice(0, 5).toString();
+  assert.equal(header, '%PDF-', 'Must start with valid %PDF- magic bytes');
+
+  console.log(`✓ Test 12 passed: Real PDF Engine generated valid document (${pdfBytes.length} bytes) with zero WinAnsi encoding crashes.`);
+}
+
+// TEST 13: PostgreSQL Enterprise Schema, Atomic Consensus RPC & Participant Anti-Spoofing / Cold-Start Guard
+console.log('\n[Test 13] Verifying PostgreSQL Enterprise Schema & Consensus RPC Guard...');
+{
+  const migrationPath = path.resolve('supabase/migrations/20261025000001_enterprise_schema.sql');
+  assert.ok(fs.existsSync(migrationPath), 'Migration file must exist');
+
+  const migrationSql = fs.readFileSync(migrationPath, 'utf8');
+  assert.ok(migrationSql.includes('CREATE TABLE IF NOT EXISTS room_participants'), 'Must define room_participants table');
+  assert.ok(migrationSql.includes('room_id UUID REFERENCES trippick_rooms'), 'Must link participants to room');
+  assert.ok(migrationSql.includes('last_seen TIMESTAMPTZ DEFAULT NOW()'), 'Must track last_seen for live presence');
+  assert.ok(migrationSql.includes("expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '30 minutes')"), 'Must have 30-min PromptPay expiration in procurement_orders');
+
+  // Verify Critical Fix 2: RPC must NOT accept p_active_participants from client
+  assert.ok(!migrationSql.includes('p_active_participants INT'), 'RPC must NOT accept client-passed p_active_participants (prevents spoofing)');
+  assert.ok(migrationSql.includes('FROM room_participants'), 'RPC must query room_participants authoritatively');
+  assert.ok(migrationSql.includes("last_seen > NOW() - INTERVAL '30 seconds'"), 'RPC must count only active participants in last 30s');
+  assert.ok(migrationSql.includes('FOR UPDATE'), 'RPC must lock room row with FOR UPDATE');
+  assert.ok(migrationSql.includes('touch_participant_heartbeat'), 'Must define touch_participant_heartbeat');
+  assert.ok(migrationSql.includes('INSERT INTO trippick_rooms'), 'Heartbeat must auto-provision room if not present to avoid cold-start drop');
+  assert.ok(migrationSql.includes('room_code VARCHAR(64)'), 'trippick_rooms must allow up to 64 chars for flexible room codes/UUIDs');
+  assert.ok(migrationSql.includes('company_tax_id VARCHAR(20)'), 'procurement_orders must support formatted 17-char DBD Tax IDs');
+
+  // Verify Critical Fix 3: Realtime CDC replication & RLS security policies
+  assert.ok(migrationSql.includes('ALTER TABLE trippick_rooms REPLICA IDENTITY FULL'), 'Must enable REPLICA IDENTITY FULL for non-PK filter replication');
+  assert.ok(migrationSql.includes('ALTER PUBLICATION supabase_realtime ADD TABLE trippick_rooms'), 'Must register trippick_rooms with supabase_realtime publication');
+  assert.ok(migrationSql.includes('ENABLE ROW LEVEL SECURITY'), 'Must enable Row Level Security on core enterprise tables');
+
+  console.log('✓ Test 13 passed: PostgreSQL Enterprise Schema, Anti-Spoofing & Cold-Start RPC verified.');
+}
+
+// TEST 14: Payment Webhook Replay Attacks Idempotency Guard & 30-Minute PromptPay Expiration
+console.log('\n[Test 14] Verifying Payment Webhook Idempotency & PromptPay Expiration Guards...');
+{
+  function callWebhook(body) {
+    return new Promise((resolve) => {
+      let statusCode = 200;
+      let responseData = '';
+      const req = {
+        method: 'POST',
+        url: '/api/deposit-webhook',
+        headers: { 'content-type': 'application/json' },
+        async *[Symbol.asyncIterator]() {
+          yield Buffer.from(JSON.stringify(body));
+        }
+      };
+      const res = {
+        set statusCode(code) { statusCode = code; },
+        get statusCode() { return statusCode; },
+        setHeader() {},
+        end(chunk) {
+          if (chunk) responseData += chunk.toString();
+          resolve({ statusCode, body: responseData ? JSON.parse(responseData) : null });
+        }
+      };
+      webhookHandler(req, res);
+    });
+  }
+
+  const testRef = `DEP-TP-${Date.now()}`;
+
+  // 14a. First settlement
+  const res1 = await callWebhook({
+    roomId: 'TEST_ROOM',
+    referenceNo: testRef,
+    amount: 5000,
+    companyTaxId: '0-1055-58123-45-1',
+  });
+  assert.equal(res1.statusCode, 200);
+  assert.equal(res1.body.received, true);
+  assert.equal(res1.body.event.deposit_status, 'HELD_IN_ESCROW');
+
+  // 14b. Idempotent webhook retry (Replay Attack Guard)
+  const res2 = await callWebhook({
+    roomId: 'TEST_ROOM',
+    referenceNo: testRef,
+    amount: 5000,
+    companyTaxId: '0-1055-58123-45-1',
+  });
+  assert.equal(res2.statusCode, 200);
+  assert.equal(res2.body.received, true);
+  assert.equal(res2.body.idempotent, true, 'Must identify webhook retry and not duplicate');
+  assert.equal(res2.body.deposit_status, 'HELD_IN_ESCROW');
+
+  // 14c. Expired payment window (>30 mins)
+  const resExpired = await callWebhook({
+    roomId: 'TEST_ROOM_EXP',
+    referenceNo: `DEP-TP-EXPIRED-${Date.now()}`,
+    amount: 5000,
+    expires_at: new Date(Date.now() - 60000).toISOString(), // Expired 1 min ago
+  });
+  assert.equal(resExpired.statusCode, 410, 'Expired promptpay order must return 410 Gone');
+  assert.equal(resExpired.body.received, false);
+
+  // 14d. Archived room payment attempt
+  const resArchived = await callWebhook({
+    roomId: 'TEST_ROOM_ARC',
+    referenceNo: `DEP-TP-ARC-${Date.now()}`,
+    amount: 5000,
+    room_status: 'ARCHIVED',
+  });
+  assert.equal(resArchived.statusCode, 410, 'Archived room order must return 410');
+  assert.equal(resArchived.body.received, false);
+
+  console.log('✓ Test 14 passed: Webhook Idempotency, 30-min Expiration, and Archived Room Guards verified.');
+}
+
+// TEST 15: Google Places Photo Proxy Edge Caching CDN Headers
+console.log('\n[Test 15] Verifying Google Places Photo Proxy Edge Caching CDN Headers...');
+{
+  const photoProxySource = fs.readFileSync(path.resolve('api/place-photo.ts'), 'utf8');
+  assert.ok(
+    photoProxySource.includes('public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400'),
+    'Photo proxy must set public, max-age=604800, s-maxage=2592000, stale-while-revalidate=86400'
+  );
+  console.log('✓ Test 15 passed: Photo Proxy Edge Caching CDN Headers verified.');
+}
+
+console.log('\n=== ALL 15 REAL ENTERPRISE TESTS PASSED DIRECTLY AGAINST REAL SOURCE CODE! ===');
 

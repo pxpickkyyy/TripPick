@@ -40,6 +40,15 @@ export interface RetreatPricingModel {
    * Mathematically equivalent to: Subtotal * (1 + 0.07 - 0.03) = Subtotal * 1.04
    */
   netPayableToVendor: number;
+  /**
+   * Hotel Service Charge (10% in hospitality MICE contracts)
+   */
+  hotelServiceChargePercent?: number;
+  hotelServiceChargeAmount?: number;
+  /**
+   * Service Fee Base = Subtotal + Service Charge (Pre-VAT Base for VAT and WHT)
+   */
+  serviceFeeBase: number;
   /** Platform commission take-rate percentage (default: 12%) */
   tripPickTakeRatePercent: number;
   /** Platform commission earned: Subtotal * (takeRate / 100) */
@@ -111,29 +120,39 @@ export function calculateRetreatPricing(
   headcount: number,
   nights: number,
   ratePerHeadPerNight: number,
-  takeRatePercent: number = 12
+  takeRatePercent: number = 12,
+  hotelServiceChargePercent: number = 0
 ): RetreatPricingModel {
   const safeHeadcount = Math.max(1, Math.round(headcount));
   const safeNights = Math.max(1, Math.round(nights));
   const safeRate = Math.max(0, ratePerHeadPerNight);
   const safeTakeRate = Math.max(0, Math.min(100, takeRatePercent));
+  const safeServiceChargePercent = Math.max(0, Math.min(100, hotelServiceChargePercent));
 
   // 1. Subtotal = Headcount * Nights * RatePerHead
   const subtotalBeforeVat = safeHeadcount * safeNights * safeRate;
 
-  // 2. VAT 7% = Subtotal * 0.07
-  const vat7Percent = Math.round(subtotalBeforeVat * 0.07);
+  // 2. Hotel Service Charge (10% standard in luxury MICE hotels)
+  const hotelServiceChargeAmount = safeServiceChargePercent > 0
+    ? Math.round(subtotalBeforeVat * (safeServiceChargePercent / 100))
+    : 0;
 
-  // 3. Gross Total = Subtotal + VAT 7%
-  const grossTotalWithVat = subtotalBeforeVat + vat7Percent;
+  // 3. Pre-VAT Service Fee Base = Subtotal + Service Charge
+  const serviceFeeBase = subtotalBeforeVat + hotelServiceChargeAmount;
 
-  // 4. WHT 3% = Subtotal * 0.03 (Statutory 3% service withholding tax on pre-VAT subtotal)
-  const wht3Percent = Math.round(subtotalBeforeVat * 0.03);
+  // 4. VAT 7% = Service Fee Base * 0.07
+  const vat7Percent = Math.round(serviceFeeBase * 0.07);
 
-  // 5. Net Payable to Vendor = Gross Total - WHT 3%
+  // 5. Gross Total = Service Fee Base + VAT 7%
+  const grossTotalWithVat = serviceFeeBase + vat7Percent;
+
+  // 6. WHT 3% = Service Fee Base * 0.03 (Statutory 3% service withholding tax on pre-VAT Service Fee Base)
+  const wht3Percent = Math.round(serviceFeeBase * 0.03);
+
+  // 7. Net Payable to Vendor = Gross Total - WHT 3%
   const netPayableToVendor = grossTotalWithVat - wht3Percent;
 
-  // 6. Platform Take-Rate Revenue (Gross Booking Value * Take-Rate %)
+  // 8. Platform Take-Rate Revenue (Gross Booking Value * Take-Rate %)
   const tripPickRevenue = Math.round(subtotalBeforeVat * (safeTakeRate / 100));
 
   return {
@@ -142,6 +161,9 @@ export function calculateRetreatPricing(
     ratePerHeadPerNight: safeRate,
     subtotalBeforeVat,
     grossBookingValue: subtotalBeforeVat,
+    hotelServiceChargePercent: safeServiceChargePercent,
+    hotelServiceChargeAmount,
+    serviceFeeBase,
     vat7Percent,
     grossTotalWithVat,
     wht3Percent,
