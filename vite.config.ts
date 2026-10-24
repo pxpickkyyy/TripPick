@@ -190,4 +190,8 @@ export default defineConfig({
     tailwindcss(),
     b2bDepositApiPlugin(),
   ],
+  define: {
+    'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL || 'https://nuipjeulbavcqjuutmqc.supabase.co'),
+    'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_UIe349GDMsv49mCKXkg-Dw_OKWig8OP'),
+  },
 });

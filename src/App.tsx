@@ -67,6 +67,9 @@ function App() {
     discoveryMode,
     isFetchingMore,
     discoveryStatus,
+    simulateTeammates,
+    removeSimulatedTeammates,
+    callEarlyConsensus,
   } = useTripPick();
 
   const [isConciergeOpen, setIsConciergeOpen] = useState(false);
@@ -162,6 +165,8 @@ function App() {
             onLeave={leaveRoom}
             loading={loading}
             error={error}
+            onSimulateTeammates={simulateTeammates}
+            onRemoveSimulatedTeammates={removeSimulatedTeammates}
           />
         );
       }
@@ -181,6 +186,7 @@ function App() {
             isHost={isHost}
             onRestartSession={resetRoomSession}
             onSelectDestination={selectDestination}
+            onCallEarlyConsensus={callEarlyConsensus}
             users={users}
             swipes={swipes}
             discoveryMode={discoveryMode}

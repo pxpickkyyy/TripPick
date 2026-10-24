@@ -23,6 +23,7 @@ interface SwiperViewProps {
   discoveryMode?: 'rapid' | 'infinite';
   isFetchingMore?: boolean;
   discoveryStatus?: string | null;
+  onCallEarlyConsensus?: () => void;
 }
 
 export function SwiperView({
@@ -36,6 +37,7 @@ export function SwiperView({
   isHost = false,
   onRestartSession,
   onSelectDestination,
+  onCallEarlyConsensus,
   users = [],
   swipes = [],
   peersStillSwiping = [],
@@ -128,6 +130,10 @@ export function SwiperView({
           </span>
           <span className="text-xs font-mono text-[#cdd6f4] font-medium px-2.5 py-0.5 rounded-full bg-[#181825] border border-[#313244] tabular-data">
             {Math.min(destinationsDeck.length, destinationsDeck.length - unswipedDestinations.length + (unswipedDestinations.length > 0 ? 1 : 0))} / {destinationsDeck.length}
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#181825] border border-[#a6e3a1]/35 text-[#a6e3a1] text-[10px] font-mono">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#a6e3a1] animate-pulse" />
+            <span>{users.length} {language === 'th' ? 'คน' : 'Pax'}</span>
           </span>
           {discoveryMode === 'infinite' ? (
             <span
@@ -247,14 +253,27 @@ export function SwiperView({
                   {t.waitingPeersDesc}
                 </p>
               )}
-              {isHost && onRestartSession && (
-                <button
-                  onClick={onRestartSession}
-                  data-testid="restart-session-btn"
-                  className="py-2.5 px-5 bg-[#181825] hover:bg-[#313244] border border-[#313244] text-[#cdd6f4] text-xs font-semibold rounded-full transition-colors cursor-pointer active:scale-95"
-                >
-                  {t.restartSessionBtn}
-                </button>
+              {isHost && (
+                <div className="flex flex-col sm:flex-row items-center gap-2 mt-2">
+                  {onCallEarlyConsensus && (
+                    <button
+                      onClick={onCallEarlyConsensus}
+                      data-testid="call-early-consensus-btn"
+                      className="py-2.5 px-5 bg-[#cba6f7] hover:bg-[#b4befe] text-[#11111b] text-xs font-bold rounded-full transition-all cursor-pointer active:scale-95 shadow-[0_0_20px_rgba(203,166,247,0.3)]"
+                    >
+                      {language === 'th' ? '⚡ สรุปผลฉันทามติเสียงส่วนใหญ่ทันที' : '⚡ Call Early Majority Consensus'}
+                    </button>
+                  )}
+                  {onRestartSession && (
+                    <button
+                      onClick={onRestartSession}
+                      data-testid="restart-session-btn"
+                      className="py-2.5 px-5 bg-[#181825] hover:bg-[#313244] border border-[#313244] text-[#cdd6f4] text-xs font-semibold rounded-full transition-colors cursor-pointer active:scale-95"
+                    >
+                      {t.restartSessionBtn}
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </div>

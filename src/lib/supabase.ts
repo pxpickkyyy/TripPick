@@ -1,29 +1,26 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-const getEnvVar = (key: string): string => {
-  try {
-    const meta = typeof import.meta !== 'undefined' ? (import.meta as unknown as { env?: Record<string, string> }) : null;
-    if (meta?.env && meta.env[key]) {
-      return meta.env[key];
-    }
-  } catch {
-    // Ignore in environments without import.meta
-  }
-  if (typeof process !== 'undefined' && process.env && process.env[key]) {
-    return process.env[key] || '';
-  }
-  return '';
-};
+const DEFAULT_SUPABASE_URL = 'https://nuipjeulbavcqjuutmqc.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_UIe349GDMsv49mCKXkg-Dw_OKWig8OP';
 
-const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
-const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
+const metaEnv = typeof import.meta !== 'undefined' ? (import.meta as any).env : null;
+
+const supabaseUrl =
+  metaEnv?.VITE_SUPABASE_URL ||
+  (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_URL) ||
+  DEFAULT_SUPABASE_URL;
+
+const supabaseAnonKey =
+  metaEnv?.VITE_SUPABASE_ANON_KEY ||
+  (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_ANON_KEY) ||
+  DEFAULT_SUPABASE_ANON_KEY;
 
 let supabaseInstance: SupabaseClient | null = null;
 
 const isValidUrl = (url: string) => {
   try {
-    new URL(url);
-    return url.startsWith('http://') || url.startsWith('https://');
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
   } catch {
     return false;
   }
@@ -35,7 +32,13 @@ export const isSupabaseConfigured = Boolean(
 
 if (isSupabaseConfigured) {
   try {
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      realtime: {
+        params: {
+          eventsPerSecond: 20,
+        },
+      },
+    });
   } catch (err) {
     console.warn('TripPick: Supabase initialization error, falling back to local mode:', err);
   }

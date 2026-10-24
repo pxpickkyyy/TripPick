@@ -39,7 +39,7 @@ export const RevenueMetricsHUD: React.FC<RevenueMetricsHUDProps> = ({
       ? userExpanded
       : (step === 'matched' && (typeof window !== 'undefined' ? window.innerWidth >= 640 : false));
 
-  const effectiveHeadcount = Math.max(4, usersCount || 12);
+  const effectiveHeadcount = usersCount > 0 ? usersCount : 12;
   const effectiveRate = matchedDestination?.price_per_person ?? 6000;
   const pricing = useMemo(() => {
     return calculateRetreatPricing(effectiveHeadcount, 3, effectiveRate, 12);

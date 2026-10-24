@@ -29,6 +29,7 @@ export interface RoomUser {
   joinedAt?: number;
   lastHeartbeat?: number;
   isHost?: boolean;
+  isSimulated?: boolean;
 }
 
 export interface Swipe {
@@ -74,6 +75,8 @@ export interface CachedSessionState {
   deckBatchVersion?: number;
 }
 
+export const MAX_ROOM_CAPACITY = 20;
+
 interface PresenceItem {
   user?: RoomUser;
 }
@@ -85,6 +88,7 @@ interface IncomingPayload {
   destination_id?: number;
   user_id?: string;
   userId?: string;
+  user?: RoomUser;
   newHostId?: string;
   is_like?: boolean;
   is_veto?: boolean;
@@ -362,11 +366,35 @@ export function useTripPick() {
 
     if (type === 'HEARTBEAT') {
       if (payload.userId) {
-        setUsers(prev => prev.map(u => u.id === payload.userId ? {
-          ...u,
-          lastHeartbeat: Number(payload.timestamp) || Date.now(),
-          isHost: typeof payload.isHost === 'boolean' ? payload.isHost : u.isHost
-        } : u));
+        const now = Date.now();
+        setUsers(prev => {
+          const exists = prev.some(u => u.id === payload.userId);
+          if (exists) {
+            return prev.map(u => u.id === payload.userId ? {
+              ...u,
+              lastHeartbeat: Number(payload.timestamp) || now,
+              isHost: typeof payload.isHost === 'boolean' ? payload.isHost : u.isHost,
+              user_name: payload.user?.user_name || u.user_name,
+              role: payload.user?.role || u.role,
+              preferred_amenities: payload.user?.preferred_amenities || u.preferred_amenities,
+            } : u);
+          } else if (payload.user && payload.user.id) {
+            // Proactive self-healing: Add peer discovered via heartbeat
+            const recovered: RoomUser = {
+              id: payload.user.id,
+              room_id: payload.user.room_id || roomId || '',
+              user_name: payload.user.user_name || 'Teammate',
+              role: payload.user.role || 'Team Member',
+              preferred_amenities: Array.isArray(payload.user.preferred_amenities) ? payload.user.preferred_amenities : [],
+              joinedAt: payload.user.joinedAt || now,
+              lastHeartbeat: Number(payload.timestamp) || now,
+              isHost: typeof payload.isHost === 'boolean' ? payload.isHost : Boolean(payload.user.isHost),
+              isSimulated: Boolean(payload.user.isSimulated),
+            };
+            return [...prev, recovered];
+          }
+          return prev;
+        });
       }
     } else if (type === 'LEADER_PROMOTED') {
       if (payload.newHostId) {
@@ -396,19 +424,28 @@ export function useTripPick() {
           joinedAt: typeof payload.joinedAt === 'number' ? payload.joinedAt : Date.now(),
           lastHeartbeat: Date.now(),
           isHost: Boolean(payload.isHost),
+          isSimulated: Boolean(payload.isSimulated),
         };
         setUsers(prev => {
-          if (prev.some(u => u.id === newUser.id)) return prev;
-          return [...prev, newUser];
+          const map = new Map<string, RoomUser>();
+          prev.forEach(u => map.set(u.id, u));
+          map.set(newUser.id, { ...map.get(newUser.id), ...newUser, lastHeartbeat: Date.now() });
+          return Array.from(map.values());
         });
 
-        // Host Authority: Send authoritative room snapshot to newcomer
+        // Host Authority: Send authoritative room snapshot with all known users to newcomer
         if (isHostRef.current && roomRef.current) {
+          const allKnownUsers = [
+            ...usersRef.current.filter(u => u.id !== newUser.id),
+            newUser,
+          ];
           broadcastEvent('SYNC_ROOM_STATE', {
             room: roomRef.current,
-            users: usersRef.current,
+            users: allKnownUsers,
             swipes: swipesRef.current,
             matchedDestination: matchedDestinationRef.current,
+            depositStatus: depositStatusRef.current,
+            depositReceipt: depositReceiptRef.current,
             isHostAuthority: true,
             timestamp: Date.now()
           });
@@ -609,8 +646,18 @@ export function useTripPick() {
         setUsers(prev => {
           const map = new Map<string, RoomUser>();
           prev.forEach(u => map.set(u.id, u));
+          if (currentUserRef.current) {
+            map.set(currentUserRef.current.id, currentUserRef.current);
+          }
           payload.users?.forEach((u: RoomUser) => {
-            if (u && u.id) map.set(u.id, u);
+            if (u && u.id) {
+              const existing = map.get(u.id);
+              map.set(u.id, {
+                ...existing,
+                ...u,
+                lastHeartbeat: Math.max(existing?.lastHeartbeat || 0, u.lastHeartbeat || Date.now())
+              });
+            }
           });
           return Array.from(map.values());
         });
@@ -700,14 +747,8 @@ export function useTripPick() {
             }
           }
         )
-        .on('presence', { event: 'leave' }, ({ leftPresences }: { leftPresences: PresenceItem[] }) => {
-          const leftIds = new Set<string>();
-          leftPresences.forEach(p => {
-            if (p.user?.id) leftIds.add(p.user.id);
-          });
-          if (leftIds.size > 0) {
-            setUsers(prev => prev.filter(u => !leftIds.has(u.id) || u.id === currentUserRef.current?.id));
-          }
+        .on('presence', { event: 'leave' }, () => {
+          // Do not aggressively prune on transient leave; let explicit USER_LEFT or 30s heartbeat timeout manage exits
         })
         .on('presence', { event: 'sync' }, () => {
           const state = activeChannel.presenceState();
@@ -722,13 +763,23 @@ export function useTripPick() {
             }
           });
           if (presenceUsers.length > 0) {
-            setUsers(() => {
+            setUsers(prev => {
               const map = new Map<string, RoomUser>();
+              // Preserve all already-known peers to prevent wipeouts during transient delays
+              prev.forEach(u => map.set(u.id, u));
               if (currentUserRef.current) {
                 map.set(currentUserRef.current.id, currentUserRef.current);
               }
-              // Only keep peers currently reported by presence
-              presenceUsers.forEach(u => map.set(u.id, u));
+              presenceUsers.forEach(u => {
+                if (u && u.id) {
+                  const existing = map.get(u.id);
+                  map.set(u.id, {
+                    ...existing,
+                    ...u,
+                    lastHeartbeat: Date.now()
+                  });
+                }
+              });
               return Array.from(map.values());
             });
           }
@@ -742,7 +793,10 @@ export function useTripPick() {
             setUsers(prev => {
               const map = new Map<string, RoomUser>();
               prev.forEach(u => map.set(u.id, u));
-              newUsers.forEach(u => map.set(u.id, u));
+              if (currentUserRef.current) {
+                map.set(currentUserRef.current.id, currentUserRef.current);
+              }
+              newUsers.forEach(u => map.set(u.id, { ...map.get(u.id), ...u, lastHeartbeat: Date.now() }));
               return Array.from(map.values());
             });
           }
@@ -781,6 +835,26 @@ export function useTripPick() {
     };
   }, [roomId, handleIncomingEvent, broadcastEvent]);
 
+  // Proactively track presence whenever currentUser or roomId is available
+  useEffect(() => {
+    if (!roomId || !currentUser) return;
+
+    // Broadcast join to peers
+    broadcastEvent('USER_JOINED', currentUser);
+
+    // Track in Supabase Realtime channel
+    if (supabaseChannelRef.current) {
+      try {
+        supabaseChannelRef.current.track({ user: currentUser });
+      } catch {
+        // Channel may still be connecting
+      }
+    }
+
+    // Request current room state
+    broadcastEvent('REQUEST_ROOM_STATE', { fromUserId: currentUser.id });
+  }, [roomId, currentUser, broadcastEvent]);
+
   // Dynamic Host Failover & Resilient Heartbeat Watchdog
   useEffect(() => {
     if (!roomId || step === 'landing' || !currentUser) return;
@@ -789,10 +863,11 @@ export function useTripPick() {
       const now = Date.now();
       const currentUsers = usersRef.current;
 
-      // Broadcast heartbeat to all peers
+      // Broadcast heartbeat to all peers including full user object for self-healing
       broadcastEvent('HEARTBEAT', {
         userId: currentUser.id,
         isHost: isHostRef.current,
+        user: currentUser,
         timestamp: now
       });
 
@@ -803,6 +878,14 @@ export function useTripPick() {
           p_user_id: currentUser.id,
         })).catch(() => {});
       }
+
+      // Periodically prune dead peers if inactive > 30s (except self and simulated)
+      setUsers(prev => prev.filter(u => {
+        if (u.id === currentUser.id) return true;
+        if (u.isSimulated) return true;
+        const lastSeen = u.lastHeartbeat || u.joinedAt || 0;
+        return (now - lastSeen) < 30000;
+      }));
 
       // Periodic state sync request if in lobby
       if (stepRef.current === 'lobby') {
@@ -879,13 +962,14 @@ export function useTripPick() {
 
       setCurrentTime(now);
 
-      // Automatically prune inactive peers (>15s silent) during active sessions
+      // Automatically prune inactive peers (>25s silent) during active sessions (except self and simulated)
       if (stepRef.current === 'swiping' || stepRef.current === 'matched') {
         setUsers(prev => {
           const alive = prev.filter(u => {
             if (u.id === currentUser.id) return true;
+            if (u.isSimulated) return true;
             const diff = now - (u.lastHeartbeat || u.joinedAt || now);
-            return diff < 15000;
+            return diff < 25000;
           });
           return alive.length !== prev.length ? alive : prev;
         });
@@ -895,24 +979,25 @@ export function useTripPick() {
     return () => clearInterval(watchdogInterval);
   }, [roomId, step, currentUser, broadcastEvent]);
 
-  // Consensus Calculation supporting 1 to 30+ team members with atomic lock
+  // Consensus Calculation supporting 1 to 20+ team members with atomic lock
   useEffect(() => {
     if (step !== 'swiping' || !room?.destinations_deck || matchedDestination) return;
 
     const deck = room.destinations_deck;
     const now = Date.now();
-    // Only count active teammates (received heartbeat within last 12s, or self)
+    // Count active teammates (received heartbeat within last 15s, self, or simulated)
     const activeTeammates = users.filter(u => {
       if (u.id === currentUser?.id) return true;
+      if (u.isSimulated) return true;
       const lastSeen = u.lastHeartbeat || u.joinedAt || 0;
-      return (now - lastSeen) < 12000;
+      return (now - lastSeen) < 15000;
     });
     const activeCount = Math.max(1, activeTeammates.length);
 
     // Consensus rule:
     // 1 person -> 1 like (solo demo)
-    // 2 people -> 2 likes (both must like)
-    // 3 to 10+ people -> at least 60% of active teammates must like it
+    // 2 people -> 2 likes (both must like - unanimous)
+    // 3 to 20+ people -> at least 60% of active teammates must like it
     const requiredLikes = activeCount <= 2
       ? Math.max(1, activeCount)
       : Math.max(2, Math.ceil(activeCount * 0.6));
@@ -942,13 +1027,17 @@ export function useTripPick() {
     }
 
     // Fallback Majority Consensus Check:
-    // If all active users have swiped all cards and no destination met the unanimous threshold:
-    const allFinished = activeTeammates.length > 0 && activeTeammates.every(u => {
+    // If all active users have swiped all cards, or if >= 80% have finished in a large group (>=4):
+    const finishedUsers = activeTeammates.filter(u => {
       const userSwipes = swipes.filter(s => s.user_id === u.id);
       return deck.every(dest => userSwipes.some(s => s.destination_id === dest.id));
     });
 
-    if (allFinished && !matchedDestinationRef.current) {
+    const isConsensusReady =
+      (activeTeammates.length > 0 && finishedUsers.length === activeTeammates.length) ||
+      (activeTeammates.length >= 4 && (finishedUsers.length / activeTeammates.length) >= 0.8);
+
+    if (isConsensusReady && !matchedDestinationRef.current) {
       const nonVetoed = deck.filter(dest => !swipes.some(s => s.destination_id === dest.id && s.is_veto));
       if (nonVetoed.length > 0) {
         const scored = nonVetoed.map(dest => ({
@@ -1367,6 +1456,34 @@ export function useTripPick() {
       // Broadcast session start to all connected teammates
       broadcastEvent('SESSION_STARTED', { room: updatedRoom });
 
+      // If simulated teammates exist in room, schedule realistic automated votes
+      const simUsers = usersRef.current.filter(u => u.isSimulated && u.id !== currentUserRef.current?.id);
+      if (simUsers.length > 0 && deck && deck.length > 0) {
+        simUsers.forEach((sim, userIdx) => {
+          deck.forEach((dest, destIdx) => {
+            const delayMs = 1200 + (userIdx * 350) + (destIdx * 700) + Math.floor(Math.random() * 500);
+            setTimeout(() => {
+              // High probability (80%) of liking to reach consensus smoothly
+              const isLike = Math.random() > 0.18;
+              const isVeto = !isLike && Math.random() < 0.08;
+              const swipePayload: Swipe = {
+                id: `swipe_${sim.id}_${dest.id}`,
+                room_id: roomId,
+                user_id: sim.id,
+                destination_id: dest.id,
+                is_like: isLike,
+                is_veto: isVeto,
+              };
+              setSwipes(prev => {
+                if (prev.some(s => s.id === swipePayload.id)) return prev;
+                return [...prev, swipePayload];
+              });
+              broadcastEvent('SWIPE_SUBMITTED', swipePayload);
+            }, delayMs);
+          });
+        });
+      }
+
       return true;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'ไม่สามารถสร้างชุดสถานที่จัดทริปได้';
@@ -1541,6 +1658,93 @@ export function useTripPick() {
     }, 5000);
   }, [roomId, broadcastEvent]);
 
+  // Host Instant Consensus Trigger (for large rooms up to 20 pax)
+  const callEarlyConsensus = useCallback(() => {
+    if (!roomRef.current?.destinations_deck || matchedDestinationRef.current) return;
+    const deck = roomRef.current.destinations_deck;
+    const nonVetoed = deck.filter(dest => !swipesRef.current.some(s => s.destination_id === dest.id && s.is_veto));
+    if (nonVetoed.length === 0) return;
+
+    const scored = nonVetoed.map(dest => ({
+      dest,
+      likes: swipesRef.current.filter(s => s.destination_id === dest.id && s.is_like).length
+    }));
+    scored.sort((a, b) => b.likes - a.likes);
+    const winner = scored[0].dest;
+
+    setMatchedDestination(winner);
+    setStep('matched');
+    broadcastEvent('MATCH_FOUND', {
+      destination: winner,
+      hostId: currentUserRef.current?.id,
+      timestamp: Date.now()
+    });
+  }, [broadcastEvent]);
+
+  // Add realistic corporate teammates up to 20 pax for demos and stress-testing
+  const simulateTeammates = useCallback((targetCount: number = 20) => {
+    if (!roomId) return;
+    const currentList = usersRef.current;
+    const currentCount = currentList.length;
+    if (currentCount >= targetCount) return;
+
+    const mockCorporateRoster = [
+      { name: 'Sarah Chen', role: 'Head of People & Culture' },
+      { name: 'Alex Thompson', role: 'VP Engineering' },
+      { name: 'Pitchakorn P.', role: 'Chief Product Officer' },
+      { name: 'David Reynolds', role: 'Director of Finance' },
+      { name: 'Nattaya Siri', role: 'Lead DevOps & Cloud' },
+      { name: 'Somchai T.', role: 'Senior UX Architect' },
+      { name: 'Elena Rostova', role: 'Head of Growth' },
+      { name: 'Marcus Vance', role: 'Security & Compliance Lead' },
+      { name: 'Ploy Pailin', role: 'Executive Assistant to CEO' },
+      { name: 'Kenji Sato', role: 'Head of Mobile' },
+      { name: 'Apinya Wong', role: 'Principal AI Researcher' },
+      { name: 'Lucas Meyer', role: 'Strategic Partnerships Director' },
+      { name: 'Kornkanok M.', role: 'Creative Director' },
+      { name: 'Anan Prasert', role: 'Procurement Specialist' },
+      { name: 'Liam O’Connor', role: 'Enterprise Account Executive' },
+      { name: 'Siriporn K.', role: 'Operations & Logistics Manager' },
+      { name: 'Thanakorn B.', role: 'Staff Infrastructure Engineer' },
+      { name: 'Chloe Dubois', role: 'Design Systems Lead' },
+      { name: 'Worawan S.', role: 'General Counsel & Legal' },
+      { name: 'Phurinat C.', role: 'Data Analytics Lead' },
+    ];
+
+    const needed = targetCount - currentCount;
+    const existingNames = new Set(currentList.map(u => u.user_name));
+    const available = mockCorporateRoster.filter(m => !existingNames.has(m.name));
+
+    const newSimUsers: RoomUser[] = [];
+    for (let i = 0; i < needed && i < available.length; i++) {
+      const preset = available[i];
+      const simUser: RoomUser = {
+        id: `sim_${Date.now()}_${i}`,
+        room_id: roomId,
+        user_name: preset.name,
+        role: preset.role,
+        preferred_amenities: ['wifi', 'boardroom'],
+        joinedAt: Date.now() + i * 10,
+        lastHeartbeat: Date.now(),
+        isHost: false,
+        isSimulated: true,
+      };
+      newSimUsers.push(simUser);
+    }
+
+    if (newSimUsers.length > 0) {
+      setUsers(prev => [...prev, ...newSimUsers]);
+      newSimUsers.forEach(u => {
+        broadcastEvent('USER_JOINED', u);
+      });
+    }
+  }, [roomId, broadcastEvent]);
+
+  // Remove simulated demo teammates
+  const removeSimulatedTeammates = useCallback(() => {
+    setUsers(prev => prev.filter(u => !u.isSimulated || u.id === currentUserRef.current?.id));
+  }, []);
+
   return {
     roomId,
     step,
@@ -1583,5 +1787,8 @@ export function useTripPick() {
     isFetchingMore,
     discoveryStatus,
     fetchNextBatch,
+    simulateTeammates,
+    removeSimulatedTeammates,
+    callEarlyConsensus,
   };
 }

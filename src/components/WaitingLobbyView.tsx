@@ -18,6 +18,8 @@ interface WaitingLobbyViewProps {
   onLeave: () => void;
   loading: boolean;
   error: string | null;
+  onSimulateTeammates?: (target?: number) => void;
+  onRemoveSimulatedTeammates?: () => void;
 }
 
 export function WaitingLobbyView({
@@ -29,6 +31,8 @@ export function WaitingLobbyView({
   onLeave,
   loading,
   error,
+  onSimulateTeammates,
+  onRemoveSimulatedTeammates,
 }: WaitingLobbyViewProps) {
   const { language, t } = useLanguage();
   const vibesList = language === 'en' ? RETREAT_VIBES_EN : RETREAT_VIBES_TH;
@@ -136,8 +140,9 @@ export function WaitingLobbyView({
                   <span className="w-1.5 h-1.5 rounded-full bg-[#a6e3a1] animate-pulse" />
                   <span>{t.zeroLatencyBadge}</span>
                 </div>
-                <span className="text-xs text-[#cdd6f4] font-semibold px-2.5 py-0.5 rounded-full bg-[#181825] border border-[#313244] font-mono tabular-data">
-                  {users.length} ONLINE
+                <span className="text-xs text-[#cdd6f4] font-semibold px-2.5 py-0.5 rounded-full bg-[#181825] border border-[#313244] font-mono tabular-data flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#a6e3a1] animate-pulse" />
+                  <span>{users.length} / 20 ONLINE</span>
                 </span>
                 <button
                   onClick={onLeave}
@@ -156,47 +161,101 @@ export function WaitingLobbyView({
 
             {/* Team Members Roster */}
             <div className="relative z-10 py-4 border-b border-[#313244] text-left">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-[10px] font-semibold text-[#a6adc8] font-mono uppercase tracking-[0.16em]">
-                  {t.membersTitle} ({users.length})
-                </h3>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-[10px] font-semibold text-[#a6adc8] font-mono uppercase tracking-[0.16em]">
+                    {t.membersTitle} ({users.length} / 20)
+                  </h3>
+                  <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-[#cba6f7]/15 border border-[#cba6f7]/30 text-[#cba6f7]">
+                    {language === 'th' ? 'รองรับ 20 คน' : 'Up to 20 Pax'}
+                  </span>
+                </div>
                 <span className="text-[10px] text-[#cba6f7] font-mono tracking-wider">{t.b2bConsensus}</span>
               </div>
-              <div className="flex flex-wrap gap-2 max-h-52 overflow-y-auto pr-1">
+
+              {/* Visual Capacity Meter */}
+              <div className="w-full h-1.5 rounded-full bg-[#181825] border border-[#313244]/80 overflow-hidden mb-3.5">
+                <div
+                  className="h-full bg-gradient-to-r from-[#cba6f7] via-[#b4befe] to-[#a6e3a1] transition-all duration-500 rounded-full"
+                  style={{ width: `${Math.min(100, Math.max(5, (users.length / 20) * 100))}%` }}
+                />
+              </div>
+
+              {/* Responsive Team Grid Supporting Up to 20 Members */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-64 overflow-y-auto pr-1">
                 {users.map((u) => {
                   const isCurrent = u.id === currentUser?.id;
                   return (
                     <div
                       key={u.id}
-                      className={`flex items-center gap-2.5 px-3.5 py-2 rounded-2xl border transition-all ${
+                      className={`flex items-center gap-2.5 px-3 py-2 rounded-2xl border transition-all ${
                         isCurrent
                           ? 'bg-[#cba6f7]/15 border-[#cba6f7]/60 text-[#cdd6f4]'
                           : 'bg-[#181825] border-[#313244] text-[#cdd6f4]'
                       }`}
                     >
-                      <div className="w-6 h-6 rounded-lg bg-[#1e1e2e] border border-[#313244] flex items-center justify-center font-mono font-bold text-[11px] text-[#cba6f7] shrink-0">
+                      <div className="relative w-7 h-7 rounded-lg bg-[#1e1e2e] border border-[#313244] flex items-center justify-center font-mono font-bold text-xs text-[#cba6f7] shrink-0">
                         {u.user_name.charAt(0).toUpperCase()}
+                        <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#a6e3a1] ring-1 ring-[#181825]" />
                       </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-xs text-[#cdd6f4]">{u.user_name}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span className="font-semibold text-xs text-[#cdd6f4] truncate">{u.user_name}</span>
                           {isCurrent && (
-                            <span className="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded-full bg-[#cba6f7]/25 border border-[#cba6f7]/50 text-[#cdd6f4] font-semibold">
+                            <span className="text-[8px] uppercase font-mono px-1.5 py-0.2 rounded-full bg-[#cba6f7]/25 border border-[#cba6f7]/50 text-[#cdd6f4] font-semibold shrink-0">
                               YOU
                             </span>
                           )}
                           {u.isHost && (
-                            <span className="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded-full bg-[#fab387]/20 border border-[#fab387]/40 text-[#fab387] font-semibold">
+                            <span className="text-[8px] uppercase font-mono px-1.5 py-0.2 rounded-full bg-[#fab387]/20 border border-[#fab387]/40 text-[#fab387] font-semibold shrink-0">
                               HOST
                             </span>
                           )}
                         </div>
-                        <span className="text-[#a6adc8] text-[10px] block">{u.role}</span>
+                        <span className="text-[#a6adc8] text-[10px] block truncate">{u.role}</span>
                       </div>
                     </div>
                   );
                 })}
               </div>
+
+              {/* Host Demo Tool: Add / Simulate Teammates to test 20 pax */}
+              {isHost && onSimulateTeammates && (
+                <div className="mt-3 pt-3 border-t border-[#313244]/60 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[10px] font-mono text-[#a6adc8]">
+                    {language === 'th' ? '⚡ ทดสอบระบบทีมขนาดใหญ่:' : '⚡ Test Large Team Radar:'}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {users.length < 20 && (
+                      <button
+                        type="button"
+                        onClick={() => onSimulateTeammates(Math.min(20, users.length + 5))}
+                        className="py-1 px-3 bg-[#181825] hover:bg-[#313244] border border-[#313244] hover:border-[#cba6f7]/50 text-[#cdd6f4] rounded-full text-[10px] font-mono transition-all cursor-pointer"
+                      >
+                        +5 {language === 'th' ? 'คน' : 'Pax'}
+                      </button>
+                    )}
+                    {users.length < 20 && (
+                      <button
+                        type="button"
+                        onClick={() => onSimulateTeammates(20)}
+                        className="py-1 px-3 bg-[#cba6f7]/15 hover:bg-[#cba6f7]/25 border border-[#cba6f7]/40 text-[#cba6f7] rounded-full text-[10px] font-mono font-semibold transition-all cursor-pointer"
+                      >
+                        {language === 'th' ? 'เติมให้ครบ 20 คน (Fill 20)' : 'Fill to 20 Pax'}
+                      </button>
+                    )}
+                    {users.some(u => u.isSimulated) && onRemoveSimulatedTeammates && (
+                      <button
+                        type="button"
+                        onClick={onRemoveSimulatedTeammates}
+                        className="py-1 px-3 bg-[#181825] hover:bg-[#f38ba8]/20 border border-[#313244] hover:border-[#f38ba8]/50 text-[#f38ba8] rounded-full text-[10px] font-mono transition-all cursor-pointer"
+                      >
+                        {language === 'th' ? 'ล้างทีมจำลอง' : 'Clear Demo'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Host Controls */}
@@ -346,7 +405,7 @@ export function WaitingLobbyView({
                     {loading ? (
                       t.startingSessionBtn
                     ) : (
-                      `${t.startSessionBtn} (${users.length} ${language === 'th' ? 'คน' : 'pax'})`
+                      `${t.startSessionBtn} (${users.length} / 20 ${language === 'th' ? 'คน' : 'pax'})`
                     )}
                   </span>
                   <div className="w-8 h-8 rounded-full bg-[#11111b] text-[#cba6f7] flex items-center justify-center shrink-0 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
