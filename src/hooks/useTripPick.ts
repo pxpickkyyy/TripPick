@@ -1187,7 +1187,11 @@ export function useTripPick() {
           if (!prev) return prev;
           const currentDeck = prev.destinations_deck || [];
           const filtered = newCards.filter(nd =>
-            !currentDeck.some(ed => ed.id === nd.id || (nd.google_place_id && ed.google_place_id === nd.google_place_id))
+            !currentDeck.some(ed =>
+              ed.id === nd.id ||
+              ed.title.toLowerCase() === nd.title.toLowerCase() ||
+              (nd.google_place_id && ed.google_place_id === nd.google_place_id)
+            )
           );
           if (filtered.length === 0) return prev;
           return {
@@ -1199,6 +1203,10 @@ export function useTripPick() {
 
         setDeckBatchVersion(nextVersion);
         deckBatchVersionRef.current = nextVersion;
+
+        newCards.forEach(d => {
+          if (d.google_place_id) seenPlaceIdsRef.current.add(d.google_place_id);
+        });
 
         setSeenPlaceIds(prev => {
           const next = new Set(prev);

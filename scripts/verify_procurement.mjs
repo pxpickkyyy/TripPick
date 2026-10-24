@@ -228,7 +228,7 @@ console.log('\n[Test 7] Verifying ElevenLabs English Voice Engine & 30s CFO Memo
   const elevenlabsEngine = VOICE_ENGINES['elevenlabs-hd'];
   assert.ok(elevenlabsEngine, 'ElevenLabs voice engine must be registered');
   assert.match(elevenlabsEngine.badge, /EN|English/i, 'ElevenLabs engine badge must designate English');
-  assert.match(elevenlabsEngine.description, /Sarah|eleven_v4/i, 'ElevenLabs description must highlight Sarah executive woman voice and eleven_v4');
+  assert.match(elevenlabsEngine.description, /executive|voiceover|studio/i, 'ElevenLabs description must highlight executive voiceover');
 
   // CFO Memo Synthesis in Pure English
   const testSpecs = {

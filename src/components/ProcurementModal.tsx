@@ -6,6 +6,7 @@ import { useProcurement } from '../hooks/useProcurement';
 import { generatePromptPayPayload, generateQrSvgPath } from '../lib/promptpay';
 import type { DepositReceipt } from '../hooks/useTripPick';
 import { useLanguage } from '../lib/i18n';
+import { SubscriptionLockModal } from './SubscriptionLockModal';
 
 export interface ProcurementModalProps {
   isOpen: boolean;
@@ -51,8 +52,6 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
     applyDemoPreset,
     confirmEscrow,
     exportToCsv,
-    exportToGoogleSheetsTsv,
-    generateGoogleDocsMarkdown,
     printQuotation,
     toastMessage,
   } = useProcurement({
@@ -66,6 +65,9 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
     language,
     onConfirmDeposit,
   });
+
+  const [showSubModal, setShowSubModal] = useState(false);
+  const [lockedFeatureName, setLockedFeatureName] = useState('');
 
   const [activeTab, setActiveTab] = useState<'invoice' | 'escrow'>('invoice');
 
@@ -687,19 +689,25 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
               </button>
 
               <button
-                onClick={exportToGoogleSheetsTsv}
-                className="py-1.5 px-3 bg-[#1e3a2f] hover:bg-[#254b3c] border border-[#a6e3a1]/40 text-[#a6e3a1] rounded-lg text-xs font-medium cursor-pointer transition-colors flex items-center gap-1.5"
-                title="Google Sheets"
+                onClick={() => {
+                  setLockedFeatureName(language === 'th' ? 'ระบบส่งออก Google Sheets อัตโนมัติ' : 'Automated Google Sheets RFP Export');
+                  setShowSubModal(true);
+                }}
+                className="py-1.5 px-3 bg-[#1e3a2f]/70 hover:bg-[#1e3a2f] border border-[#a6e3a1]/30 text-[#a6e3a1] rounded-lg text-xs font-medium cursor-pointer transition-colors flex items-center gap-1.5"
+                title={language === 'th' ? 'เฉพาะสมาชิก Pro / Enterprise' : 'Pro / Enterprise Members Only'}
               >
-                <span>{t.exportSheetsBtn} ↗</span>
+                <span>🔒 {t.exportSheetsBtn} (PRO)</span>
               </button>
 
               <button
-                onClick={generateGoogleDocsMarkdown}
-                className="py-1.5 px-3 bg-[#1e2a3a] hover:bg-[#25354b] border border-[#89b4fa]/40 text-[#89b4fa] rounded-lg text-xs font-medium cursor-pointer transition-colors flex items-center gap-1.5"
-                title="Google Docs"
+                onClick={() => {
+                  setLockedFeatureName(language === 'th' ? 'ระบบส่งออก Google Docs อัตโนมัติ' : 'Automated Google Docs RFP Export');
+                  setShowSubModal(true);
+                }}
+                className="py-1.5 px-3 bg-[#1e2a3a]/70 hover:bg-[#1e2a3a] border border-[#89b4fa]/30 text-[#89b4fa] rounded-lg text-xs font-medium cursor-pointer transition-colors flex items-center gap-1.5"
+                title={language === 'th' ? 'เฉพาะสมาชิก Pro / Enterprise' : 'Pro / Enterprise Members Only'}
               >
-                <span>{t.exportDocsBtn} ↗</span>
+                <span>🔒 {t.exportDocsBtn} (PRO)</span>
               </button>
 
               <button
@@ -715,6 +723,13 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
           </div>
         </motion.div>
       </div>
+
+      {/* Subscription Lock Modal */}
+      <SubscriptionLockModal
+        isOpen={showSubModal}
+        onClose={() => setShowSubModal(false)}
+        featureName={lockedFeatureName}
+      />
     </AnimatePresence>
   );
 };

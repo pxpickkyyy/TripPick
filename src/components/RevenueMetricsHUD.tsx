@@ -122,16 +122,16 @@ export const RevenueMetricsHUD: React.FC<RevenueMetricsHUDProps> = ({
             ) : (
               <div className="flex items-center gap-1.5 font-mono text-xs">
                 <span className="text-[10px] text-[#a6adc8] uppercase font-bold tracking-wider hidden sm:inline">
-                  {t.hudYieldLabel}
+                  {t.netPayableLabel || 'Net Budget'}
                 </span>
                 <span className="font-extrabold text-[#a6e3a1]">
-                  {formatShortCurrency(pricing.tripPickRevenue)}
+                  {formatShortCurrency(pricing.netPayableToVendor)}
                 </span>
                 <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#a6e3a1]/20 text-[#a6e3a1] font-bold">
-                  12%
+                  WHT 3%
                 </span>
                 <span className="text-[10px] text-[#89dceb] font-mono ml-0.5">
-                  • HUD
+                  • RFP
                 </span>
               </div>
             )}
@@ -180,16 +180,18 @@ export const RevenueMetricsHUD: React.FC<RevenueMetricsHUDProps> = ({
                 </span>
               </div>
 
-              {/* TripPick Take-Rate Commission */}
+              {/* Net Payable to Vendor (incl. 7% VAT & 3% WHT) */}
               <div className="flex items-center justify-between text-xs bg-[#11111b] p-2 rounded-lg border border-[#313244]">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[#a6e3a1] font-bold font-sans text-[11px]">{t.hudTakeRateLabel}</span>
+                  <span className="text-[#a6e3a1] font-bold font-sans text-[11px]">
+                    {t.netPayableLabel || 'Net Payable to Vendor'}
+                  </span>
                   <span className="text-[10px] px-1 py-0.2 rounded bg-[#a6e3a1]/20 text-[#a6e3a1] font-bold">
-                    12%
+                    VAT 7% - 3%
                   </span>
                 </div>
                 <span className="font-extrabold text-[#a6e3a1] text-sm">
-                  ฿{pricing.tripPickRevenue.toLocaleString()}
+                  ฿{pricing.netPayableToVendor.toLocaleString()}
                 </span>
               </div>
 

@@ -422,7 +422,7 @@ export function SwiperView({
                         </span>
                         <span className="text-[10px] text-[#a6adc8]"> {language === 'th' ? '/คน/คืน' : '/person/night'}</span>
                         <span className="block text-[10px] text-[#a6e3a1] font-mono tabular-data font-medium">
-                          B2B Rev: ~฿{Math.round(topCard.price_per_night * (topCard.commission_percentage / 100)).toLocaleString()}
+                          {language === 'th' ? '✓ รวม VAT 7% & หัก ณ ที่จ่าย 3%' : '✓ VAT 7% & WHT 3% Compliant'}
                         </span>
                       </div>
 

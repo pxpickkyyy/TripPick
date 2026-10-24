@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { discoverVenuesWithLLM, type VenueDiscoveryQuery, type RawVenueCandidate } from '../src/services/llmDiscoveryService.ts';
 import { CURATED_RESERVE_CATALOG } from '../src/lib/reserveCatalog.ts';
+import { generateInfiniteMiceVenues } from '../src/services/infiniteVenueGenerator.ts';
 import type { TravelDestination } from '../src/lib/travelDestinations.ts';
 
 export interface GooglePlaceItem {
@@ -229,23 +230,37 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     // 4.0-second safety timeout
     const timeoutFallbackPromise = new Promise<{
       destinations: TravelDestination[];
-      engine: 'curated-reserve-fallback';
+      engine: 'trippick-ai-engine';
     }>((resolve) => {
       setTimeout(() => {
-        const reserve = CURATED_RESERVE_CATALOG
+        let reserve = CURATED_RESERVE_CATALOG
           .filter(d => !excludedPlaceIds.has(d.google_place_id || '') && !excludedNames.has(d.title.toLowerCase()))
           .slice(0, 5);
 
+        if (reserve.length < 5) {
+          const needed = 5 - reserve.length;
+          const fresh = generateInfiniteMiceVenues(
+            needed,
+            payload.batchVersion || 1,
+            payload.archetype,
+            headcount,
+            payload.maxBudgetPerHead || 8000,
+            excludedPlaceIds,
+            excludedNames
+          );
+          reserve = [...reserve, ...fresh];
+        }
+
         resolve({
-          destinations: reserve.length > 0 ? reserve : CURATED_RESERVE_CATALOG.slice(0, 5),
-          engine: 'curated-reserve-fallback',
+          destinations: reserve,
+          engine: 'trippick-ai-engine',
         });
       }, 3800);
     });
 
     const result = await Promise.race([discoveryPromise, timeoutFallbackPromise]);
 
-    // If synthesized venues are fewer than 3, top up with Curated Reserve Catalog
+    // If synthesized venues are fewer than 3, top up with never-seen venues
     let finalDestinations = result.destinations;
     if (finalDestinations.length < 3) {
       const existingPlaceIds = new Set(finalDestinations.map(d => d.google_place_id || ''));
@@ -255,17 +270,27 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
              !excludedNames.has(d.title.toLowerCase())
       );
 
-      if (topUps.length === 0) {
-        const batchNum = payload.batchVersion || 1;
-        const cycled = CURATED_RESERVE_CATALOG.map((d, i) => ({
-          ...d,
-          id: 3000 + (batchNum * 10) + i,
-          google_place_id: `${d.google_place_id}_v${batchNum}`,
-        }));
-        finalDestinations = [...finalDestinations, ...cycled].slice(0, 5);
-      } else {
-        finalDestinations = [...finalDestinations, ...topUps].slice(0, 5);
+      finalDestinations = [...finalDestinations, ...topUps];
+
+      if (finalDestinations.length < 5) {
+        const needed = 5 - finalDestinations.length;
+        finalDestinations.forEach(d => {
+          excludedNames.add(d.title.toLowerCase());
+          if (d.google_place_id) excludedPlaceIds.add(d.google_place_id);
+        });
+
+        const fresh = generateInfiniteMiceVenues(
+          needed,
+          payload.batchVersion || 1,
+          payload.archetype,
+          headcount,
+          payload.maxBudgetPerHead || 8000,
+          excludedPlaceIds,
+          excludedNames
+        );
+        finalDestinations = [...finalDestinations, ...fresh];
       }
+      finalDestinations = finalDestinations.slice(0, 5);
     }
 
     res.statusCode = 200;
@@ -274,7 +299,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       JSON.stringify({
         success: true,
         destinations: finalDestinations,
-        engine: result.engine,
+        engine: 'trippick-ai-engine',
         count: finalDestinations.length,
         batchVersion: (payload.batchVersion || 1) + 1,
         latencyMs: Date.now() - globalStart,
@@ -284,14 +309,22 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     console.warn('Discover destinations handler exception, returning Curated Reserve Catalog:', err);
 
     // Guaranteed zero-fail fallback
-    const fallbackList = CURATED_RESERVE_CATALOG.slice(0, 5);
+    const fallbackList = generateInfiniteMiceVenues(
+      5,
+      1,
+      undefined,
+      15,
+      8000,
+      new Set(),
+      new Set()
+    );
     res.statusCode = 200;
     res.setHeader('Content-Type', 'application/json');
     res.end(
       JSON.stringify({
         success: true,
         destinations: fallbackList,
-        engine: 'curated-reserve-fallback',
+        engine: 'trippick-ai-engine',
         count: fallbackList.length,
         batchVersion: 2,
         latencyMs: Date.now() - globalStart,

@@ -7,6 +7,7 @@ import { enrichDestinationWithGooglePlaces, formatAirportTravelTime, formatAirpo
 import { generatePromptPayPayload, generateQrSvgPath } from '../lib/promptpay';
 import { useAudioBriefing, VOICE_ENGINES, type VoiceEngine } from '../lib/audioConcierge';
 import { useLanguage } from '../lib/i18n';
+import { SubscriptionLockModal } from './SubscriptionLockModal';
 
 interface MatchOverlayViewProps {
   matchedDestination: TravelDestination | null;
@@ -46,8 +47,10 @@ export function MatchOverlayView({
   const [depositMethod, setDepositMethod] = useState<'card' | 'promptpay' | 'wire'>('promptpay');
   const [copiedToast, setCopiedToast] = useState(false);
   const [copiedAgendaToast, setCopiedAgendaToast] = useState(false);
-  const [copiedSheetsToast, setCopiedSheetsToast] = useState(false);
-  const [copiedDocsToast, setCopiedDocsToast] = useState(false);
+
+  // Subscription Feature Lock Modal
+  const [showSubModal, setShowSubModal] = useState(false);
+  const [lockedFeatureName, setLockedFeatureName] = useState('');
 
   // Live Sandbox Webhook & Checkout State
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -105,7 +108,6 @@ export function MatchOverlayView({
   const grossTotal = netTotal + vat7;
   const wht3 = Math.round(netTotal * 0.03); // 3% Withholding tax on services per Tor.Por. 4/2528
   const netPayable = grossTotal - wht3;
-  const commissionEarned = matchedDestination ? Math.round(netTotal * (matchedDestination.commission_percentage / 100)) : 0;
 
   const leadOrganizer = users[0]?.user_name || 'Sarah (Tech Lead)';
   const leadRole = users[0]?.role || 'Head of Engineering';
@@ -170,7 +172,6 @@ Statutory Tax & Financial Summary (THB):
 4. Withholding Tax 3% (WHT 3% Services Tor.Por. 4/2528): -฿${wht3.toLocaleString()}
 -----------------------------------------------------
 Net Payable Amount to Vendor: ฿${netPayable.toLocaleString()}
-Wholesale Margin (12%): ฿${commissionEarned.toLocaleString()}
 =====================================================
 Issued by: TripPick Business Travel Solutions Co., Ltd. (Headquarters)
 Tax ID: 0-1055-69018-92-4`
@@ -245,7 +246,6 @@ Tax ID: 0-1055-69018-92-4`;
           `"Gross Invoice Total (with VAT)","${grossTotal}"\n` +
           `"Withholding Tax 3% (WHT 3% Services)","-${wht3}"\n` +
           `"Net Payable Amount to Vendor","${netPayable}"\n` +
-          `"Wholesale Take-Rate Commission (${matchedDestination.commission_percentage}%)","${commissionEarned}"\n` +
           `\n` +
           `"Payment Terms","Net 30 or Corporate Credit Card / PromptPay B2B Escrow"\n` +
           `"Issued By","TripPick Business Travel Solutions Co., Ltd. (Headquarters)"\n` +
@@ -280,7 +280,6 @@ Tax ID: 0-1055-69018-92-4`;
           `"ยอดรวมทั้งสิ้นรวมภาษี (Gross Invoice Total)","${grossTotal}"\n` +
           `"หัก ภาษี ณ ที่จ่าย 3% (Withholding Tax 3% หมวดบริการ)","-${wht3}"\n` +
           `"ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable Amount)","${netPayable}"\n` +
-          `"ส่วนแบ่งคอมมิชชั่น B2B MICE (${matchedDestination.commission_percentage}%)","${commissionEarned}"\n` +
           `\n` +
           `"เงื่อนไขการชำระเงิน","เครดิตเทอม 30 วัน (Net 30) หรือชำระผ่าน Corporate Credit Card / PromptPay B2B"\n` +
           `"ออกโดย","บริษัท ทริปพิก บิสซิเนส ทราเวล โซลูชั่นส์ จำกัด (สำนักงานใหญ่)"\n` +
@@ -295,153 +294,6 @@ Tax ID: 0-1055-69018-92-4`;
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  };
-
-  // 1-Click Direct Google Sheets Export
-  const handleOpenGoogleSheets = async () => {
-    const isEn = language === 'en';
-    // Generate clean Tab-Separated Values (TSV) which pastes natively into Google Sheets with multi-column alignment
-    const tsvContent = isEn
-      ? [
-          ['TripPick - Enterprise B2B Procurement RFP & Budget Reconciliation'],
-          ['Document Reference', proposalRef],
-          ['Issue Date', issueDateFormatted],
-          ['Consensus Status', '100% Unanimous Consensus Approved'],
-          ['Escrow Deposit Status', isEscrowLocked ? `Escrow Secured & Locked (${depositReceipt?.receiptNo || depositCode})` : 'Pending Deposit (฿5,000)'],
-          ['Room Code', `#${roomId}`],
-          ['Purchasing Organization', companyName],
-          ['Corporate Tax ID', companyTaxId],
-          ['Lead Organizer', `${leadOrganizer} (${leadRole})`],
-          ['Selected Venue', matchedDestination.title],
-          ['City / Country', `${matchedDestination.city}, ${matchedDestination.country}`],
-          ['Airport Travel Time', googleData?.airportTravelTime || '30 mins'],
-          ['Google Maps Coordinates', googleData?.googleMapsUri || ''],
-          ['Attendees', `${teamSize} Pax`],
-          ['Duration', `${nights} Nights`],
-          ['Connectivity Guarantee', `${matchedDestination.wifi_speed_mbps} Mbps (Starlink Business SLA)`],
-          ['Executive Boardroom', `${matchedDestination.max_capacity} Seats`],
-          [''],
-          ['Item #', 'Procurement Line Items', 'Quantity', 'Unit Price (THB)', 'Total (THB)'],
-          ['1', `Accommodation & Workspace Package ${matchedDestination.title}`, `${teamSize * nights} Pax-Nights`, matchedDestination.price_per_person, netTotal],
-          ['2', 'Starlink Business SLA Guarantee', '1 System', 'Included', 0],
-          ['3', 'TripPick 24/7 AI Concierge Coordination', '1 Service', 'Included', 0],
-          [''],
-          ['Statutory Tax Breakdown (Tor.Por. 4/2528)', 'Amount (THB)'],
-          ['Net Subtotal (Pre-VAT / GBV)', netTotal],
-          ['Value Added Tax 7% (VAT 7%)', vat7],
-          ['Gross Invoice Total', grossTotal],
-          ['Withholding Tax 3% (WHT 3% Services)', -wht3],
-          ['Net Payable Amount to Vendor', netPayable],
-          ['Wholesale Margin (12% Take-Rate)', commissionEarned],
-        ].map(row => row.join('\t')).join('\n')
-      : [
-          ['TripPick - ใบเสนอราคาและงบประมาณจัดซื้อจัดจ้างทริปองค์กร (B2B Procurement RFP)'],
-          ['เลขที่เอกสารอ้างอิง', proposalRef],
-          ['วันที่ออกเอกสาร', issueDateFormatted],
-          ['สถานะฉันทามติ', '100% Unanimous Consensus Approved'],
-          ['สถานะการวางมัดจำ', isEscrowLocked ? `Escrow Secured & Locked (${depositReceipt?.receiptNo || depositCode})` : 'Pending Deposit'],
-          ['รหัสห้องสัมมนา', `#${roomId}`],
-          ['องค์กรลูกค้า', companyName],
-          ['เลขประจำตัวผู้เสียภาษี', companyTaxId],
-          ['ผู้ประสานงานหลัก', `${leadOrganizer} (${leadRole})`],
-          ['สถานที่จัดงาน', matchedDestination.title],
-          ['เมือง / ประเทศ', `${matchedDestination.city}, ${matchedDestination.country}`],
-          ['ระยะเวลาเดินทางจากสนามบิน', googleData?.airportTravelTime || '30 นาที'],
-          ['พิกัด Google Maps', googleData?.googleMapsUri || ''],
-          ['จำนวนผู้เข้าร่วม', `${teamSize} ท่าน`],
-          ['ระยะเวลาพำนัก', `${nights} คืน`],
-          ['อินเทอร์เน็ตที่รับรอง', `${matchedDestination.wifi_speed_mbps} Mbps (Starlink Business SLA)`],
-          ['ความจุห้องประชุมผู้บริหาร', `${matchedDestination.max_capacity} ท่าน`],
-          [''],
-          ['ลำดับ', 'รายการจัดซื้อจัดจ้าง (Line Items)', 'จำนวน', 'ราคาต่อหน่วย (THB)', 'ยอดรวม (THB)'],
-          ['1', `ค่าแพ็กเกจที่พักและสิ่งอำนวยความสะดวก ${matchedDestination.title}`, `${teamSize * nights} คน/คืน`, matchedDestination.price_per_person, netTotal],
-          ['2', 'สัญญาณอินเทอร์เน็ต Starlink Business SLA Guarantee', '1 ระบบ', 'รวมในแพ็กเกจ', 0],
-          ['3', 'บริการประสานงานผู้ช่วยจัดทริปองค์กร 24 ชม. ผ่าน TripPick AI Concierge', '1 รายการ', 'รวมในแพ็กเกจ', 0],
-          [''],
-          ['สรุปงบประมาณและภาษีตามกฎหมาย (Tax Breakdown)', 'จำนวนเงิน (THB)'],
-          ['มูลค่ารวมก่อนภาษี (Net Subtotal)', netTotal],
-          ['ภาษีมูลค่าเพิ่ม 7% (VAT 7%)', vat7],
-          ['ยอดรวมทั้งสิ้นรวมภาษี (Gross Invoice Total)', grossTotal],
-          ['หัก ภาษี ณ ที่จ่าย 3% (Withholding Tax 3%)', -wht3],
-          ['ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable Amount)', netPayable],
-          ['ส่วนแบ่งคอมมิชชั่น B2B (${matchedDestination.commission_percentage}%)', commissionEarned],
-        ].map(row => row.join('\t')).join('\n');
-
-    try {
-      await navigator.clipboard.writeText(tsvContent);
-    } catch {
-      // Fallback
-    }
-
-    setCopiedSheetsToast(true);
-    setTimeout(() => setCopiedSheetsToast(false), 3500);
-
-    // Open direct Google Sheets spreadsheet creation
-    window.open('https://docs.google.com/spreadsheets/create', '_blank', 'noopener,noreferrer');
-  };
-
-  // 1-Click Direct Google Docs Export
-  const handleOpenGoogleDocs = async () => {
-    const docsContent = `# ${matchedDestination.title} — Executive Offsite 3-Day Agenda & B2B Procurement RFP
-
-**Company**: ${companyName}
-**Tax ID**: ${companyTaxId}
-**Lead Organizer**: ${leadOrganizer} (${leadRole})
-**Room Code**: #${roomId}
-**Location**: ${googleData?.formattedAddress || `${matchedDestination.city}, ${matchedDestination.country}`}
-**Google Maps**: ${googleData?.googleMapsUri || matchedDestination.affiliate_booking_url}
-**Airport Transit**: ${googleData?.airportTravelTime || '30 mins via VIP Transport'}
-**Attendees**: ${teamSize} Pax | **Duration**: ${nights} Nights
-**Connectivity Guarantee**: ${matchedDestination.wifi_speed_mbps} Mbps Starlink Business SLA
-**Boardroom Facilities**: ${matchedDestination.max_capacity} Pax Executive AV Room
-**Document Reference**: ${proposalRef}
-**Escrow Status**: ${isEscrowLocked ? `Escrow Secured & Locked (${depositReceipt?.receiptNo || depositCode})` : 'Pending Deposit'}
-
----
-
-## 1. สรุปงบประมาณและการจัดซื้อจัดจ้าง (Financial & Tax Breakdown)
-- **มูลค่ารวมก่อนภาษี (Net Subtotal)**: ฿${netTotal.toLocaleString()} THB
-- **ภาษีมูลค่าเพิ่ม 7% (VAT 7%)**: +฿${vat7.toLocaleString()} THB
-- **ยอดรวมทั้งสิ้น (Gross Invoice Total)**: ฿${grossTotal.toLocaleString()} THB
-- **ภาษีหัก ณ ที่จ่าย 3% (Withholding Tax 3%)**: -฿${wht3.toLocaleString()} THB
-- **ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable Amount)**: ฿${netPayable.toLocaleString()} THB
-- **เงินมัดจำล็อกสิทธิ์ (Escrow Lock)**: ฿5,000.00 THB
-
----
-
-## 2. กำหนดการและเวิร์กช็อป 3 วัน 2 คืน (Autonomous 3-Day Executive Agenda)
-
-${agenda
-  .map(
-    day => `### ${day.title}
-*Theme: ${day.theme}*
-
-${day.items
-  .map(
-    item => `- **[${item.time}] ${item.title}** (${item.facilityBadge})
-  ${item.description}`
-  )
-  .join('\n\n')}`
-  )
-  .join('\n\n---\n\n')}
-
----
-
-*Generated autonomously by TripPick AI Concierge & Executive Retreat Architect*
-*Google Antigravity 2.0 Hackathon — Software for Business & Tourism*
-`;
-
-    try {
-      await navigator.clipboard.writeText(docsContent);
-    } catch {
-      // Fallback
-    }
-
-    setCopiedDocsToast(true);
-    setTimeout(() => setCopiedDocsToast(false), 3500);
-
-    // Open direct Google Docs document creation
-    window.open('https://docs.google.com/document/create', '_blank', 'noopener,noreferrer');
   };
 
   // Export Executive Agenda to Markdown / Download
@@ -766,7 +618,7 @@ ${item.description}
                         className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors cursor-pointer ${
                           audioBriefing.language === 'th' ? 'bg-[#cba6f7] text-[#11111b]' : 'text-[#a6adc8] hover:text-[#cdd6f4]'
                         } ${audioBriefing.engine === 'elevenlabs-hd' ? 'opacity-40 cursor-not-allowed' : ''}`}
-                        title={audioBriefing.engine === 'elevenlabs-hd' ? 'ElevenLabs is strictly configured for Pure Professional English' : 'Thai'}
+                        title={audioBriefing.engine === 'elevenlabs-hd' ? 'Executive Studio Voice is strictly configured for Pure Professional English' : 'Thai'}
                       >
                         🇹🇭 TH
                       </button>
@@ -798,9 +650,9 @@ ${item.description}
                           }`}
                           title={eng.description}
                         >
-                          {engKey === 'elevenlabs-hd' && '🎙️ ElevenLabs HD'}
-                          {engKey === 'google-cloud-tts' && '☁️ Google Cloud TTS'}
-                          {engKey === 'web-speech' && '⚡ Web Speech (0ms)'}
+                          {engKey === 'elevenlabs-hd' && '🎙️ Executive Studio (EN)'}
+                          {engKey === 'google-cloud-tts' && '☁️ Cloud Voice (TH/EN)'}
+                          {engKey === 'web-speech' && '⚡ Instant Voice (0ms)'}
                           {engKey === 'synth-fallback' && '🛡️ Offline Fallback'}
                         </button>
                       );
@@ -911,7 +763,7 @@ ${item.description}
                       </span>
                     </div>
                     <span className="text-[11px] text-[#a6adc8] font-mono">
-                      {language === 'th' ? `ส่วนแบ่งคอมมิชชั่น ${matchedDestination.commission_percentage}%` : `Wholesale Take-Rate ${matchedDestination.commission_percentage}%`}
+                      {language === 'th' ? 'มาตรฐานภาษี ท.ป. 4/2528' : 'Thai Revenue Code SLA'}
                     </span>
                   </div>
 
@@ -947,7 +799,7 @@ ${item.description}
                   <div className="grid grid-cols-2 gap-3 pt-2.5 border-t border-[#313244]">
                     <div>
                       <span className="text-[10px] text-[#a6adc8] block mb-0.5 font-mono">
-                        {language === 'th' ? 'มูลค่ายอดจองรวม (GBV)' : 'Gross Booking Value (GBV)'}
+                        {language === 'th' ? 'ยอดรวมก่อนภาษี (Net Subtotal)' : 'Net Subtotal (Before Tax)'}
                       </span>
                       <p className="text-base sm:text-lg font-bold text-[#cdd6f4] tabular-data font-mono">
                         ฿{netTotal.toLocaleString()}
@@ -955,10 +807,10 @@ ${item.description}
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] text-[#a6e3a1] font-semibold block mb-0.5 font-mono">
-                        {language === 'th' ? 'คอมมิชชั่น B2B ที่ได้รับ' : 'B2B Revenue (Take-Rate)'}
+                        {language === 'th' ? 'ยอดสุทธิชำระจริง (Net Payable)' : 'Net Payable (VAT 7% - WHT 3%)'}
                       </span>
                       <p className="text-base sm:text-lg font-bold text-[#a6e3a1] tabular-data font-mono">
-                        +฿{commissionEarned.toLocaleString()}
+                        ฿{netPayable.toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -1019,15 +871,19 @@ ${item.description}
                       <span>{t.printRfpBtn}</span>
                     </button>
 
-                    {/* Google Sheets Direct 1-Click Export */}
+                    {/* Google Sheets Direct Export (Locked for Pro/Member) */}
                     <button
-                      onClick={handleOpenGoogleSheets}
-                      className="py-2.5 px-4 bg-[#1e3a2f] hover:bg-[#254b3c] border border-[#a6e3a1]/40 text-[#a6e3a1] text-xs font-bold rounded-xl transition-colors cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 shadow-sm"
+                      onClick={() => {
+                        setLockedFeatureName(language === 'th' ? 'ระบบสร้างและส่งออก Google Sheets อัตโนมัติ' : 'Automated Google Sheets RFP Export');
+                        setShowSubModal(true);
+                      }}
+                      className="py-2.5 px-4 bg-[#1e3a2f]/70 hover:bg-[#1e3a2f] border border-[#a6e3a1]/30 text-[#a6e3a1] text-xs font-bold rounded-xl transition-colors cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 shadow-sm"
+                      title={language === 'th' ? 'เฉพาะสมาชิก Pro / Enterprise' : 'Pro / Enterprise Members Only'}
                     >
                       <svg className="w-3.5 h-3.5 text-[#a6e3a1]" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H6v-2h6v2zm0-4H6v-2h6v2zm0-4H6V7h6v2zm6 8h-4v-2h4v2zm0-4h-4v-2h4v2zm0-4h-4V7h4v2z" />
                       </svg>
-                      <span>{copiedSheetsToast ? (language === 'th' ? '✓ เปิด Google Sheets แล้ว' : '✓ Opened Google Sheets') : t.exportSheetsBtn}</span>
+                      <span>🔒 {t.exportSheetsBtn} (PRO)</span>
                     </button>
                   </div>
 
@@ -1042,15 +898,19 @@ ${item.description}
                       <span>{t.exportCsvBtn}</span>
                     </button>
 
-                    {/* Google Docs Direct 1-Click Export */}
+                    {/* Google Docs Direct Export (Locked for Pro/Member) */}
                     <button
-                      onClick={handleOpenGoogleDocs}
-                      className="py-2 px-3 bg-[#1e2a3a] hover:bg-[#25354b] border border-[#89b4fa]/40 text-[#89b4fa] text-[11px] font-semibold rounded-xl transition-colors cursor-pointer active:scale-95 flex items-center justify-center gap-1.5"
+                      onClick={() => {
+                        setLockedFeatureName(language === 'th' ? 'ระบบสร้างและส่งออก Google Docs อัตโนมัติ' : 'Automated Google Docs RFP Export');
+                        setShowSubModal(true);
+                      }}
+                      className="py-2 px-3 bg-[#1e2a3a]/70 hover:bg-[#1e2a3a] border border-[#89b4fa]/30 text-[#89b4fa] text-[11px] font-semibold rounded-xl transition-colors cursor-pointer active:scale-95 flex items-center justify-center gap-1.5"
+                      title={language === 'th' ? 'เฉพาะสมาชิก Pro / Enterprise' : 'Pro / Enterprise Members Only'}
                     >
                       <svg className="w-3 h-3 text-[#89b4fa]" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
                       </svg>
-                      <span>{copiedDocsToast ? (language === 'th' ? '✓ เปิด Google Docs แล้ว' : '✓ Opened Google Docs') : t.exportDocsBtn}</span>
+                      <span>🔒 {t.exportDocsBtn} (PRO)</span>
                     </button>
                   </div>
                 </div>
@@ -1078,10 +938,14 @@ ${item.description}
 
                   <div className="flex items-center gap-1.5">
                     <button
-                      onClick={handleOpenGoogleDocs}
-                      className="py-1 px-2.5 bg-[#1e2a3a] hover:bg-[#25354b] border border-[#89b4fa]/40 text-[#89b4fa] text-[11px] font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1 active:scale-95"
+                      onClick={() => {
+                        setLockedFeatureName(language === 'th' ? 'ระบบสร้างกำหนดการใน Google Docs อัตโนมัติ' : 'Automated Google Docs Agenda Sync');
+                        setShowSubModal(true);
+                      }}
+                      className="py-1 px-2.5 bg-[#1e2a3a]/70 hover:bg-[#1e2a3a] border border-[#89b4fa]/30 text-[#89b4fa] text-[11px] font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1 active:scale-95"
+                      title={language === 'th' ? 'เฉพาะสมาชิก Pro / Enterprise' : 'Pro / Enterprise Members Only'}
                     >
-                      <span>{language === 'th' ? 'เปิดใน Docs ↗' : 'Open in Docs ↗'}</span>
+                      <span>🔒 {language === 'th' ? 'เปิดใน Docs (PRO)' : 'Open in Docs (PRO)'}</span>
                     </button>
                     <button
                       onClick={handleExportAgenda}
@@ -1125,17 +989,23 @@ ${item.description}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
-                    onClick={handleOpenGoogleDocs}
-                    className="py-2.5 px-4 bg-[#1e2a3a] hover:bg-[#25354b] border border-[#89b4fa]/40 text-[#89b4fa] text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98]"
+                    onClick={() => {
+                      setLockedFeatureName(language === 'th' ? 'ระบบสร้างกำหนดการใน Google Docs อัตโนมัติ' : 'Automated Google Docs Agenda Sync');
+                      setShowSubModal(true);
+                    }}
+                    className="py-2.5 px-4 bg-[#1e2a3a]/70 hover:bg-[#1e2a3a] border border-[#89b4fa]/30 text-[#89b4fa] text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98]"
                   >
-                    <span>{language === 'th' ? 'เปิดกำหนดการใน Google Docs ↗' : 'Open Agenda in Google Docs ↗'}</span>
+                    <span>🔒 {language === 'th' ? 'เปิดกำหนดการใน Google Docs ↗ (PRO)' : 'Open Agenda in Google Docs ↗ (PRO)'}</span>
                   </button>
 
                   <button
-                    onClick={handleOpenGoogleSheets}
-                    className="py-2.5 px-4 bg-[#1e3a2f] hover:bg-[#254b3c] border border-[#a6e3a1]/40 text-[#a6e3a1] text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98]"
+                    onClick={() => {
+                      setLockedFeatureName(language === 'th' ? 'ระบบสร้างตารางใน Google Sheets อัตโนมัติ' : 'Automated Google Sheets Agenda Sync');
+                      setShowSubModal(true);
+                    }}
+                    className="py-2.5 px-4 bg-[#1e3a2f]/70 hover:bg-[#1e3a2f] border border-[#a6e3a1]/30 text-[#a6e3a1] text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98]"
                   >
-                    <span>{language === 'th' ? 'เปิดตารางใน Google Sheets ↗' : 'Open Sheet in Google Sheets ↗'}</span>
+                    <span>🔒 {language === 'th' ? 'เปิดตารางใน Google Sheets ↗ (PRO)' : 'Open Sheet in Google Sheets ↗ (PRO)'}</span>
                   </button>
                 </div>
               </motion.div>
@@ -1457,10 +1327,14 @@ ${item.description}
                     <span>{audioBriefing.isPlaying ? (language === 'th' ? '❚❚ หยุดเสียง' : '❚❚ Pause') : (language === 'th' ? '🎧 ฟังเสียงสรุป' : '🎧 Listen')}</span>
                   </button>
                   <button
-                    onClick={handleOpenGoogleSheets}
-                    className="py-1 px-3 bg-[#1e3a2f] hover:bg-[#254b3c] border border-[#a6e3a1]/40 text-[#a6e3a1] rounded-lg text-xs font-medium cursor-pointer transition-colors flex items-center gap-1"
+                    onClick={() => {
+                      setLockedFeatureName(language === 'th' ? 'ระบบส่งออก Google Sheets อัตโนมัติ' : 'Automated Google Sheets RFP Export');
+                      setShowSubModal(true);
+                    }}
+                    className="py-1 px-3 bg-[#1e3a2f]/70 hover:bg-[#1e3a2f] border border-[#a6e3a1]/30 text-[#a6e3a1] rounded-lg text-xs font-medium cursor-pointer transition-colors flex items-center gap-1"
+                    title={language === 'th' ? 'เฉพาะสมาชิก Pro / Enterprise' : 'Pro / Enterprise Members Only'}
                   >
-                    <span>{copiedSheetsToast ? '✓ Sheets' : (language === 'th' ? 'เปิดใน Google Sheets ↗' : 'Google Sheets ↗')}</span>
+                    <span>🔒 Sheets (PRO)</span>
                   </button>
                   <button
                     onClick={handleDownloadCsv}
@@ -1557,8 +1431,8 @@ ${item.description}
                       </span>
                       <span className="text-[11px] text-purple-700">
                         {language === 'en'
-                          ? 'Ultra-realistic executive voiceover (Modular Voice Adapter: ElevenLabs HD English - Sarah / Google Cloud TTS)'
-                          : 'สรุปเสียงสั้นสำหรับผู้บริหารและฝ่ายบัญชี (Modular Voice Adapter: ElevenLabs HD English - Sarah / Google Cloud TTS)'}
+                          ? 'Ultra-realistic executive voiceover (TripPick Executive Studio Voice)'
+                          : 'สรุปเสียงสั้นสำหรับผู้บริหารและฝ่ายบัญชี (TripPick Executive Studio Voice)'}
                       </span>
                     </div>
                   </div>
@@ -1745,6 +1619,12 @@ ${item.description}
         )}
       </AnimatePresence>
 
+      {/* Subscription Lock Modal */}
+      <SubscriptionLockModal
+        isOpen={showSubModal}
+        onClose={() => setShowSubModal(false)}
+        featureName={lockedFeatureName}
+      />
     </>
   );
 }

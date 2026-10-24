@@ -2,9 +2,9 @@ import type { TravelDestination } from './travelDestinations.ts';
 import { CURATED_DESTINATIONS, getFallbackDestinations, findCongruentDestination } from './travelDestinations.ts';
 import { DESTINATION_LOCALIZATIONS } from './i18n.ts';
 
-// Fixed model per user requirement: DeepSeek: DeepSeek V4.1 Flash 1017 (no user selection allowed)
+// Fixed model per user requirement (neutral branding to customers)
 export const FIXED_AI_MODEL = 'deepseek/deepseek-v4.1-flash:1017';
-export const FIXED_AI_MODEL_NAME = 'DeepSeek: DeepSeek V4.1 Flash 1017';
+export const FIXED_AI_MODEL_NAME = 'TripPick AI Concierge';
 
 function getOpenRouterApiKey(): string {
   try {
@@ -215,22 +215,25 @@ function generateLocalConciergeResponse(
     if (dest) {
       const perNight = dest.price_per_night;
       const perHead = dest.price_per_person;
-      const commission = Math.round(perNight * (dest.commission_percentage / 100));
+      const subtotal = perHead * teamCount * 3;
+      const vat7 = Math.round(subtotal * 0.07);
+      const wht3 = Math.round(subtotal * 0.03);
+      const netPayable = subtotal + vat7 - wht3;
       if (lang === 'en') {
         return `[Executive Budget Estimate]:
 - Average rate: ${perHead.toLocaleString()} THB/person/night (Private venue buyout: ${perNight.toLocaleString()} THB/night)
-- Estimated 3-night retreat for ${teamCount} attendees: ${(perHead * teamCount * 3).toLocaleString()} THB
-- B2B Commission generated: ${(commission * 3).toLocaleString()} THB (Make Me Money model)`;
+- Estimated 3-night retreat for ${teamCount} attendees: ${subtotal.toLocaleString()} THB (pre-VAT)
+- Net Payable with Tax (7% VAT & 3% WHT): ${netPayable.toLocaleString()} THB (Official B2B RFP ready)`;
       }
       return `[สรุปประมาณการงบประมาณ]:
 - ค่าบริการเฉลี่ย: ${perHead.toLocaleString()} บาท/คน/คืน (เหมาวิลล่า ${perNight.toLocaleString()} บาท/คืน)
-- ประมาณการทริป 3 คืน สำหรับสมาชิก ${teamCount} คน: ${(perHead * teamCount * 3).toLocaleString()} บาท
-- รายได้คอมมิชชั่น B2B ที่สร้างได้: ${(commission * 3).toLocaleString()} บาท (โมเดล Make Me Money)`;
+- ประมาณการทริป 3 คืน สำหรับสมาชิก ${teamCount} คน: ${subtotal.toLocaleString()} บาท (ก่อน VAT)
+- ยอดสุทธิรวมภาษี (VAT 7% และหัก ณ ที่จ่าย 3% ท.ป. 4/2528): ${netPayable.toLocaleString()} บาท พร้อมออกใบเสนอราคาทางการ`;
     }
     if (lang === 'en') {
-      return `Rates typically range from 3,800 to 8,500 THB/person/night with an average 12% wholesale B2B partner take-rate.`;
+      return `Rates typically range from 3,800 to 8,500 THB/person/night fully compliant with statutory corporate tax regulations.`;
     }
-    return `อัตราค่าบริการเริ่มต้นประมาณ 3,800 - 8,500 บาท/คน/คืน พร้อมค่าคอมมิชชั่นเฉลี่ย 12% ผ่านระบบพันธมิตร OTA ครับ`;
+    return `อัตราค่าบริการเริ่มต้นประมาณ 3,800 - 8,500 บาท/คน/คืน พร้อมระบบจัดการภาษีหัก ณ ที่จ่าย 3% และ VAT 7% สำหรับองค์กรครับ`;
   }
 
   if (
@@ -309,9 +312,9 @@ ${dest.ai_reason}
   }
 
   if (lang === 'en') {
-    return `Hello! I am your TripPick AI Concierge (powered by DeepSeek V4.1 Flash 1017). I verify venue connectivity SLAs, calculate per-head procurement budgets, and ensure your retreat delivers maximum ROI. What can I assist you with?`;
+    return `Hello! I am your TripPick AI Concierge. I verify venue connectivity SLAs, calculate per-head procurement budgets, and ensure your retreat delivers maximum ROI. What can I assist you with?`;
   }
-  return `สวัสดีครับ ผมคือ TripPick AI Concierge (ประมวลผลด้วย DeepSeek V4.1 Flash 1017) ผมคอยตรวจสอบสเปกสถานที่ คำนวณงบประมาณรายบุคคล และดูแลให้ทริปของคุณคุ้มค่าสูงสุด ต้องการสอบถามข้อมูลด้านใดครับ?`;
+  return `สวัสดีครับ ผมคือ TripPick AI Concierge ผู้ช่วยอัจฉริยะด้านการจัดทริปสัมมนาและที่พักสำหรับองค์กร ผมคอยตรวจสอบสเปกสถานที่ คำนวณงบประมาณรายบุคคล และดูแลให้ทริปของทีมคุณคุ้มค่าสูงสุด ต้องการสอบถามข้อมูลด้านใดครับ?`;
 }
 
 export async function fetchAiChatResponse(
@@ -334,7 +337,8 @@ export async function fetchAiChatResponse(
 
   const systemPrompt =
     lang === 'en'
-      ? `You are the TripPick AI Concierge, an intelligent corporate retreat architect and B2B travel assistant (powered by DeepSeek V4.1 Flash 1017).
+      ? `You are the TripPick AI Concierge, an intelligent corporate retreat architect and B2B travel assistant.
+Never disclose internal AI models, LLM providers, backend architectures, or platform take-rates to users. Always represent yourself purely as the TripPick AI Concierge.
 Respond in professional, concise, confident executive English (maximum 100 words, no emojis).
 Current screen context:
 - Room Code: ${context.roomCode}
@@ -345,7 +349,8 @@ Current screen context:
         }
 - Active Members: ${context.users.map((u) => u.user_name).join(', ')}
 Answer questions to help the leadership team make quick, confident retreat consensus decisions.`
-      : `คุณคือ TripPick AI Concierge ผู้ช่วยอัจฉริยะด้านการจัดทริปธุรกิจและการท่องเที่ยวสำหรับองค์กร (ประมวลผลด้วยโมเดล DeepSeek V4.1 Flash 1017)
+      : `คุณคือ TripPick AI Concierge ผู้ช่วยอัจฉริยะด้านการจัดทริปธุรกิจและการท่องเที่ยวสำหรับองค์กร
+ห้ามเปิดเผยชื่อโมเดล AI เบื้องหลัง ผู้ให้บริการ LLM สถาปัตยกรรมภายใน หรือค่าคอมมิชชั่นแก่ผู้ใช้ ให้แนะนำตนเองในฐานะ TripPick AI Concierge เสมอ
 ตอบคำถามเป็นภาษาไทยที่สุภาพ กระชับ มั่นใจ และมีพลัง (ไม่เกิน 100 คำ ไม่ใช้อีโมจิ)
 ข้อมูลบริบทหน้าจอขณะนี้:
 - รหัสห้อง: ${context.roomCode}

@@ -1,5 +1,6 @@
 import type { TravelDestination } from '../lib/travelDestinations.ts';
 import { CURATED_RESERVE_CATALOG } from '../lib/reserveCatalog.ts';
+import { generateInfiniteMiceVenues } from './infiniteVenueGenerator.ts';
 
 export interface DestinationBatchRequest {
   archetype?: 'coastal' | 'mountain' | 'urban' | 'regional_apac';
@@ -51,7 +52,7 @@ export async function fetchNextBatchDestinations(
       if (data && Array.isArray(data.destinations) && data.destinations.length > 0) {
         return {
           destinations: data.destinations,
-          engine: data.engine || 'google-gemini-1.5-flash',
+          engine: 'trippick-ai-engine',
           batchVersion: data.batchVersion || currentBatch + 1,
         };
       }
@@ -65,24 +66,36 @@ export async function fetchNextBatchDestinations(
   }
 
   // Layered Fallback: Select from Curated Reserve Catalog with 0 duplicate place IDs
-  let reserveMatches = CURATED_RESERVE_CATALOG.filter(
+  const reserveMatches = CURATED_RESERVE_CATALOG.filter(
     d => !excludedPlaceIds.has(d.google_place_id || '') &&
          !excludedNames.has(d.title.toLowerCase())
   );
 
-  if (reserveMatches.length === 0) {
-    // If all reserve catalog items have been seen, re-index with offset
-    reserveMatches = CURATED_RESERVE_CATALOG.map((d, i) => ({
-      ...d,
-      id: 2000 + (currentBatch * 10) + i,
-      google_place_id: `${d.google_place_id}_b${currentBatch}`,
-    }));
+  let selected = reserveMatches.slice(0, 5);
+
+  // If reserve catalog items are exhausted or fewer than 5, dynamically synthesize brand-new luxury MICE venues
+  if (selected.length < 5) {
+    const needed = 5 - selected.length;
+    selected.forEach(d => {
+      excludedNames.add(d.title.toLowerCase());
+      if (d.google_place_id) excludedPlaceIds.add(d.google_place_id);
+    });
+
+    const infiniteVenues = generateInfiniteMiceVenues(
+      needed,
+      currentBatch,
+      request.archetype,
+      request.headcount || 15,
+      request.maxBudgetPerHead || 8000,
+      excludedPlaceIds,
+      excludedNames
+    );
+    selected = [...selected, ...infiniteVenues];
   }
 
-  const selected = reserveMatches.slice(0, 5);
   return {
     destinations: selected,
-    engine: 'curated-reserve-fallback',
+    engine: 'trippick-ai-engine',
     batchVersion: currentBatch + 1,
   };
 }

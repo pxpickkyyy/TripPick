@@ -186,7 +186,6 @@ export function useProcurement({
       `"4. Withholding Tax 3% (WHT 3% calculated on pre-VAT Subtotal)","-${pricing.wht3Percent}"`,
       `"5. Net Payable to Vendor (Gross Total - WHT 3%)","${pricing.netPayableToVendor}"`,
       `""`,
-      `"TripPick Platform Commission (${pricing.tripPickTakeRatePercent}%)","${pricing.tripPickRevenue}"`,
       `"Escrow Lock Deposit","5000"`,
       `""`,
       `"Payment Terms","Net 30 or Corporate Credit Card / PromptPay B2B"`,
@@ -220,7 +219,6 @@ export function useProcurement({
       `"4. ภาษีหัก ณ ที่จ่าย 3% (Withholding Tax 3% คำนวณจากยอดก่อน VAT)","-${pricing.wht3Percent}"`,
       `"5. ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable to Vendor)","${pricing.netPayableToVendor}"`,
       `""`,
-      `"ส่วนแบ่งแพลตฟอร์ม TripPick (Platform Take-Rate ${pricing.tripPickTakeRatePercent}%)","${pricing.tripPickRevenue}"`,
       `"เงินมัดจำล็อกสิทธิ์ (Escrow Deposit)","5000"`,
       `""`,
       `"เงื่อนไขการชำระเงิน","เครดิตเทอม 30 วัน (Net 30) หรือชำระผ่าน Corporate Credit Card / PromptPay B2B"`,
@@ -294,7 +292,6 @@ export function useProcurement({
       ['4. Withholding Tax 3% (WHT 3% calculated on pre-VAT Subtotal)', -pricing.wht3Percent],
       ['5. Net Payable to Vendor (Gross Total - WHT 3%)', pricing.netPayableToVendor],
       [''],
-      [`TripPick Platform Commission (${pricing.tripPickTakeRatePercent}%)`, pricing.tripPickRevenue],
       ['Escrow Lock Deposit', 5000],
     ] : [
       ['TripPick - ใบเสนอราคาและงบประมาณจัดซื้อจัดจ้างทริปองค์กร (B2B Procurement RFP)'],
@@ -324,7 +321,6 @@ export function useProcurement({
       ['4. ภาษีหัก ณ ที่จ่าย 3% (Withholding Tax 3% คิดจากยอดก่อน VAT)', -pricing.wht3Percent],
       ['5. ยอดเงินสุทธิที่ต้องชำระจริง (Net Payable to Vendor)', pricing.netPayableToVendor],
       [''],
-      [`ส่วนแบ่งแพลตฟอร์ม TripPick (Platform Take-Rate ${pricing.tripPickTakeRatePercent}%)`, pricing.tripPickRevenue],
       ['เงินมัดจำล็อกสิทธิ์ (Escrow Deposit)', 5000],
     ];
 
@@ -382,9 +378,9 @@ export function useProcurement({
 
 ---
 
-## 2. ${isEn ? 'Business Model & Platform Take-Rate' : 'โครงสร้างผลตอบแทนทางธุรกิจ (Business Model & Platform Take-Rate)'}
-- **Gross Booking Value (GBV)**: ฿${pricing.grossBookingValue.toLocaleString()} THB
-- **TripPick Platform Commission (${pricing.tripPickTakeRatePercent}%)**: ฿${pricing.tripPickRevenue.toLocaleString()} THB
+## 2. ${isEn ? 'Corporate Procurement & Escrow Status' : 'สถานะการจัดซื้อจัดจ้างและเงินมัดจำ (Corporate Escrow)'}
+- **${isEn ? 'Net Subtotal (Before VAT)' : 'มูลค่างานรวมก่อนภาษี (Subtotal)'}**: ฿${pricing.subtotalBeforeVat.toLocaleString()} THB
+- **${isEn ? 'Net Payable to Vendor' : 'ยอดสุทธิที่ต้องชำระจริง (Net Payable)'}**: ฿${pricing.netPayableToVendor.toLocaleString()} THB
 - **${isEn ? 'Escrow Lock Deposit' : 'เงินมัดจำล็อกสิทธิ์ (Escrow Lock)'}**: ฿5,000.00 THB (${isEscrowLocked ? (isEn ? 'Paid & 100% Protected' : 'ชำระแล้ว - ได้รับการคุ้มครอง 100%') : (isEn ? 'Pending Payment' : 'รอการชำระ')})
 
 ---
