@@ -8,7 +8,6 @@ import { generatePromptPayPayload, generateQrSvgPath } from '../lib/promptpay';
 import { useAudioBriefing, VOICE_ENGINES, type VoiceEngine } from '../lib/audioConcierge';
 import { useLanguage } from '../lib/i18n';
 import { SubscriptionLockModal } from './SubscriptionLockModal';
-import { downloadCorporateRfpPdf } from '../utils/generatePdf';
 
 async function computeHmacSha256(message: string, secret: string = 'trippick_sandbox_secret'): Promise<string> {
   const enc = new TextEncoder();
@@ -34,6 +33,7 @@ interface MatchOverlayViewProps {
   depositReceipt?: DepositReceipt | null;
   onConfirmDeposit?: (receiptNo: string, taxId: string, amount?: number, companyName?: string) => void;
   onOpenProcurement?: () => void;
+  isProMember?: boolean;
 }
 
 export function MatchOverlayView({
@@ -45,6 +45,7 @@ export function MatchOverlayView({
   depositReceipt = null,
   onConfirmDeposit,
   onOpenProcurement,
+  isProMember: isProMemberProp,
 }: MatchOverlayViewProps) {
   const { language, t, localizeDestination, localizeAmenity } = useLanguage();
   const matchedDestination = useMemo(() => {
@@ -87,6 +88,7 @@ export function MatchOverlayView({
   const [showSubModal, setShowSubModal] = useState(false);
   const [lockedFeatureName, setLockedFeatureName] = useState('');
   const [isProMember, setIsProMember] = useState<boolean>(() => {
+    if (typeof isProMemberProp === 'boolean') return isProMemberProp;
     if (typeof window !== 'undefined') {
       const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.get('pro') === 'true') {
@@ -192,6 +194,12 @@ export function MatchOverlayView({
 
   // Modular Voice Adapter: Audio Concierge specs for 30s Executive Audio Memo
   const audioSpecs = useMemo(() => {
+    const calcNetTotal = matchedDestination ? matchedDestination.price_per_person * teamSize * nights : 0;
+    const calcVat7 = Math.round(calcNetTotal * 0.07);
+    const calcGrossTotal = calcNetTotal + calcVat7;
+    const calcWht3 = Math.round(calcNetTotal * 0.03);
+    const calcNetPayable = calcGrossTotal - calcWht3;
+
     return {
       destinationTitle: matchedDestination?.title || '',
       city: matchedDestination?.city || '',
@@ -200,13 +208,13 @@ export function MatchOverlayView({
       maxCapacity: matchedDestination?.max_capacity || 20,
       teamSize,
       nights,
-      netPayable,
-      netTotal,
+      netPayable: calcNetPayable,
+      netTotal: calcNetTotal,
       proposalRef,
       companyName,
       leadOrganizer,
     };
-  }, [matchedDestination, teamSize, nights, netPayable, netTotal, proposalRef, companyName, leadOrganizer]);
+  }, [matchedDestination, teamSize, nights, proposalRef, companyName, leadOrganizer]);
 
   const audioBriefing = useAudioBriefing(audioSpecs);
   const [showTranscript, setShowTranscript] = useState(false);
@@ -224,7 +232,8 @@ export function MatchOverlayView({
   const handlePrint = async () => {
     if (!matchedDestination) return;
     try {
-      await downloadCorporateRfpPdf({
+      const { generateCorporateRfpPdf } = await import('@/utils/generatePdf');
+      const result = await generateCorporateRfpPdf({
         proposalRef,
         roomId,
         companyName,
@@ -238,6 +247,17 @@ export function MatchOverlayView({
         escrowReceiptNo: depositReceipt?.receiptNo || depositCode,
         language: language === 'th' ? 'th' : 'en',
       });
+      if (typeof document !== 'undefined' && result.blobUrl) {
+        const link = document.createElement('a');
+        link.href = result.blobUrl;
+        link.download = result.filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => {
+          URL.revokeObjectURL(result.blobUrl);
+        }, 2000);
+      }
     } catch (err) {
       console.warn('PDF generation notice, falling back to browser window.print():', err);
       window.print();
@@ -987,6 +1007,7 @@ ${item.description}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <button
                         onClick={handlePrint}
+                        data-testid="match-download-pdf-btn"
                         className="py-2.5 px-4 bg-[#181825] hover:bg-[#313244] border border-[#313244] text-[#cdd6f4] text-xs font-bold rounded-xl transition-colors cursor-pointer active:scale-95 flex items-center justify-center gap-1.5"
                       >
                         <svg className="w-3.5 h-3.5 text-[#cba6f7]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1459,6 +1480,7 @@ ${item.description}
                   </button>
                   <button
                     onClick={handlePrint}
+                    data-testid="match-download-pdf-modal-btn"
                     className="py-1 px-3 bg-[#cba6f7] hover:bg-[#b4befe] text-[#11111b] rounded-lg text-xs font-extrabold cursor-pointer transition-colors flex items-center gap-1.5"
                   >
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

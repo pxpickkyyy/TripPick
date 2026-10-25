@@ -6,76 +6,55 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { EscrowBroadcastPayload } from '../types/procurement';
 import { fetchNextBatchDestinations as fetchNextBatchDestinationsService } from '../services/discoveryService.ts';
+import type {
+  Room,
+  RoomUser,
+  RoomState,
+  ParticipantProfile,
+  ParticipantRole,
+  ExecutiveConstraints,
+  Swipe,
+  ChatMessage,
+  StepType,
+  DepositReceipt,
+  CachedSessionState,
+} from '../types';
+import { normalizeParticipantRole } from '../types';
 
-export interface Room {
-  id: string;
-  created_at: string;
-  status: 'waiting' | 'swiping' | 'matched';
-  destinations_deck: TravelDestination[] | null;
-  vibe?: string;
-  host_id?: string;
-  discovery_mode?: 'rapid' | 'infinite';
-  deck_batch_version?: number;
-  min_budget?: number;
-  max_budget?: number;
-}
-
-export interface RoomUser {
-  id: string;
-  room_id: string;
-  user_name: string;
-  role: string;
-  preferred_amenities: string[];
-  joinedAt?: number;
-  lastHeartbeat?: number;
-  isHost?: boolean;
-  isSimulated?: boolean;
-}
-
-export interface Swipe {
-  id: string;
-  room_id: string;
-  user_id: string;
-  destination_id: number;
-  is_like: boolean;
-  is_veto?: boolean;
-}
-
-export interface ChatMessage {
-  id: string;
-  room_id: string;
-  sender_name: string;
-  message_text: string;
-  created_at: string;
-}
-
-export type StepType = 'landing' | 'profile' | 'lobby' | 'swiping' | 'matched';
-
-export interface DepositReceipt {
-  receiptNo: string;
-  amount: number;
-  paidAt: string;
-  taxId: string;
-}
-
-export interface CachedSessionState {
-  roomId: string;
-  step: StepType;
-  room: Room | null;
-  users: RoomUser[];
-  swipes: Swipe[];
-  messages: ChatMessage[];
-  matchedDestination: TravelDestination | null;
-  currentUser: RoomUser | null;
-  isHost: boolean;
-  lastUpdated: number;
-  depositStatus?: 'UNPAID' | 'PENDING' | 'SECURED_ESCROW';
-  depositReceipt?: DepositReceipt | null;
-  discoveryMode?: 'rapid' | 'infinite';
-  deckBatchVersion?: number;
-}
+export type {
+  Room,
+  RoomUser,
+  RoomState,
+  ParticipantProfile,
+  ParticipantRole,
+  ExecutiveConstraints,
+  Swipe,
+  ChatMessage,
+  StepType,
+  DepositReceipt,
+  CachedSessionState,
+  ParticipantRole as Role,
+};
+export { normalizeParticipantRole };
 
 export const MAX_ROOM_CAPACITY = 20;
+
+import {
+  satisfiesExecutiveConstraints,
+  getUserVoteWeight,
+  DEMO_15_PAX_USERS,
+  DEFAULT_EXECUTIVE_CONSTRAINTS,
+  getDemoHydratedState,
+} from '../lib/hierarchy';
+
+export {
+  satisfiesExecutiveConstraints,
+  getUserVoteWeight,
+  DEMO_15_PAX_USERS,
+  DEFAULT_EXECUTIVE_CONSTRAINTS,
+  getDemoHydratedState,
+};
+
 
 interface PresenceItem {
   user?: RoomUser;
@@ -133,6 +112,20 @@ export function normalizeRoomCode(code: string): string {
 
 function loadCachedSession(targetRoomId?: string | null): CachedSessionState | null {
   try {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get('pro') === 'true') {
+        try {
+          localStorage.setItem('trippick_demo_tier', 'pro');
+        } catch {
+          // ignore
+        }
+      }
+      if (searchParams.get('demo') === 'true' || searchParams.get('rfp') === 'true') {
+        return getDemoHydratedState();
+      }
+    }
+
     const activeCode = targetRoomId || localStorage.getItem('trippick_room_id');
     if (!activeCode) return null;
     const raw = localStorage.getItem(`trippick_session_${activeCode}`);
@@ -185,6 +178,17 @@ export function useTripPick() {
   const [error, setError] = useState<string | null>(null);
   const [receivedEmojis, setReceivedEmojis] = useState<{ id: string; emoji: string }[]>([]);
   const [escrowNotification, setEscrowNotification] = useState<string | null>(null);
+  const [executiveVetoAlert, setExecutiveVetoAlert] = useState<string | null>(null);
+  const vetoAlertTimerRef = useRef<number | null>(null);
+
+  const triggerExecutiveVetoAlert = useCallback((msg: string = "ตัวเลือกนี้ไม่ผ่านนโยบายงบประมาณ/สถานที่ของฝ่ายบริหาร") => {
+    setExecutiveVetoAlert(msg);
+    if (vetoAlertTimerRef.current) clearTimeout(vetoAlertTimerRef.current);
+    vetoAlertTimerRef.current = window.setTimeout(() => {
+      setExecutiveVetoAlert(null);
+    }, 6000);
+  }, []);
+
   const [currentTime, setCurrentTime] = useState<number>(0);
 
   // Infinite Live Discovery State
@@ -277,11 +281,15 @@ export function useTripPick() {
     progress: { swipedCount: 0, totalCount: 0, isWaitingForOthers: false }
   });
 
-  // Calculate unswiped destinations for current user
-  const unswipedDestinations = (room?.destinations_deck || []).filter(dest => {
-    if (!currentUser) return true;
-    return !swipes.some(s => s.user_id === currentUser.id && s.destination_id === dest.id);
-  });
+  // Calculate unswiped destinations for current user (filtered by executive constraints and vetoes)
+  const unswipedDestinations = (room?.destinations_deck || [])
+    .filter(dest => satisfiesExecutiveConstraints(dest, room?.executiveConstraints || DEFAULT_EXECUTIVE_CONSTRAINTS))
+    .filter(dest => !dest.vetoedByExecutive)
+    .filter(dest => !swipes.some(s => s.destination_id === dest.id && s.is_veto && (users.find(u => u.id === s.user_id)?.role === 'EXECUTIVE' || (currentUser?.id === s.user_id && currentUser.role === 'EXECUTIVE'))))
+    .filter(dest => {
+      if (!currentUser) return true;
+      return !swipes.some(s => s.user_id === currentUser.id && s.destination_id === dest.id);
+    });
 
   // Calculate active peers who are currently swiping
   const activeTeammates = users.filter(u => {
@@ -375,7 +383,7 @@ export function useTripPick() {
               lastHeartbeat: Number(payload.timestamp) || now,
               isHost: typeof payload.isHost === 'boolean' ? payload.isHost : u.isHost,
               user_name: payload.user?.user_name || u.user_name,
-              role: payload.user?.role || u.role,
+              role: normalizeParticipantRole(payload.user?.role || u.role),
               preferred_amenities: payload.user?.preferred_amenities || u.preferred_amenities,
             } : u);
           } else if (payload.user && payload.user.id) {
@@ -384,7 +392,7 @@ export function useTripPick() {
               id: payload.user.id,
               room_id: payload.user.room_id || roomId || '',
               user_name: payload.user.user_name || 'Teammate',
-              role: payload.user.role || 'Team Member',
+              role: normalizeParticipantRole(payload.user.role || 'MEMBER'),
               preferred_amenities: Array.isArray(payload.user.preferred_amenities) ? payload.user.preferred_amenities : [],
               joinedAt: payload.user.joinedAt || now,
               lastHeartbeat: Number(payload.timestamp) || now,
@@ -419,7 +427,7 @@ export function useTripPick() {
           id: payload.id,
           room_id: payload.room_id ? String(payload.room_id) : (roomId || ''),
           user_name: payload.user_name,
-          role: payload.role || 'Team Member',
+          role: normalizeParticipantRole(payload.role || 'MEMBER'),
           preferred_amenities: Array.isArray(payload.preferred_amenities) ? payload.preferred_amenities : [],
           joinedAt: typeof payload.joinedAt === 'number' ? payload.joinedAt : Date.now(),
           lastHeartbeat: Date.now(),
@@ -486,9 +494,12 @@ export function useTripPick() {
         setRoom(prev => {
           if (!prev) return prev;
           const currentDeck = prev.destinations_deck || [];
-          const filteredNew = newCards.filter(nc =>
-            !currentDeck.some(ed => ed.id === nc.id || (nc.google_place_id && ed.google_place_id === nc.google_place_id))
-          );
+          const activeConstraints = prev.executiveConstraints || DEFAULT_EXECUTIVE_CONSTRAINTS;
+          const filteredNew = newCards
+            .filter(nc => satisfiesExecutiveConstraints(nc, activeConstraints))
+            .filter(nc =>
+              !currentDeck.some(ed => ed.id === nc.id || (nc.google_place_id && ed.google_place_id === nc.google_place_id))
+            );
           if (filteredNew.length === 0) return prev;
           return {
             ...prev,
@@ -534,6 +545,23 @@ export function useTripPick() {
           return [...filtered, newSwipe];
         });
 
+        // Executive Veto Guard: Hard veto from an EXECUTIVE role discards venue and alerts team
+        if (newSwipe.is_veto) {
+          const voter = usersRef.current.find(u => u.id === newSwipe.user_id);
+          if (voter?.role === 'EXECUTIVE') {
+            setRoom(prev => {
+              if (!prev || !prev.destinations_deck) return prev;
+              return {
+                ...prev,
+                destinations_deck: prev.destinations_deck.map(d =>
+                  d.id === newSwipe.destination_id ? { ...d, vetoedByExecutive: true } : d
+                )
+              };
+            });
+            triggerExecutiveVetoAlert("ตัวเลือกนี้ไม่ผ่านนโยบายงบประมาณ/สถานที่ของฝ่ายบริหาร");
+          }
+        }
+
         // If host receives peer swipe in infinite mode, check pre-fetch trigger
         if (discoveryModeRef.current === 'infinite' && isHostRef.current && !isFetchingMoreRef.current) {
           const currentDeck = roomRef.current?.destinations_deck || [];
@@ -548,18 +576,63 @@ export function useTripPick() {
           }
         }
       }
+    } else if (type === 'EXECUTIVE_VETO') {
+      const destId = Number(payload.destinationId || payload.destination_id);
+      if (destId) {
+        setRoom(prev => {
+          if (!prev || !prev.destinations_deck) return prev;
+          return {
+            ...prev,
+            destinations_deck: prev.destinations_deck.map(d =>
+              d.id === destId ? { ...d, vetoedByExecutive: true } : d
+            )
+          };
+        });
+        triggerExecutiveVetoAlert(
+          typeof payload.message === 'string'
+            ? payload.message
+            : "ตัวเลือกนี้ไม่ผ่านนโยบายงบประมาณ/สถานที่ของฝ่ายบริหาร"
+        );
+      }
     } else if (type === 'MATCH_FOUND') {
-      // Idempotent lock: Only accept match if quorum is verified to prevent premature single-user match
+      // Idempotent lock: Only accept match if quorum is verified and not vetoed by executive
       if (payload.destination && !matchedDestinationRef.current) {
-        const totalInRoom = Math.max(1, usersRef.current.length);
-        const currentLikes = swipesRef.current.filter(s => s.destination_id === payload.destination?.id && s.is_like);
-        const distinctLikers = new Set(currentLikes.map(s => s.user_id));
-        const required = totalInRoom <= 2 ? totalInRoom : Math.max(2, Math.ceil(totalInRoom * 0.6));
+        const dest = payload.destination;
+        // Executive Veto Guard: Reject any match that has received a hard executive veto
+        const isVetoedByExec = Boolean(
+          dest.vetoedByExecutive ||
+          swipesRef.current.some(s =>
+            s.destination_id === dest.id &&
+            s.is_veto &&
+            usersRef.current.find(u => u.id === s.user_id)?.role === 'EXECUTIVE'
+          )
+        );
+        if (isVetoedByExec) {
+          triggerExecutiveVetoAlert("ตัวเลือกนี้ไม่ผ่านนโยบายงบประมาณ/สถานที่ของฝ่ายบริหาร");
+          return;
+        }
 
-        // Accept if local quorum is reached or if within 1 vote of unanimous agreement from peer
-        if (totalInRoom <= 1 || (distinctLikers.size + 1) >= required) {
-          matchedDestinationRef.current = payload.destination;
-          setMatchedDestination(payload.destination);
+        const allUsers = usersRef.current;
+        const totalInRoom = Math.max(1, allUsers.length);
+        const totalVotingWeight = allUsers.reduce((sum, u) => sum + getUserVoteWeight(u), 0) || 1;
+        const currentLikes = swipesRef.current.filter(s => s.destination_id === dest.id && s.is_like);
+        const distinctLikers = new Set(currentLikes.map(s => s.user_id));
+        let weightedLikes = 0;
+        for (const uid of distinctLikers) {
+          const voter = allUsers.find(u => u.id === uid);
+          weightedLikes += getUserVoteWeight(voter);
+        }
+
+        // Role-Weighted Quorum: Accept if local quorum is reached or within 1 incoming vote of consensus
+        const isQuorumMet = totalInRoom <= 1
+          ? true
+          : totalInRoom === 2
+            ? (distinctLikers.size + 1) >= 2
+            : ((weightedLikes + 1) >= Math.ceil(totalVotingWeight * 0.6) && (distinctLikers.size + 1) >= 2);
+
+        if (isQuorumMet) {
+          matchedDestinationRef.current = dest;
+          setMatchedDestination(dest);
           setStep('matched');
         }
       }
@@ -696,7 +769,7 @@ export function useTripPick() {
         }
       }
     }
-  }, [broadcastEvent, roomId]);
+  }, [broadcastEvent, roomId, triggerExecutiveVetoAlert]);
 
   // Connect Realtime Synchronization (BroadcastChannel + Supabase WebSockets)
   useEffect(() => {
@@ -739,6 +812,7 @@ export function useTripPick() {
         .on('broadcast', { event: 'ESCROW_SECURED' }, ({ payload }: { payload: unknown }) => handleIncomingEvent('ESCROW_LOCKED', payload))
         .on('broadcast', { event: 'DECK_EXPANDED' }, ({ payload }: { payload: unknown }) => handleIncomingEvent('DECK_EXPANDED', payload))
         .on('broadcast', { event: 'LEADER_PROMOTED' }, ({ payload }: { payload: unknown }) => handleIncomingEvent('LEADER_PROMOTED', payload))
+        .on('broadcast', { event: 'EXECUTIVE_VETO' }, ({ payload }: { payload: unknown }) => handleIncomingEvent('EXECUTIVE_VETO', payload))
         .on(
           'postgres_changes',
           {
@@ -755,15 +829,41 @@ export function useTripPick() {
               const allVenues = [...(roomRef.current?.destinations_deck || []), ...CURATED_DESTINATIONS];
               const winner = allVenues.find(d => d.id.toString() === winningDestId || d.google_place_id === winningDestId);
 
-              // Validate against quorum: Never allow 1 player to trigger consensus if 2 or more players are in the room!
-              const totalInRoom = Math.max(1, usersRef.current.length);
+              // Executive Veto Guard: Preempt match if venue was vetoed by an Executive
+              const isVetoedByExec = Boolean(
+                winner?.vetoedByExecutive ||
+                swipesRef.current.some(s =>
+                  (s.destination_id === winner?.id || String(s.destination_id) === winningDestId) &&
+                  s.is_veto &&
+                  usersRef.current.find(u => u.id === s.user_id)?.role === 'EXECUTIVE'
+                )
+              );
+              if (isVetoedByExec) {
+                triggerExecutiveVetoAlert("ตัวเลือกนี้ไม่ผ่านนโยบายงบประมาณ/สถานที่ของฝ่ายบริหาร");
+                return;
+              }
+
+              // Validate against role-weighted quorum
+              const allUsers = usersRef.current;
+              const totalInRoom = Math.max(1, allUsers.length);
+              const totalVotingWeight = allUsers.reduce((sum, u) => sum + getUserVoteWeight(u), 0) || 1;
               const currentLikes = swipesRef.current.filter(s => 
                 (s.destination_id === winner?.id || String(s.destination_id) === winningDestId) && s.is_like
               );
               const distinctLikers = new Set(currentLikes.map(s => s.user_id));
-              const required = totalInRoom <= 2 ? totalInRoom : Math.max(2, Math.ceil(totalInRoom * 0.6));
+              let weightedLikes = 0;
+              for (const uid of distinctLikers) {
+                const voter = allUsers.find(u => u.id === uid);
+                weightedLikes += getUserVoteWeight(voter);
+              }
 
-              if (totalInRoom > 1 && distinctLikers.size < required) {
+              const isQuorumMet = totalInRoom <= 1
+                ? true
+                : totalInRoom === 2
+                  ? distinctLikers.size >= 2
+                  : (weightedLikes >= Math.ceil(totalVotingWeight * 0.6) && distinctLikers.size >= 2);
+
+              if (totalInRoom > 1 && !isQuorumMet) {
                 // Ignore premature server event if votes have not reached required quorum
                 return;
               }
@@ -866,7 +966,7 @@ export function useTripPick() {
         supabaseChannelRef.current = null;
       }
     };
-  }, [roomId, handleIncomingEvent, broadcastEvent]);
+  }, [roomId, handleIncomingEvent, broadcastEvent, triggerExecutiveVetoAlert]);
 
   // Proactively track presence whenever currentUser or roomId is available
   useEffect(() => {
@@ -999,33 +1099,61 @@ export function useTripPick() {
     return () => clearInterval(watchdogInterval);
   }, [roomId, step, currentUser, broadcastEvent]);
 
-  // Consensus Calculation supporting 1 to 20+ team members with strict multi-user agreement
+  // Consensus Calculation supporting 1 to 20+ team members with Role-Weighted Voting Dynamics
   useEffect(() => {
     if (step !== 'swiping' || !room?.destinations_deck || matchedDestination) return;
 
-    const deck = room.destinations_deck;
+    // Filter out venues that violate executive constraints before evaluating voting
+    const deck = room.destinations_deck.filter(d => satisfiesExecutiveConstraints(d, room.executiveConstraints));
     // Total registered members in room (minimum 1)
     const totalMembers = Math.max(1, users.length);
-
-    // Strict Quorum Rules:
-    // 1 person -> 1 like (solo demo only)
-    // 2 people -> 2 DISTINCT likes from both players (100% unanimous agreement required!)
-    // 3 to 20+ people -> at least 60% of all members in the room must like it (and 0 vetoes)
-    const requiredLikes = totalMembers <= 2
-      ? totalMembers
-      : Math.max(2, Math.ceil(totalMembers * 0.6));
+    // Role-Weighted Voting Dynamics:
+    // Normal member Like = +1 vote
+    // Executive / Organizer Like = +2 votes
+    const totalVotingWeight = users.reduce((sum, u) => sum + getUserVoteWeight(u), 0) || 1;
 
     for (const destination of deck) {
-      // Find all DISTINCT user IDs who swiped LIKE on this destination
-      const distinctLikers = new Set(
-        swipes
-          .filter(s => s.destination_id === destination.id && s.is_like)
-          .map(s => s.user_id)
-      );
-      const isVetoed = swipes.some(s => s.destination_id === destination.id && s.is_veto);
+      // 1. Hard VETO from an EXECUTIVE role: Instantly mark discarded (vetoedByExecutive: true)
+      const executiveVetoSwipe = swipes.find(s => {
+        if (s.destination_id !== destination.id || !s.is_veto) return false;
+        const voter = users.find(u => u.id === s.user_id) || (currentUser?.id === s.user_id ? currentUser : null);
+        return voter?.role === 'EXECUTIVE';
+      });
 
-      // Must have zero vetoes and reach the strict required unique likes threshold
-      if (!isVetoed && distinctLikers.size >= requiredLikes) {
+      if (executiveVetoSwipe || destination.vetoedByExecutive) {
+        destination.vetoedByExecutive = true;
+        continue;
+      }
+
+      // Any veto stops this venue from achieving consensus
+      const isVetoed = swipes.some(s => s.destination_id === destination.id && s.is_veto);
+      if (isVetoed) continue;
+
+      // Find all DISTINCT user IDs and calculate role-weighted consensus score
+      const distinctLikers = new Set<string>();
+      let weightedLikes = 0;
+
+      for (const s of swipes) {
+        if (s.destination_id === destination.id && s.is_like) {
+          if (!distinctLikers.has(s.user_id)) {
+            distinctLikers.add(s.user_id);
+            const voter = users.find(u => u.id === s.user_id) || (currentUser?.id === s.user_id ? currentUser : null);
+            weightedLikes += getUserVoteWeight(voter);
+          }
+        }
+      }
+
+      // Role-Weighted Quorum Rules:
+      // 1 person -> 1 like (solo demo only)
+      // 2 people -> 2 DISTINCT likes from both players (100% unanimous agreement required)
+      // 3 to 20+ people -> at least 60% of total possible voting weight AND at least 2 distinct likers
+      const isConsensusReached = totalMembers === 1
+        ? distinctLikers.size >= 1
+        : totalMembers === 2
+          ? distinctLikers.size >= 2
+          : (weightedLikes >= Math.ceil(totalVotingWeight * 0.6) && distinctLikers.size >= 2);
+
+      if (isConsensusReached) {
         // Atomic guard: Lock local match first
         if (matchedDestinationRef.current) return;
 
@@ -1046,8 +1174,7 @@ export function useTripPick() {
     }
 
     // Tier 2: Adaptive Deadlock Recovery (Borda-Count Consensus Compromise)
-    // If all users have finished their decks (or >=80% in large teams), calculate cumulative Borda-count score:
-    // Score = (Likes * 2) - (Passes * 1) - (Vetoes * 10), excluding any venue with a hard veto.
+    // Exclude any venue with a hard executive veto or vetoedByExecutive
     const finishedUsers = users.filter(u => {
       const userSwipes = swipes.filter(s => s.user_id === u.id);
       return deck.every(dest => userSwipes.some(s => s.destination_id === dest.id));
@@ -1060,16 +1187,25 @@ export function useTripPick() {
 
     if (isDeckCompleted && !matchedDestinationRef.current) {
       const nonVetoedCandidates = deck
+        .filter(dest => !dest.vetoedByExecutive && !swipes.some(s => {
+          if (s.destination_id !== dest.id || !s.is_veto) return false;
+          const voter = users.find(u => u.id === s.user_id);
+          return voter?.role === 'EXECUTIVE';
+        }))
         .filter(dest => !swipes.some(s => s.destination_id === dest.id && s.is_veto))
         .map(dest => {
           const venueSwipes = swipes.filter(s => s.destination_id === dest.id);
-          const likes = venueSwipes.filter(s => s.is_like).length;
+          let likesScore = 0;
+          venueSwipes.filter(s => s.is_like).forEach(s => {
+            const voter = users.find(u => u.id === s.user_id);
+            likesScore += getUserVoteWeight(voter);
+          });
           const passes = venueSwipes.filter(s => !s.is_like && !s.is_veto).length;
           const vetoes = venueSwipes.filter(s => s.is_veto).length;
-          const score = (likes * 2) - (passes * 1) - (vetoes * 10);
+          const score = (likesScore * 2) - (passes * 1) - (vetoes * 10);
           return {
             destination: dest,
-            likes,
+            likes: likesScore,
             passes,
             vetoes,
             score,
@@ -1100,7 +1236,7 @@ export function useTripPick() {
         return;
       }
     }
-  }, [swipes, users, room, step, matchedDestination, broadcastEvent, currentUser]);
+  }, [swipes, users, room, step, matchedDestination, broadcastEvent, currentUser, triggerExecutiveVetoAlert]);
 
   // Clear Session cleanly
   const leaveRoom = useCallback(() => {
@@ -1168,6 +1304,7 @@ export function useTripPick() {
         created_at: new Date().toISOString(),
         status: 'waiting',
         destinations_deck: null,
+        executiveConstraints: DEFAULT_EXECUTIVE_CONSTRAINTS,
       };
 
       setRoom(newRoom);
@@ -1236,11 +1373,13 @@ export function useTripPick() {
         ? crypto.randomUUID()
         : 'user_' + Math.random().toString(36).substring(2, 9);
 
+      const resolvedRole: ParticipantRole = normalizeParticipantRole(role);
       const user: RoomUser = {
         id: generatedUserId,
         room_id: roomId,
         user_name: name.trim(),
-        role: role || 'Team Member',
+        role: resolvedRole,
+        title: role || 'Team Member',
         preferred_amenities: preferredAmenities,
         joinedAt: Date.now(),
         lastHeartbeat: Date.now(),
@@ -1358,13 +1497,16 @@ export function useTripPick() {
         setRoom(prev => {
           if (!prev) return prev;
           const currentDeck = prev.destinations_deck || [];
-          const filtered = newCards.filter(nd =>
-            !currentDeck.some(ed =>
-              ed.id === nd.id ||
-              ed.title.toLowerCase() === nd.title.toLowerCase() ||
-              (nd.google_place_id && ed.google_place_id === nd.google_place_id)
-            )
-          );
+          const activeConstraints = prev.executiveConstraints || roomRef.current?.executiveConstraints || DEFAULT_EXECUTIVE_CONSTRAINTS;
+          const filtered = newCards
+            .filter(nd => satisfiesExecutiveConstraints(nd, activeConstraints))
+            .filter(nd =>
+              !currentDeck.some(ed =>
+                ed.id === nd.id ||
+                ed.title.toLowerCase() === nd.title.toLowerCase() ||
+                (nd.google_place_id && ed.google_place_id === nd.google_place_id)
+              )
+            );
           if (filtered.length === 0) return prev;
           return {
             ...prev,
@@ -1408,13 +1550,14 @@ export function useTripPick() {
     fetchNextBatchRef.current = fetchNextBatch;
   }, [fetchNextBatch]);
 
-  // Start Session (Host compiles retreat deck)
+  // Start Session (Host compiles retreat deck with executive constraints filtering)
   const startSession = useCallback(async (
     vibe: string,
     minBudget?: number,
     maxBudget?: number,
     _categoryFilter?: string,
-    mode: 'rapid' | 'infinite' = 'rapid'
+    mode: 'rapid' | 'infinite' = 'rapid',
+    constraints?: ExecutiveConstraints
   ): Promise<boolean> => {
     if (!roomId) return false;
 
@@ -1425,12 +1568,17 @@ export function useTripPick() {
       deckBatchVersionRef.current = 1;
       lastFetchedBatchVersionRef.current = 1;
 
-      // Seed initial deck synchronously with 5 pre-warmed curated venues
-      // Guarantees 0ms immediate transition to swiping without being blocked by API latency
-      const matchingCurated = CURATED_DESTINATIONS.filter(d => !vibe || d.category === vibe || d.vibe_category === vibe);
+      const activeConstraints: ExecutiveConstraints = constraints || roomRef.current?.executiveConstraints || {
+        ...DEFAULT_EXECUTIVE_CONSTRAINTS,
+        ...(typeof maxBudget === 'number' && maxBudget > 0 ? { maxBudgetPerHead: maxBudget } : {})
+      };
+
+      // Filter out venues violating executive constraints before voting begins
+      const validCurated = CURATED_DESTINATIONS.filter(d => satisfiesExecutiveConstraints(d, activeConstraints));
+      const matchingCurated = validCurated.filter(d => !vibe || d.category === vibe || d.vibe_category === vibe);
       const prewarmed = matchingCurated.length >= 5
         ? matchingCurated.slice(0, 5)
-        : [...matchingCurated, ...CURATED_DESTINATIONS.filter(d => !matchingCurated.some(m => m.id === d.id))].slice(0, 5);
+        : [...matchingCurated, ...validCurated.filter(d => !matchingCurated.some(m => m.id === d.id))].slice(0, 5);
 
       const initialDeck: TravelDestination[] = [...prewarmed];
 
@@ -1444,6 +1592,7 @@ export function useTripPick() {
         deck_batch_version: 1,
         min_budget: minBudget,
         max_budget: maxBudget,
+        executiveConstraints: activeConstraints,
       };
 
       setRoom(updatedRoom);
@@ -1533,7 +1682,7 @@ export function useTripPick() {
               batchVersion: 1,
             });
             if (result && Array.isArray(result.destinations) && result.destinations.length > 0) {
-              additionalVenues = result.destinations;
+              additionalVenues = result.destinations.filter(d => satisfiesExecutiveConstraints(d, activeConstraints));
             }
           } else {
             const allSelectedAmenities = Array.from(
@@ -1545,7 +1694,9 @@ export function useTripPick() {
               minBudget,
               maxBudget
             );
-            additionalVenues = recs.filter(r => !initialDeck.some(i => i.id === r.id || i.title === r.title));
+            additionalVenues = recs
+              .filter(d => satisfiesExecutiveConstraints(d, activeConstraints))
+              .filter(r => !initialDeck.some(i => i.id === r.id || i.title === r.title));
           }
 
           if (additionalVenues.length > 0) {
@@ -1603,6 +1754,25 @@ export function useTripPick() {
     // Broadcast swipe to all connected teammates
     broadcastEvent('SWIPE_SUBMITTED', swipe);
 
+    // Executive Veto Guard: Hard veto from an EXECUTIVE role discards venue immediately
+    if (isVeto && currentUser.role === 'EXECUTIVE') {
+      setRoom(prev => {
+        if (!prev || !prev.destinations_deck) return prev;
+        return {
+          ...prev,
+          destinations_deck: prev.destinations_deck.map(d =>
+            d.id === destinationId ? { ...d, vetoedByExecutive: true } : d
+          )
+        };
+      });
+      triggerExecutiveVetoAlert("ตัวเลือกนี้ไม่ผ่านนโยบายงบประมาณ/สถานที่ของฝ่ายบริหาร");
+      broadcastEvent('EXECUTIVE_VETO', {
+        destinationId,
+        userId: currentUser.id,
+        message: "ตัวเลือกนี้ไม่ผ่านนโยบายงบประมาณ/สถานที่ของฝ่ายบริหาร"
+      });
+    }
+
     // Database Atomic Consensus Execution with Strict Local Quorum Guard
     if (isSupabaseConfigured) {
       Promise.resolve(
@@ -1618,16 +1788,44 @@ export function useTripPick() {
           const allVenues = [...(roomRef.current?.destinations_deck || []), ...CURATED_DESTINATIONS];
           const winningDest = allVenues.find(d => d.id.toString() === response.data?.winning_destination_id || d.google_place_id === response.data?.winning_destination_id);
 
-          // QUORUM GUARD: In multi-user rooms (>= 2 players), NEVER trigger consensus on 1 like!
-          const totalInRoom = Math.max(1, usersRef.current.length);
+          if (!winningDest) return;
+
+          // Executive Veto Guard: Preempt match if venue was vetoed by an Executive
+          const isVetoedByExec = Boolean(
+            winningDest.vetoedByExecutive ||
+            swipesRef.current.some(s =>
+              (s.destination_id === winningDest.id || String(s.destination_id) === response.data?.winning_destination_id) &&
+              s.is_veto &&
+              usersRef.current.find(u => u.id === s.user_id)?.role === 'EXECUTIVE'
+            )
+          );
+          if (isVetoedByExec) {
+            triggerExecutiveVetoAlert("ตัวเลือกนี้ไม่ผ่านนโยบายงบประมาณ/สถานที่ของฝ่ายบริหาร");
+            return;
+          }
+
+          // Role-Weighted Quorum Guard:
+          const allUsers = usersRef.current;
+          const totalInRoom = Math.max(1, allUsers.length);
+          const totalVotingWeight = allUsers.reduce((sum, u) => sum + getUserVoteWeight(u), 0) || 1;
           const currentSwipesForDest = [...swipesRef.current, swipe].filter(s => 
-            (s.destination_id === winningDest?.id || String(s.destination_id) === response.data?.winning_destination_id) && s.is_like
+            (s.destination_id === winningDest.id || String(s.destination_id) === response.data?.winning_destination_id) && s.is_like
           );
           const distinctLikers = new Set(currentSwipesForDest.map(s => s.user_id));
-          const required = totalInRoom <= 2 ? totalInRoom : Math.max(2, Math.ceil(totalInRoom * 0.6));
+          let weightedLikes = 0;
+          for (const uid of distinctLikers) {
+            const voter = allUsers.find(u => u.id === uid) || (currentUserRef.current?.id === uid ? currentUserRef.current : null);
+            weightedLikes += getUserVoteWeight(voter);
+          }
 
-          // In a 2-player room, distinctLikers MUST be 2. If only 1 liked, ignore premature server consensus!
-          if (distinctLikers.size >= required && winningDest && !matchedDestinationRef.current) {
+          const isQuorumReached = totalInRoom <= 1
+            ? true
+            : totalInRoom === 2
+              ? distinctLikers.size >= 2
+              : (weightedLikes >= Math.ceil(totalVotingWeight * 0.6) && distinctLikers.size >= 2);
+
+          // Only accept consensus if distinct likers and role-weighted score meet quorum
+          if (isQuorumReached && !matchedDestinationRef.current) {
             matchedDestinationRef.current = winningDest;
             setMatchedDestination(winningDest);
             setStep('matched');
@@ -1655,7 +1853,7 @@ export function useTripPick() {
     }
 
     return true;
-  }, [roomId, currentUser, broadcastEvent, fetchNextBatch]);
+  }, [roomId, currentUser, broadcastEvent, fetchNextBatch, triggerExecutiveVetoAlert]);
 
 
   // Send Broadcast Emoji Reaction
@@ -1729,6 +1927,10 @@ export function useTripPick() {
 
   // Manually or dynamically select winner / top recommendation
   const selectDestination = useCallback((destination: TravelDestination) => {
+    if (destination.vetoedByExecutive) {
+      triggerExecutiveVetoAlert("ตัวเลือกนี้ไม่ผ่านนโยบายงบประมาณ/สถานที่ของฝ่ายบริหาร");
+      return;
+    }
     setMatchedDestination(destination);
     setStep('matched');
     broadcastEvent('MATCH_FOUND', {
@@ -1736,7 +1938,7 @@ export function useTripPick() {
       hostId: currentUserRef.current?.id,
       timestamp: Date.now()
     });
-  }, [broadcastEvent]);
+  }, [broadcastEvent, triggerExecutiveVetoAlert]);
 
   // Confirm Corporate Deposit Escrow & Broadcast across all devices
   const confirmDepositEscrow = useCallback((
@@ -1780,17 +1982,30 @@ export function useTripPick() {
     }, 5000);
   }, [roomId, broadcastEvent]);
 
-  // Host Instant Consensus Trigger (for large rooms up to 20 pax)
+  // Host Instant Consensus Trigger (for large rooms up to 20 pax with Role-Weighted Voting)
   const callEarlyConsensus = useCallback(() => {
     if (!roomRef.current?.destinations_deck || matchedDestinationRef.current) return;
-    const deck = roomRef.current.destinations_deck;
-    const nonVetoed = deck.filter(dest => !swipesRef.current.some(s => s.destination_id === dest.id && s.is_veto));
+    const activeConstraints = roomRef.current.executiveConstraints || DEFAULT_EXECUTIVE_CONSTRAINTS;
+    const deck = roomRef.current.destinations_deck.filter(dest => satisfiesExecutiveConstraints(dest, activeConstraints));
+    const nonVetoed = deck
+      .filter(dest => !dest.vetoedByExecutive)
+      .filter(dest => !swipesRef.current.some(s => s.destination_id === dest.id && s.is_veto));
     if (nonVetoed.length === 0) return;
 
-    const scored = nonVetoed.map(dest => ({
-      dest,
-      likes: swipesRef.current.filter(s => s.destination_id === dest.id && s.is_like).length
-    }));
+    const allUsers = usersRef.current;
+    const scored = nonVetoed.map(dest => {
+      let likesScore = 0;
+      swipesRef.current
+        .filter(s => s.destination_id === dest.id && s.is_like)
+        .forEach(s => {
+          const voter = allUsers.find(u => u.id === s.user_id) || (currentUserRef.current?.id === s.user_id ? currentUserRef.current : null);
+          likesScore += getUserVoteWeight(voter);
+        });
+      return {
+        dest,
+        likes: likesScore
+      };
+    });
     scored.sort((a, b) => b.likes - a.likes);
     const winner = scored[0].dest;
 
@@ -1844,7 +2059,8 @@ export function useTripPick() {
         id: `sim_${Date.now()}_${i}`,
         room_id: roomId,
         user_name: preset.name,
-        role: preset.role,
+        role: normalizeParticipantRole(preset.role),
+        title: preset.role,
         preferred_amenities: ['wifi', 'boardroom'],
         joinedAt: Date.now() + i * 10,
         lastHeartbeat: Date.now(),
@@ -1867,6 +2083,54 @@ export function useTripPick() {
     setUsers(prev => prev.filter(u => !u.isSimulated || u.id === currentUserRef.current?.id));
   }, []);
 
+  // Set Executive Constraints
+  const setExecutiveConstraints = useCallback((constraints?: ExecutiveConstraints) => {
+    setRoom(prev => {
+      if (!prev) return prev;
+      const filteredDeck = prev.destinations_deck
+        ? prev.destinations_deck.filter(d => satisfiesExecutiveConstraints(d, constraints))
+        : null;
+      const updated: Room = {
+        ...prev,
+        executiveConstraints: constraints,
+        destinations_deck: filteredDeck,
+      };
+      roomRef.current = updated;
+      return updated;
+    });
+
+    broadcastEvent('SYNC_ROOM_STATE', {
+      room: {
+        ...(roomRef.current || {}),
+        executiveConstraints: constraints,
+      },
+      isHostAuthority: isHostRef.current,
+      timestamp: Date.now()
+    });
+  }, [broadcastEvent]);
+
+  // Hydrate Demo Session (15 pax, 3 nights, ฿270,000 GBV)
+  const hydrateDemoSession = useCallback(() => {
+    const demo = getDemoHydratedState();
+    setRoomId(demo.roomId);
+    setRoom(demo.room);
+    roomRef.current = demo.room;
+    setUsers(demo.users);
+    usersRef.current = demo.users;
+    setCurrentUser(demo.currentUser);
+    currentUserRef.current = demo.currentUser;
+    setIsHost(true);
+    isHostRef.current = true;
+    setSwipes(demo.swipes);
+    swipesRef.current = demo.swipes;
+    setMatchedDestination(demo.matchedDestination);
+    matchedDestinationRef.current = demo.matchedDestination;
+    setStep('matched');
+    stepRef.current = 'matched';
+    setDiscoveryMode(demo.discoveryMode || 'rapid');
+    setDeckBatchVersion(demo.deckBatchVersion || 1);
+  }, []);
+
   return {
     roomId,
     step,
@@ -1879,6 +2143,10 @@ export function useTripPick() {
     confirmDepositEscrow,
     escrowNotification,
     clearEscrowNotification: () => setEscrowNotification(null),
+    executiveVetoAlert,
+    clearExecutiveVetoAlert: () => setExecutiveVetoAlert(null),
+    setExecutiveConstraints,
+    hydrateDemoSession,
     loading,
     compilingDeck,
     destinationsDeck: room?.destinations_deck || [],

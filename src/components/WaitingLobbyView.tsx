@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion, useMotionTemplate, useMotionValue } from 'framer-motion';
-import type { RoomUser } from '../hooks/useTripPick';
+import type { RoomUser, ExecutiveConstraints } from '../types';
 import { useLanguage, RETREAT_VIBES_TH, RETREAT_VIBES_EN } from '../lib/i18n';
 
 interface WaitingLobbyViewProps {
@@ -13,7 +13,8 @@ interface WaitingLobbyViewProps {
     minBudget?: number,
     maxBudget?: number,
     categoryFilter?: string,
-    discoveryMode?: 'rapid' | 'infinite'
+    discoveryMode?: 'rapid' | 'infinite',
+    constraints?: ExecutiveConstraints
   ) => Promise<boolean>;
   onLeave: () => void;
   loading: boolean;
@@ -83,7 +84,12 @@ export function WaitingLobbyView({
 
   const handleStart = async () => {
     const activeVibe = customVibe.trim() ? customVibe : (vibesList[selectedVibeIndex] || vibesList[0]);
-    await onStartSession(activeVibe, minBudget, maxBudget, undefined, discoveryMode);
+    const executiveConstraints: ExecutiveConstraints = {
+      maxBudgetPerHead: maxBudget,
+      requiredBoardroomCapacity: Math.max(10, users.length),
+      mandatoryAmenities: ['wifi', 'boardroom'],
+    };
+    await onStartSession(activeVibe, minBudget, maxBudget, undefined, discoveryMode, executiveConstraints);
   };
 
   return (
@@ -214,8 +220,17 @@ export function WaitingLobbyView({
                               HOST
                             </span>
                           )}
+                          <span className={`text-[8px] uppercase font-mono px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
+                            u.role === 'EXECUTIVE'
+                              ? 'bg-[#f9e2af]/20 border border-[#f9e2af]/50 text-[#f9e2af]'
+                              : u.role === 'ORGANIZER'
+                                ? 'bg-[#89b4fa]/20 border border-[#89b4fa]/50 text-[#89b4fa]'
+                                : 'bg-[#45475a]/40 border border-[#45475a] text-[#a6adc8]'
+                          }`}>
+                            {u.role} ({u.role === 'EXECUTIVE' || u.role === 'ORGANIZER' ? '+2' : '+1'})
+                          </span>
                         </div>
-                        <span className="text-[#a6adc8] text-[10px] block truncate">{u.role}</span>
+                        <span className="text-[#a6adc8] text-[10px] block truncate">{u.title || u.role}</span>
                       </div>
                     </div>
                   );
@@ -395,6 +410,26 @@ export function WaitingLobbyView({
                         {t.infiniteDiscoveryDesc}
                       </p>
                     </button>
+                  </div>
+                </div>
+
+                {/* Executive Governance Constraints Card */}
+                <div className="p-3.5 rounded-2xl bg-[#181825] border border-[#f9e2af]/30 text-left flex items-start gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-[#f9e2af]/15 border border-[#f9e2af]/30 flex items-center justify-center text-[#f9e2af] text-xs font-bold shrink-0 mt-0.5">
+                    ⚖️
+                  </div>
+                  <div className="text-xs space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-[#f9e2af] text-[11px] font-mono uppercase tracking-wider">
+                        {language === 'th' ? 'เกณฑ์นโยบายฝ่ายบริหาร (Executive Governance)' : 'Executive Governance Rules'}
+                      </span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#f9e2af] animate-pulse" />
+                    </div>
+                    <p className="text-[10px] text-[#bac2de] leading-relaxed">
+                      {language === 'th'
+                        ? `กรองสถานที่อัตโนมัติ: เพดานงบไม่เกิน ฿${maxBudget.toLocaleString()}/คน | ห้องประชุม ${Math.max(10, users.length)}+ คน | สิทธิ์ Veto ผู้บริหารเด็ดขาด`
+                        : `Auto-filtered deck: Budget <= ฿${maxBudget.toLocaleString()}/pax | Boardroom ${Math.max(10, users.length)}+ Pax | Executive Hard Veto Guard`}
+                    </p>
                   </div>
                 </div>
 

@@ -9,7 +9,6 @@ import type {
 } from '../types/procurement';
 import { calculateRetreatPricing, DEMO_COMPANY_PRESETS } from '../types/procurement';
 import type { DepositReceipt } from './useTripPick';
-import { downloadCorporateRfpPdf } from '../utils/generatePdf';
 import { ensureValidThaiTaxId } from '../utils/taxCompliance';
 
 export interface UseProcurementOptions {
@@ -468,6 +467,7 @@ ${pricing.hotelServiceChargeAmount ? `| **2. Hotel Service Charge (10%)** | Subt
   const downloadPdf = useCallback(async () => {
     setIsGeneratingPdf(true);
     try {
+      const { downloadCorporateRfpPdf } = await import('@/utils/generatePdf');
       await downloadCorporateRfpPdf({
         proposalRef,
         issueDate: new Date().toLocaleDateString(language === 'en' ? 'en-US' : 'th-TH', {

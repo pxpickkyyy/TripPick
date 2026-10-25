@@ -701,9 +701,10 @@ export const ProcurementModal: React.FC<ProcurementModalProps> = ({
                 <button
                   onClick={printQuotation}
                   disabled={isGeneratingPdf}
+                  data-testid="procurement-download-pdf-btn"
                   className="py-1.5 px-4 bg-gradient-to-r from-[#cba6f7] to-[#fab387] text-[#11111b] rounded-full text-xs font-extrabold cursor-pointer transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <span>{isGeneratingPdf ? (language === 'en' ? 'Generating PDF...' : 'กำลังสร้าง PDF...') : (language === 'en' ? 'Download Official PDF' : 'ดาวน์โหลด PDF ทางการ')}</span>
+                  <span>{isGeneratingPdf ? (language === 'en' ? 'Generating PDF...' : 'กำลังสร้าง PDF...') : (language === 'en' ? 'Download Procurement (PDF)' : 'ดาวน์โหลดเอกสารจัดซื้อ (PDF)')}</span>
                 </button>
               </div>
             </div>

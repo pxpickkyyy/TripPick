@@ -40,6 +40,8 @@ export interface TravelDestination {
   isCompromiseMatch?: boolean;
   compromiseLabel?: string;
   vibe_category?: string;
+  // Executive Governance & Veto Guard
+  vetoedByExecutive?: boolean;
 }
 
 export const ALL_AMENITIES: BusinessAmenity[] = [
@@ -70,7 +72,7 @@ export const CURATED_DESTINATIONS: TravelDestination[] = [
       'https://lh3.googleusercontent.com/grass-cs/AABkmLeLL1ApK2Wc3yJcUvJP_8rcrnsjytsxHLkYIu4H3RqDsO4TKIiTTjdtHkcTtg2lm7j9g6e4b4c5uLdPwBNGImqyxYP1uSf-LIclvQhSllqLRhMMfGFDwcvjN-ZycHc46JXMFUjO=w1200-h800-k-no'
     ],
     price_per_night: 42000,
-    price_per_person: 6500,
+    price_per_person: 6000,
     min_capacity: 6,
     max_capacity: 28,
     wifi_speed_mbps: 450,

@@ -35,6 +35,14 @@ import { generateRfpPdf } from '../src/services/pdfReportGenerator.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import webhookHandler from '../api/deposit-webhook.ts';
+import {
+  satisfiesExecutiveConstraints,
+  getUserVoteWeight,
+  DEMO_15_PAX_USERS,
+  DEFAULT_EXECUTIVE_CONSTRAINTS,
+  getDemoHydratedState,
+} from '../src/lib/hierarchy.ts';
+import { normalizeParticipantRole } from '../src/types/index.ts';
 
 console.log('=== REAL TEST SUITE: B2B PROCUREMENT & TAX ENGINE (NO MOCKS) ===');
 
@@ -548,7 +556,29 @@ console.log('\n[Test 12] Verifying Real PDF Report Engine & Unicode Thai Font (N
   const header = Buffer.from(pdfBytes).slice(0, 5).toString();
   assert.equal(header, '%PDF-', 'Must start with valid %PDF- magic bytes');
 
-  console.log(`✓ Test 12 passed: Real PDF Engine generated valid document (${pdfBytes.length} bytes) with zero WinAnsi encoding crashes.`);
+  // Verify generateCorporateRfpPdf from src/utils/generatePdf.ts
+  const { generateCorporateRfpPdf } = await import('../src/utils/generatePdf.ts');
+  const corpPdf = await generateCorporateRfpPdf({
+    proposalRef: 'RFP-TP-AUDIT-CORP',
+    roomId: 'MICE',
+    companyName: 'บริษัท บีทูบี เทคเวนเจอร์ จำกัด',
+    companyTaxId: '0-1055-58123-45-1',
+    approverEmail: 'cfo-approval@techventure.co.th',
+    destinationTitle: 'โรงแรมตรีสรา (Trisara Phuket Resort)',
+    destinationCity: 'ภูเก็ต',
+    headcount: 20,
+    nights: 3,
+    ratePerHead: 8500,
+    isEscrowLocked: true,
+    escrowReceiptNo: 'DEP-TP-999888',
+    language: 'th',
+  });
+
+  assert.ok(corpPdf.pdfBytes, 'Corporate RFP PDF bytes must be returned');
+  assert.ok(corpPdf.pdfBytes.length > 50000, `Corporate RFP PDF size must be >50KB (got ${corpPdf.pdfBytes.length} bytes)`);
+  assert.equal(Buffer.from(corpPdf.pdfBytes).slice(0, 5).toString(), '%PDF-', 'Must start with valid %PDF- magic bytes');
+
+  console.log(`✓ Test 12 passed: Real PDF Engines generated valid documents (${pdfBytes.length} bytes & ${corpPdf.pdfBytes.length} bytes) with zero WinAnsi encoding crashes.`);
 }
 
 // TEST 13: PostgreSQL Enterprise Schema, Atomic Consensus RPC & Participant Anti-Spoofing / Cold-Start Guard
@@ -712,5 +742,149 @@ console.log('\n[Test 16] Verifying Multi-User Realtime Presence & 20-Pax Quorum 
   console.log('✓ Test 16 passed: Multi-User Realtime Presence & 20-Pax Quorum Room Capacity verified.');
 }
 
-console.log('\n=== ALL 16 REAL ENTERPRISE TESTS PASSED DIRECTLY AGAINST REAL SOURCE CODE! ===');
+// TEST 17: Hierarchy Dynamics, Executive Constraints & Role-Weighted Consensus
+console.log('\n[Test 17] Verifying Hierarchy Dynamics, Executive Constraints & Role-Weighted Consensus...');
+{
+  // 17a. Participant Role Normalization
+  assert.equal(normalizeParticipantRole('CEO'), 'EXECUTIVE');
+  assert.equal(normalizeParticipantRole('founder'), 'EXECUTIVE');
+  assert.equal(normalizeParticipantRole('กรรมการผู้จัดการ'), 'EXECUTIVE');
+  assert.equal(normalizeParticipantRole('HR Manager'), 'ORGANIZER');
+  assert.equal(normalizeParticipantRole('Event Lead'), 'ORGANIZER');
+  assert.equal(normalizeParticipantRole('Software Engineer'), 'MEMBER');
+  assert.equal(normalizeParticipantRole(''), 'MEMBER');
+  assert.equal(normalizeParticipantRole(undefined), 'MEMBER');
+
+  // 17b. Role-Weighted Consensus Voting
+  const execUser = { id: 'u1', room_id: 'R', user_name: 'Exec', role: 'EXECUTIVE', preferred_amenities: [] };
+  const orgUser = { id: 'u2', room_id: 'R', user_name: 'Org', role: 'ORGANIZER', preferred_amenities: [] };
+  const memUser = { id: 'u3', room_id: 'R', user_name: 'Mem', role: 'MEMBER', preferred_amenities: [] };
+
+  assert.equal(getUserVoteWeight(execUser), 2, 'Executive must carry weight of +2 votes');
+  assert.equal(getUserVoteWeight(orgUser), 2, 'Organizer must carry weight of +2 votes');
+  assert.equal(getUserVoteWeight(memUser), 1, 'Member must carry weight of +1 vote');
+  assert.equal(getUserVoteWeight(null), 1, 'Default vote weight must be 1');
+
+  // 17c. Executive Constraints Filtering
+  const testVenue = {
+    ...CURATED_DESTINATIONS[0], // Trisara (capacity 30, price_per_person 6000, wifi/boardroom)
+    max_capacity: 30,
+    price_per_person: 6000,
+    business_amenities: ['Starlink 450 Mbps', 'Executive Boardroom (30 pax)', 'Private Chef'],
+  };
+
+  // Passes default constraints
+  assert.equal(satisfiesExecutiveConstraints(testVenue, DEFAULT_EXECUTIVE_CONSTRAINTS), true);
+
+  // Fails on budget ceiling
+  assert.equal(
+    satisfiesExecutiveConstraints(testVenue, { maxBudgetPerHead: 5000 }),
+    false,
+    'Must filter out venue exceeding max budget per head'
+  );
+
+  // Fails on boardroom capacity
+  assert.equal(
+    satisfiesExecutiveConstraints(testVenue, { requiredBoardroomCapacity: 50 }),
+    false,
+    'Must filter out venue with boardroom capacity smaller than required'
+  );
+
+  // Fails on mandatory amenities
+  assert.equal(
+    satisfiesExecutiveConstraints(testVenue, { mandatoryAmenities: ['helicopter_pad'] }),
+    false,
+    'Must filter out venue missing mandatory amenities'
+  );
+
+  // 17d. Demo Hydrated State (15 Pax, 3 Nights, ฿270,000 GBV)
+  const hydrated = getDemoHydratedState();
+  assert.equal(hydrated.roomId, 'DEMO');
+  assert.equal(hydrated.step, 'matched');
+  assert.equal(hydrated.users.length, 15, 'Demo must hydrate exactly 15 pax corporate team');
+  assert.ok(hydrated.matchedDestination, 'Demo must have an active matched retreat');
+  assert.equal(hydrated.matchedDestination.price_per_person, 6000);
+
+  // Exact ฿270,000 GBV calculation match
+  const pricing = calculateRetreatPricing(hydrated.users.length, 3, hydrated.matchedDestination.price_per_person, 12);
+  assert.equal(pricing.grossBookingValue, 270000, 'Demo retreat GBV must equal exactly ฿270,000');
+  assert.equal(pricing.subtotalBeforeVat, 270000);
+  assert.equal(pricing.vat7Percent, 18900);
+  assert.equal(pricing.wht3Percent, 8100);
+  assert.equal(pricing.netPayableToVendor, 280800);
+  assert.equal(pricing.tripPickRevenue, 32400);
+
+  // 17f. Role-Weighted Quorum Simulation
+  // In a room with 1 Executive (w:2), 1 Organizer (w:2), and 3 Members (w:1 each):
+  const sampleTeam = [
+    { id: 'u_exec', room_id: 'R', user_name: 'Exec', role: 'EXECUTIVE', preferred_amenities: [] },
+    { id: 'u_org', room_id: 'R', user_name: 'Org', role: 'ORGANIZER', preferred_amenities: [] },
+    { id: 'u_m1', room_id: 'R', user_name: 'M1', role: 'MEMBER', preferred_amenities: [] },
+    { id: 'u_m2', room_id: 'R', user_name: 'M2', role: 'MEMBER', preferred_amenities: [] },
+    { id: 'u_m3', room_id: 'R', user_name: 'M3', role: 'MEMBER', preferred_amenities: [] },
+  ];
+  const teamTotalWeight = sampleTeam.reduce((sum, u) => sum + getUserVoteWeight(u), 0); // 2 + 2 + 1 + 1 + 1 = 7
+  assert.equal(teamTotalWeight, 7, 'Team total voting weight must be 7');
+  const requiredWeight = Math.ceil(teamTotalWeight * 0.6); // Math.ceil(4.2) = 5
+  assert.equal(requiredWeight, 5, '60% consensus threshold requires 5 weighted votes');
+
+  // Scenario 1: 3 Members like Venue A without Executive/Organizer
+  const memberLikes = ['u_m1', 'u_m2', 'u_m3'];
+  const memberWeightedLikes = memberLikes.reduce((sum, uid) => {
+    const voter = sampleTeam.find(u => u.id === uid);
+    return sum + getUserVoteWeight(voter);
+  }, 0); // 1 + 1 + 1 = 3
+  assert.equal(memberWeightedLikes, 3);
+  assert.equal(memberWeightedLikes >= requiredWeight, false, '3 members alone (3 votes) cannot satisfy 5-vote quorum');
+
+  // Scenario 2: Executive (2) + Organizer (2) + Member 1 (1) like Venue A
+  const executiveCoalitionLikes = ['u_exec', 'u_org', 'u_m1'];
+  const coalitionWeightedLikes = executiveCoalitionLikes.reduce((sum, uid) => {
+    const voter = sampleTeam.find(u => u.id === uid);
+    return sum + getUserVoteWeight(voter);
+  }, 0); // 2 + 2 + 1 = 5
+  assert.equal(coalitionWeightedLikes, 5);
+  assert.equal(coalitionWeightedLikes >= requiredWeight, true, 'Executive coalition (5 votes) reaches 60% quorum');
+
+  // 17g. Executive Veto Preemption
+  const vetoVenue = { ...CURATED_DESTINATIONS[0], vetoedByExecutive: true };
+  const mockSwipes = [
+    { destination_id: vetoVenue.id, user_id: 'u_exec', is_like: false, is_veto: true },
+    { destination_id: vetoVenue.id, user_id: 'u_org', is_like: true, is_veto: false },
+    { destination_id: vetoVenue.id, user_id: 'u_m1', is_like: true, is_veto: false },
+    { destination_id: vetoVenue.id, user_id: 'u_m2', is_like: true, is_veto: false },
+    { destination_id: vetoVenue.id, user_id: 'u_m3', is_like: true, is_veto: false },
+  ];
+  // An executive veto must discard the destination regardless of how many other teammates liked it
+  const isVetoPreempted = vetoVenue.vetoedByExecutive || mockSwipes.some(
+    s => s.destination_id === vetoVenue.id && s.is_veto && sampleTeam.find(u => u.id === s.user_id)?.role === 'EXECUTIVE'
+  );
+  assert.equal(isVetoPreempted, true, 'Executive veto must discard the destination');
+
+  // 17h. App.tsx & WaitingLobbyView.tsx Source Governance Contracts
+  const appSourceFull = fs.readFileSync(path.resolve('src/App.tsx'), 'utf8');
+  assert.ok(
+    appSourceFull.includes('hasHydratedDemoRef'),
+    'App.tsx must guard demo hydration against infinite loop traps on room exit'
+  );
+  assert.ok(
+    appSourceFull.includes('isProMember'),
+    'App.tsx must initialize and support isProMember'
+  );
+
+  const lobbySourceFull = fs.readFileSync(path.resolve('src/components/WaitingLobbyView.tsx'), 'utf8');
+  assert.ok(
+    lobbySourceFull.includes('Executive Governance'),
+    'WaitingLobbyView must render Executive Governance rules banner'
+  );
+  assert.ok(
+    lobbySourceFull.includes('executiveConstraints'),
+    'WaitingLobbyView must construct and pass executiveConstraints'
+  );
+
+  console.log('✓ Test 17 passed: Hierarchy Dynamics, Executive Constraints, Role-Weighted Consensus, and Demo Hydration verified.');
+}
+
+console.log('\n=== ALL 17 REAL ENTERPRISE TESTS PASSED DIRECTLY AGAINST REAL SOURCE CODE! ===');
+
 

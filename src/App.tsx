@@ -1,20 +1,21 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { AnimatePresence, motion, useMotionValue, useSpring } from 'framer-motion';
 import { useTripPick } from './hooks/useTripPick';
 import { LandingView } from './components/LandingView';
 import { ProfileSelectorView } from './components/ProfileSelectorView';
 import { WaitingLobbyView } from './components/WaitingLobbyView';
 import { SwiperView } from './components/SwiperView';
-import { MatchOverlayView } from './components/MatchOverlayView';
 import { ConciergeDrawer } from './components/ConciergeDrawer';
 import { BusinessModelModal } from './components/BusinessModelModal';
 import { RevenueMetricsHUD } from './components/RevenueMetricsHUD';
-import { ProcurementModal } from './components/ProcurementModal';
 import {
   ParticleGravityField,
   type ParticleFieldTelemetry,
 } from './components/ParticleGravityField';
 import { useLanguage } from './lib/i18n';
+
+const MatchOverlayView = lazy(() => import('./components/MatchOverlayView').then((m) => ({ default: m.MatchOverlayView })));
+const ProcurementModal = lazy(() => import('./components/ProcurementModal').then((m) => ({ default: m.ProcurementModal })));
 
 const NAV_SPRING = {
   mass: 0.8,
@@ -50,6 +51,9 @@ function App() {
     confirmDepositEscrow,
     escrowNotification,
     clearEscrowNotification,
+    executiveVetoAlert,
+    clearExecutiveVetoAlert,
+    hydrateDemoSession,
     swipes,
     error,
     receivedEmojis,
@@ -112,9 +116,49 @@ function App() {
     navMagY.set(0);
   };
 
-  // Auto-join from URL Query Parameters
+  const hasHydratedDemoRef = useRef(false);
+  const [isProMember] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get('pro') === 'true') {
+        try {
+          localStorage.setItem('trippick_demo_tier', 'pro');
+        } catch {
+          // ignore
+        }
+        return true;
+      }
+      try {
+        return localStorage.getItem('trippick_demo_tier') === 'pro';
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  });
+
+  // URL Demo Hydration & Parameter Initializer
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
+
+    // Persist Pro Member status if ?pro=true
+    if (params.get('pro') === 'true') {
+      try {
+        localStorage.setItem('trippick_demo_tier', 'pro');
+      } catch {
+        // ignore
+      }
+    }
+
+    // URL Demo Hydration: ?demo=true or ?rfp=true
+    // Hydrates the active room with 15 pax, 3 nights, ฿270,000 GBV corporate retreat and jumps straight into MatchOverlayView
+    if ((params.get('demo') === 'true' || params.get('rfp') === 'true') && !hasHydratedDemoRef.current) {
+      hasHydratedDemoRef.current = true;
+      hydrateDemoSession();
+      return;
+    }
+
     const roomParam = params.get('room');
     if (roomParam && roomParam.length === 4) {
       const targetRoom = roomParam.toUpperCase();
@@ -124,7 +168,7 @@ function App() {
         window.history.replaceState({}, document.title, newUrl);
       }
     }
-  }, [joinRoom, roomId]);
+  }, [joinRoom, roomId, hydrateDemoSession]);
 
   const renderView = () => {
     switch (step) {
@@ -196,19 +240,22 @@ function App() {
         );
       case 'matched':
         return (
-          <MatchOverlayView
-            key="matched"
-            matchedDestination={matchedDestination}
-            users={users}
-            onReset={leaveRoom}
-            swipes={swipes}
-            destinationsDeck={destinationsDeck}
-            roomId={roomId || ''}
-            depositStatus={depositStatus}
-            depositReceipt={depositReceipt}
-            onConfirmDeposit={confirmDepositEscrow}
-            onOpenProcurement={() => setIsProcurementOpen(true)}
-          />
+          <Suspense fallback={null}>
+            <MatchOverlayView
+              key={`matched_${roomId || 'demo'}`}
+              matchedDestination={matchedDestination}
+              users={users}
+              onReset={leaveRoom}
+              swipes={swipes}
+              destinationsDeck={destinationsDeck}
+              roomId={roomId || ''}
+              depositStatus={depositStatus}
+              depositReceipt={depositReceipt}
+              onConfirmDeposit={confirmDepositEscrow}
+              onOpenProcurement={() => setIsProcurementOpen(true)}
+              isProMember={isProMember}
+            />
+          </Suspense>
         );
       default:
         return null;
@@ -359,16 +406,18 @@ function App() {
       />
 
       {/* Enterprise Procurement & Escrow Modal */}
-      <ProcurementModal
-        isOpen={isProcurementOpen}
-        onClose={() => setIsProcurementOpen(false)}
-        matchedDestination={matchedDestination}
-        users={users}
-        roomId={roomId || 'TRIP'}
-        depositStatus={depositStatus}
-        depositReceipt={depositReceipt}
-        onConfirmDeposit={confirmDepositEscrow}
-      />
+      <Suspense fallback={null}>
+        <ProcurementModal
+          isOpen={isProcurementOpen}
+          onClose={() => setIsProcurementOpen(false)}
+          matchedDestination={matchedDestination}
+          users={users}
+          roomId={roomId || 'TRIP'}
+          depositStatus={depositStatus}
+          depositReceipt={depositReceipt}
+          onConfirmDeposit={confirmDepositEscrow}
+        />
+      </Suspense>
 
       {/* Real-Time Peer Sync Notification Toast */}
       <AnimatePresence>
@@ -385,6 +434,32 @@ function App() {
               ✕
             </button>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Discreet Alert Banner for Executive Veto Guard */}
+      <AnimatePresence>
+        {executiveVetoAlert && (
+          <motion.div
+            initial={{ opacity: 0, y: -16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -12, scale: 0.98 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            data-testid="executive-veto-banner"
+            className="fixed top-20 sm:top-24 inset-x-4 max-w-lg mx-auto z-[85] p-3.5 rounded-2xl bg-[#181825]/95 backdrop-blur-2xl border border-[#f38ba8]/60 shadow-[0_20px_50px_rgba(243,139,168,0.25)] text-left flex items-center justify-between gap-3 no-print"
+          >
+            <div className="flex items-center gap-2.5 text-xs font-semibold text-[#f38ba8]">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#f38ba8] shrink-0 animate-pulse" />
+              <span>{typeof executiveVetoAlert === 'string' ? executiveVetoAlert : 'ตัวเลือกนี้ไม่ผ่านนโยบายงบประมาณ/สถานที่ของฝ่ายบริหาร'}</span>
+            </div>
+            <button
+              onClick={clearExecutiveVetoAlert}
+              className="text-[#a6adc8] hover:text-[#f38ba8] text-xs font-bold px-2 py-0.5 rounded cursor-pointer shrink-0"
+              title="ปิดการแจ้งเตือน"
+            >
+              ✕
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

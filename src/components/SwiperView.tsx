@@ -106,7 +106,7 @@ export function SwiperView({
 
     for (const dest of destinationsDeck) {
       const likes = swipes.filter(s => s.destination_id === dest.id && s.is_like).length;
-      const isVetoed = swipes.some(s => s.destination_id === dest.id && s.is_veto);
+      const isVetoed = dest.vetoedByExecutive || swipes.some(s => s.destination_id === dest.id && s.is_veto);
       const remaining = requiredLikes - likes;
 
       if (!isVetoed && remaining > 0 && remaining <= 2 && likes > 0) {

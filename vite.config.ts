@@ -1,10 +1,15 @@
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { generatePromptPayPayload } from './src/lib/promptpay.ts';
 import discoverDestinationsHandler from './api/discover-destinations.ts';
 import placePhotoHandler from './api/place-photo.ts';
 import depositWebhookHandler from './api/deposit-webhook.ts';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 import type { Connect } from 'vite';
 
@@ -149,6 +154,11 @@ function b2bDepositApiPlugin(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),
@@ -157,5 +167,53 @@ export default defineConfig({
   define: {
     'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL || 'https://nuipjeulbavcqjuutmqc.supabase.co'),
     'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_UIe349GDMsv49mCKXkg-Dw_OKWig8OP'),
+  },
+  build: {
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const cleanId = id.replace(/\\/g, '/');
+          if (cleanId.includes('node_modules')) {
+            if (
+              cleanId.includes('pdf-lib') ||
+              cleanId.includes('@pdf-lib') ||
+              cleanId.includes('fontkit') ||
+              cleanId.includes('pako') ||
+              cleanId.includes('restructure') ||
+              cleanId.includes('unicode-trie') ||
+              cleanId.includes('unicode-properties') ||
+              cleanId.includes('brotli')
+            ) {
+              return 'vendor-pdf';
+            }
+            if (
+              cleanId.includes('framer-motion') ||
+              cleanId.includes('motion-dom') ||
+              cleanId.includes('motion-utils')
+            ) {
+              return 'vendor-framer';
+            }
+            if (cleanId.includes('@supabase/')) {
+              return 'vendor-supabase';
+            }
+            if (
+              cleanId.includes('/react/') ||
+              cleanId.includes('/react-dom/') ||
+              cleanId.includes('/scheduler/')
+            ) {
+              return 'vendor-react';
+            }
+            if (
+              cleanId.includes('/qrcode/') ||
+              cleanId.includes('/dijkstrajs/') ||
+              cleanId.includes('/iceberg-js/')
+            ) {
+              return 'vendor-qr';
+            }
+          }
+        },
+      },
+    },
   },
 });

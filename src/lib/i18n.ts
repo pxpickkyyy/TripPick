@@ -294,7 +294,7 @@ export const TRANSLATIONS: Record<AppLanguage, Translations> = {
     exportCsvBtn: 'ดาวน์โหลด CSV จัดซื้อ',
     exportSheetsBtn: 'ส่งเข้า Google Sheets',
     exportDocsBtn: 'ส่งเข้า Google Docs',
-    printRfpBtn: 'พิมพ์เอกสาร RFP / PDF',
+    printRfpBtn: 'ดาวน์โหลดเอกสารจัดซื้อ (PDF)',
     secureEscrowBtn: 'ดูเอกสารจัดซื้อ B2B & มัดจำ Escrow',
     resetSessionBtn: 'จัดทริปใหม่ / ออกจากห้อง',
 
@@ -468,7 +468,7 @@ export const TRANSLATIONS: Record<AppLanguage, Translations> = {
     exportCsvBtn: 'Export Procurement CSV',
     exportSheetsBtn: 'Export to Google Sheets',
     exportDocsBtn: 'Export to Google Docs',
-    printRfpBtn: 'Print Official RFP / PDF',
+    printRfpBtn: 'Download Procurement (PDF)',
     secureEscrowBtn: 'View B2B Procurement & Escrow',
     resetSessionBtn: 'Plan New Offsite / Leave',
 

@@ -478,6 +478,59 @@ test.describe('TripPick UI Overlap, i18n & Voice Engine Smoke Suite', () => {
       expect(thOverflow.docOverflows).toBe(false);
     }
   });
+
+  test('11. Dynamic PDF Engine & Font Loading: vendor-pdf and Sarabun-Regular.ttf are fetched only on download click', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+
+    const requestedUrls: string[] = [];
+    page.on('request', (req) => {
+      requestedUrls.push(req.url());
+    });
+
+    // Navigate to pre-hydrated demo room displaying MatchOverlayView
+    await page.goto('/?demo=true&pro=true');
+    await page.waitForTimeout(500);
+
+    // Verify MatchOverlayView loaded and download button is visible
+    const downloadPdfBtn = page.locator('[data-testid="match-download-pdf-btn"]').first();
+    await expect(downloadPdfBtn).toBeVisible({ timeout: 5000 });
+
+    // Assert that BEFORE clicking download, NO request for vendor-pdf or Sarabun-Regular.ttf was fired
+    const initialPdfVendorRequests = requestedUrls.filter((url) => url.includes('vendor-pdf'));
+    const initialFontRequests = requestedUrls.filter((url) => url.includes('Sarabun-Regular.ttf'));
+    expect(initialPdfVendorRequests.length).toBe(0);
+    expect(initialFontRequests.length).toBe(0);
+    console.log('✓ Verified: vendor-pdf and Sarabun-Regular.ttf are NOT bundled or loaded on initial MatchOverlayView render');
+
+    // Trigger PDF download and await download event
+    const downloadPromise = page.waitForEvent('download', { timeout: 10000 });
+    await downloadPdfBtn.click();
+    const download = await downloadPromise;
+
+    // Verify suggested filename
+    const filename = download.suggestedFilename();
+    expect(filename).toMatch(/^TripPick_RFP_.*\.pdf$/);
+
+    // Verify that AFTER clicking download, Sarabun-Regular.ttf and vendor-pdf were fetched
+    const postPdfVendorRequests = requestedUrls.filter((url) => url.includes('vendor-pdf'));
+    const postFontRequests = requestedUrls.filter((url) => url.includes('Sarabun-Regular.ttf'));
+    expect(postPdfVendorRequests.length).toBeGreaterThan(0);
+    expect(postFontRequests.length).toBeGreaterThan(0);
+
+    // Read the downloaded file stream to verify %PDF- magic bytes
+    const stream = await download.createReadStream();
+    if (stream) {
+      const chunks: Buffer[] = [];
+      for await (const chunk of stream) {
+        chunks.push(Buffer.from(chunk));
+      }
+      const fileBuffer = Buffer.concat(chunks);
+      expect(fileBuffer.length).toBeGreaterThan(50000);
+      expect(fileBuffer.subarray(0, 5).toString()).toBe('%PDF-');
+      console.log(`✓ Verified: Downloaded authentic PDF document (${fileBuffer.length} bytes) starting with %PDF- header`);
+    }
+  });
 });
+
 
 

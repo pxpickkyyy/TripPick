@@ -3,7 +3,10 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 const DEFAULT_SUPABASE_URL = 'https://nuipjeulbavcqjuutmqc.supabase.co';
 const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_UIe349GDMsv49mCKXkg-Dw_OKWig8OP';
 
-const metaEnv = typeof import.meta !== 'undefined' ? (import.meta as any).env : null;
+const metaEnv =
+  typeof import.meta !== 'undefined'
+    ? (import.meta as unknown as { env?: Record<string, string | undefined> }).env
+    : null;
 
 const supabaseUrl =
   metaEnv?.VITE_SUPABASE_URL ||

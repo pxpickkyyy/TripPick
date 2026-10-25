@@ -43,18 +43,14 @@ export interface GeneratedPdfResult {
 async function loadFontBuffer(fontRelativePath: string): Promise<ArrayBuffer | Uint8Array> {
   const cleanPath = fontRelativePath.startsWith('/') ? fontRelativePath : `/${fontRelativePath}`;
 
-  const hasBrowserFetch = typeof globalThis !== 'undefined' && 'window' in globalThis && typeof (globalThis as unknown as { fetch?: unknown }).fetch === 'function';
-  if (hasBrowserFetch) {
-    const baseUrl = (typeof import.meta !== 'undefined' && (import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL) || '/';
-    const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const fetchPath = `${normalizedBase}${cleanPath}`;
-
-    let res = await (globalThis as unknown as { fetch: (input: string) => Promise<{ ok: boolean; statusText: string; arrayBuffer: () => Promise<ArrayBuffer> }> }).fetch(fetchPath);
-    if (!res.ok && fetchPath !== cleanPath) {
-      res = await (globalThis as unknown as { fetch: (input: string) => Promise<{ ok: boolean; statusText: string; arrayBuffer: () => Promise<ArrayBuffer> }> }).fetch(cleanPath);
-    }
+  if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
+    let res = await window.fetch(cleanPath);
     if (!res.ok) {
-      res = await (globalThis as unknown as { fetch: (input: string) => Promise<{ ok: boolean; statusText: string; arrayBuffer: () => Promise<ArrayBuffer> }> }).fetch(fontRelativePath);
+      const baseUrl = (typeof import.meta !== 'undefined' && (import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL) || '/';
+      const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+      if (normalizedBase) {
+        res = await window.fetch(`${normalizedBase}${cleanPath}`);
+      }
     }
     if (!res.ok) {
       throw new Error(`Failed to fetch font from ${cleanPath}: ${res.statusText}`);
@@ -89,8 +85,8 @@ export async function generateCorporateRfpPdf(data: CorporateRfpPdfInput): Promi
   doc.registerFontkit(fontkit);
 
   const [regularBytes, boldBytes] = await Promise.all([
-    loadFontBuffer('fonts/Sarabun-Regular.ttf'),
-    loadFontBuffer('fonts/Sarabun-Bold.ttf').catch(() => loadFontBuffer('fonts/Sarabun-Regular.ttf')),
+    loadFontBuffer('/fonts/Sarabun-Regular.ttf'),
+    loadFontBuffer('/fonts/Sarabun-Bold.ttf').catch(() => loadFontBuffer('/fonts/Sarabun-Regular.ttf')),
   ]);
 
   const fontRegular = await doc.embedFont(regularBytes);
